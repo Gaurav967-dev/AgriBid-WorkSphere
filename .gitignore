@@ -53,3 +53,6 @@ backend/storage/temp/
 
 # Migration recovery folder: never include in the monorepo
 /frontend-partial-original-20261112/
+
+# Allow safe environment example templates
+!**/.env.example
