@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
 
+    invitation_expire_days: int = 7
+    frontend_base_url: str = "http://localhost:3000"
+
     cookie_secure: bool = False
 
     upload_dir: str = "storage/uploads"

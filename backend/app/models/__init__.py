@@ -8,6 +8,7 @@ from app.models.core import (
     User,
     UserInvitation,
     role_permissions,
+    user_invitation_teams,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "User",
     "UserInvitation",
     "role_permissions",
+    "user_invitation_teams",
 ]
