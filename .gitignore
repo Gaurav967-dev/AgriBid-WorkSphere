@@ -56,3 +56,12 @@ backend/storage/temp/
 
 # Allow safe environment example templates
 !**/.env.example
+
+# Local authentication backups and temporary patch scripts
+.auth-cookie-final-backup-*/
+.auth-token-scope-backup-*/
+.single-flight-auth-backup-*/
+apply-single-flight-auth-refresh.py
+apply_auth_token_scope_improvements.py
+finish-auth-cookie-scope.py
+setup-frontend-auth.ps1
