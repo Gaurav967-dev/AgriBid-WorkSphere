@@ -1201,3 +1201,11 @@ Tester may return failed testing to `IN_PROGRESS` or `REOPENED` with a comment. 
 Admin and PM can manage `BLOCKED`, `REOPENED` and `CANCELLED` and retain their any-status authority.
 
 `BUG_FIXED` proceeds to `COMPLETED`. `TESTING_DONE` remains distinct from `COMPLETED`.
+
+## Authoritative implementation alignment — 17 November 2026
+
+The implemented authentication contract is recorded in `../architecture/technology-decisions.md` and `../api/api-specification.md`; use those sections instead of the earlier provisional bearer-only/SameSite=Strict design text. The current local implementation uses the ID, access and refresh HttpOnly cookie paths and lifetimes documented there.
+
+The invitation design must preserve pending employee full name, optional employee ID, one role and selected teams. The current invitation model does not yet contain all pending fields. Add the normalized invitation-team association and migration before building invitation APIs. Acceptance must create the employee and memberships in a single transaction.
+
+The latest senior-confirmed ticket transitions are defined only in `../workflows/ticket-workflow.md`. The earlier direct Developer `TODO` → `IN_REVIEW` statement is superseded. The Notifications and Automate Pro modules are excluded; retain traceability references but mark Notifications requirements excluded from current delivery.

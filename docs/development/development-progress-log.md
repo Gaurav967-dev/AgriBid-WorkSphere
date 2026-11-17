@@ -48,3 +48,15 @@ This is a retrospective summary prepared from the project documentation, impleme
 ## Git and collaboration record
 
 This log records development progress retrospectively. It does not imply that commits, pushes, pull requests, or daily ticket updates occurred on each date listed. Those activities should be reported from their actual Git and project-tracking records.
+
+
+## 17 November — Documentation alignment and repository cleanup
+
+- Created the remote feature branch `feature/docs-alignment-and-repo-cleanup` from `develop`.
+- Removed the redundant root `.gitignore` and root `.env.example`; retained the frontend and backend environment examples and frontend ignore file, and added a backend-specific ignore file.
+- Aligned authentication documentation with the implemented ID/access/refresh cookie paths, lifetimes, refresh rotation and logout behavior.
+- Recorded the invitation pending-profile/team data-model gap as a migration prerequisite rather than claiming invitation APIs are implemented.
+- Marked the Notifications use case excluded, corrected stale ticket-transition descriptions, added User/Team traceability mappings and populated the test plan.
+- Added an accelerated recovery schedule targeting completion through Project Management (Module 4) before moving to Ticket Management.
+
+This work is committed on the feature branch and is not yet integrated into `develop`. Local test results from 16 November remain the latest recorded code-verification evidence; this documentation-only branch has not yet changed application code.

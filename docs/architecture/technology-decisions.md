@@ -112,9 +112,7 @@ Initial assignment policy:
 - Secret key is loaded from environment configuration.
 - Never commit the signing secret.
 
-The frontend holds the access token in memory and sends it through the `Authorization: Bearer` header.
-
-Do not store access tokens in localStorage or sessionStorage.
+Store the access token in the HttpOnly access cookie for the current application. The browser automatically sends that cookie on ordinary protected requests. The only authentication credential used for normal dashboard/user/profile API authorization is access_token. Do not store tokens in localStorage or sessionStorage. The backend also supports a Bearer access-token header for compatible clients, but the current frontend does not add one.
 
 ### 4.3 Refresh Token
 
@@ -125,8 +123,11 @@ Use a cryptographically random opaque refresh token.
 - Store session ownership, expiry and revocation data.
 - Rotate the refresh token on successful refresh.
 - Revoke the active refresh session on logout.
-- Set the browser cookie to HttpOnly and SameSite=Strict.
-- Use Secure cookies in deployed HTTPS environments. For local HTTP development, configure Secure appropriately for localhost.
+- Store the opaque refresh token in an HttpOnly cookie with SameSite=Lax at path `/api/v1/auth/refresh-token`.
+- The 7-day refresh cookie is sent to the refresh endpoint and its path-scoped logout endpoint, not to ordinary protected API routes.
+- The access token is a separate 15-minute HttpOnly cookie at path `/` with SameSite=Lax.
+- The one-time 5-minute ID token is a separate HttpOnly cookie at path `/api/v1/auth/id-token/verify` with SameSite=Lax.
+- The Secure flag is controlled by COOKIE_SECURE: false for local HTTP and true for HTTPS.
 
 Use an `auth_sessions` table or equivalent to track refresh-session lifecycle.
 
@@ -136,7 +137,7 @@ Use an `auth_sessions` table or equivalent to track refresh-session lifecycle.
 - Enable credentials only where required.
 - Validate the Origin header on refresh/logout operations.
 - Do not allow wildcard origins with credentialed requests.
-- Keep normal protected API access based on the Authorization bearer header.
+- For ordinary protected APIs, use only access_token for authorization. The current browser integration sends it through the access cookie; it does not send the refresh token or ID token as normal API authorization. The refresh route authenticates by the refresh cookie.
 
 These decisions are for the assignment implementation and must be re-reviewed before any real company deployment.
 
@@ -248,3 +249,33 @@ Selected dependencies are not described as already used until they are integrate
 If a dependency creates installation or compatibility problems, prefer the simplest compatible open-source alternative and document the change.
 
 Do not spend deadline time replacing a working stack without a concrete technical reason.
+
+## 13. Implemented authentication contract — 17 November 2026
+
+This section supersedes the earlier proposed bearer-only access-token transport and the earlier SameSite=Strict cookie statement.
+
+The implemented local authentication contract is:
+
+| Credential | Lifetime | Browser cookie path | Purpose |
+|---|---:|---|---|
+| ID token | 5 minutes | `/api/v1/auth/id-token/verify` | One-time identity assertion immediately after sign-in |
+| Access token | 15 minutes | `/` | Authenticated API requests |
+| Refresh token | 7 days | `/api/v1/auth/refresh-token` | Refresh-session rotation |
+
+All three cookies are HttpOnly and SameSite=Lax. The Secure flag is controlled by `COOKIE_SECURE`; it is false for local HTTP development and must be enabled behind HTTPS.
+
+The frontend uses credentialed requests and does not read tokens from JavaScript storage. The backend accepts the access token from the HttpOnly access cookie; the shared authentication dependency also supports a Bearer Authorization header for clients that use it. Normal protected requests must not send the ID token or refresh token as authorization credentials.
+
+Sign-in issues the three cookies. The ID-token verification endpoint validates the ID token, checks the active user and session, and expires the ID-token cookie. Access-token verification validates the access session. Refresh uses the refresh cookie, rotates the opaque refresh token, stores only its hash, and issues new access and refresh cookies; it does not issue a new ID token. Logout revokes the session and clears current and legacy cookie paths.
+
+The exact browser paths matter: the refresh cookie is sent to the refresh endpoint and its scoped logout route, not to arbitrary application routes.
+
+This contract describes the current implementation, not a production security approval. Reassess cookie policy, CSRF/Origin handling and Secure settings before deployment.
+
+## 14. Invitation onboarding data contract — implementation design
+
+Invitation creation must preserve the employee details entered by Admin before account activation. The pending invitation record must carry full name, normalized email, optional employee ID, exactly one role, inviter, token hash, expiry, created/accepted/revoked timestamps, and the selected initial team IDs through a normalized invitation-to-team association.
+
+On acceptance, one database transaction must validate the invitation and selected teams, create the user with a securely hashed password, create active team memberships, and mark the invitation accepted. The invitation token must be single-use. Do not create a user with a fake or placeholder password.
+
+This is a required schema enhancement: the current `UserInvitation` model does not yet persist full name, employee ID or initial team selections. Add an Alembic migration before implementing invitation creation/acceptance APIs.

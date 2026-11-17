@@ -15,10 +15,6 @@ AgriBid-WorkSphere/
 ├── frontend/          # Next.js frontend
 ├── backend/            # FastAPI backend
 ├── docs/               # Requirements and technical documentation
-├── tests/              # Cross-project test resources
-├── infrastructure/     # Infrastructure configuration
-├── .env.example        # Workspace configuration example
-├── .gitignore
 ├── .gitattributes
 ├── README.md
 └── CONTRIBUTING.md
@@ -55,11 +51,13 @@ Do not assume every selected dependency has already been installed or integrated
 
 ## Current development status
 
-- Frontend scaffold and initial sign-in UI are committed.
-- Backend application implementation is pending.
-- PostgreSQL database has been prepared locally.
-- Requirements, architecture, database, API, workflow and traceability documentation have been prepared.
-- Requirements Traceability Matrix is an initial register; detailed mappings and test evidence remain to be completed.
+- Next.js frontend with integrated sign-in and protected dashboard flow.
+- FastAPI backend with sign-in, ID-token verification, access-token verification, refresh rotation and logout endpoints.
+- PostgreSQL identity, roles, permissions, teams, team membership, refresh session, invitation foundation and password-reset-token schema migrated locally.
+- Backend test suite: 25 tests passed; Ruff lint/format passed.
+- Frontend lint and production build passed.
+- User Management invitation endpoints, Team Management APIs and Project Management APIs remain to be implemented.
+- Requirements and traceability documentation are being aligned with the verified implementation; the test plan distinguishes passed evidence from planned tests.
 
 ## Getting started
 
@@ -81,21 +79,32 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-The current sign-in interface is a frontend scaffold and is not yet connected to the backend authentication implementation.
+Sign-in is connected to the local backend authentication APIs. The protected dashboard currently demonstrates the authenticated employee and role; full dashboard modules are still being implemented.
 
 ### Backend
 
-The backend setup instructions will be completed after the backend dependency manifest, environment configuration and application entry point are implemented.
+Run these commands from the repository root:
 
-See `backend/requirements.txt` and `docs/architecture/technical-design.md`.
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+Copy-Item .env.example .env
+# Edit .env with your local PostgreSQL URL and generate a strong local JWT_SECRET_KEY
+.\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+```
+
+Swagger UI: `http://127.0.0.1:8000/docs`.
 
 ## Configuration
 
 Environment examples:
 
-- Root: `.env.example`
-- Frontend: `frontend/.env.example`
-- Backend: `backend/.env.example`
+- Frontend: `frontend/.env.example` (copy to `frontend/.env.local`).
+- Backend: `backend/.env.example` (copy to `backend/.env`).
+
+There is intentionally no root-level `.env.example` or `.gitignore`. The frontend and backend folders contain their own environment examples and ignore rules.
 
 Copy example files to their local environment filenames and replace placeholders with local values.
 
@@ -133,6 +142,6 @@ Mock GitHub activity and dummy company email data are used where required.
 
 ## Git workflow
 
-See `CONTRIBUTING.md` for branch naming, commit conventions, pull requests and review expectations.
+See `CONTRIBUTING.md` for branch naming, commit conventions and daily integration. Pull requests are optional for this assignment; follow the senior's instruction to push meaningful commits and integrate tested work into `develop`.
 
 The root repository is the source of truth for the complete project.

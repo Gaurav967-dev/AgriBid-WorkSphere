@@ -26,10 +26,10 @@ Examples:
 4. Run relevant tests, lint and type checks.
 5. Review the diff before committing.
 6. Commit with a meaningful message.
-7. Push the branch.
-8. Open a pull request into `develop`.
-9. Include a summary, screenshots where UI changes exist, and test results.
-10. Review before merging.
+7. Push the feature/fix branch during the working day so the remote reflects current progress.
+8. Run the relevant tests and checks before integration.
+9. At the daily integration checkpoint, fast-forward the local `develop`, merge the tested feature branch into `develop`, and push `develop`.
+10. A pull request is optional for this assignment; the senior has confirmed that direct integration is acceptable. Do not merge untested work.
 
 Do not merge unreviewed work directly into `main`.
 
@@ -50,7 +50,7 @@ Use ticket IDs in branch names, commit messages and pull requests when ticket ID
 
 ## 4. Pull request expectations
 
-Each pull request should include:
+When a pull request is used, include:
 
 - Summary of the change.
 - Related requirement or ticket IDs.
@@ -72,3 +72,15 @@ Each pull request should include:
 ## 6. Documentation updates
 
 When a requirement, API contract, workflow, schema or architecture decision changes, update the corresponding Markdown documentation and RTM.
+
+
+## 7. Daily development maintenance
+
+- Pull the latest approved develop branch before starting work.
+- Work in one focused feature or fix branch.
+- Make small, tested changes and commit with a Conventional Commit message.
+- Push meaningful commits to GitHub during each working day.
+- Run backend tests/Ruff and frontend lint/build as appropriate; run both for shared contract changes.
+- Integrate tested feature work into develop each day. Keep main stable for agreed milestones/final delivery.
+- Update the development progress log with actual accomplishments, test evidence, blockers and the next target.
+- Do not backdate commits or claim an unperformed review, test, push or merge.

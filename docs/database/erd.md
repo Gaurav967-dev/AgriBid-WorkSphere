@@ -28,7 +28,10 @@ erDiagram
     ROLES ||--o{ ROLE_PERMISSIONS : grants
     PERMISSIONS ||--o{ ROLE_PERMISSIONS : contains
 
-    USERS ||--o{ INVITATIONS : receives
+    USERS ||--o{ USER_INVITATIONS : invited_by
+    USERS o|--o{ USER_INVITATIONS : accepted_by
+    USER_INVITATIONS ||--o{ USER_INVITATION_TEAMS : selects
+    TEAMS ||--o{ USER_INVITATION_TEAMS : selected_for
     USERS ||--o{ PASSWORD_RESET_TOKENS : owns
     USERS ||--o{ AUTH_SESSIONS : maintains
 
@@ -91,7 +94,7 @@ erDiagram
 
     ROLES {
         uuid id PK
-        varchar role_key UK
+        varchar code UK
         varchar name
     }
 
@@ -107,7 +110,7 @@ erDiagram
 
     PERMISSIONS {
         uuid id PK
-        varchar permission_key UK
+        varchar code UK
         varchar resource
         varchar action
     }
@@ -284,11 +287,24 @@ erDiagram
         jsonb metadata
     }
 
-    INVITATIONS {
+    USER_INVITATIONS {
         uuid id PK
-        uuid user_id FK
+        varchar email
+        varchar full_name
+        varchar employee_id
+        varchar profile_image_key
+        uuid role_id FK
+        uuid invited_by_user_id FK
+        uuid accepted_user_id FK
         varchar token_hash UK
         timestamptz expires_at
+        timestamptz accepted_at
+        timestamptz revoked_at
+    }
+
+    USER_INVITATION_TEAMS {
+        uuid invitation_id PK,FK
+        uuid team_id PK,FK
     }
 
     PASSWORD_RESET_TOKENS {
@@ -301,7 +317,7 @@ erDiagram
     AUTH_SESSIONS {
         uuid id PK
         uuid user_id FK
-        varchar session_token_hash UK
+        varchar token_hash UK
         timestamptz expires_at
     }
 ```
@@ -413,3 +429,36 @@ Tester may return failed testing to `IN_PROGRESS` or `REOPENED` with a comment. 
 Admin and PM can manage `BLOCKED`, `REOPENED` and `CANCELLED` and retain their any-status authority.
 
 `BUG_FIXED` proceeds to `COMPLETED`. `TESTING_DONE` remains distinct from `COMPLETED`.
+
+## 6. Implemented identity and pending invitation ERD clarification — 17 November 2026
+
+The implemented schema uses `roles.code`, `permissions.code`, `auth_sessions.token_hash`, and `user_invitations` (not the earlier illustrative names `role_key`, `permission_key`, `session_token_hash`, and `invitations`).
+
+The current `USER_INVITATIONS` entity is linked to role and inviter and stores email, token hash and lifecycle timestamps. It does not yet store the pending full name, optional employee ID or initial teams.
+
+Before User Management invitation endpoints are implemented, extend the logical ERD with:
+
+```mermaid
+erDiagram
+    USER_INVITATIONS ||--o{ USER_INVITATION_TEAMS : selects
+    TEAMS ||--o{ USER_INVITATION_TEAMS : selected_for
+    USER_INVITATIONS {
+        uuid id PK
+        varchar full_name
+        varchar email
+        varchar employee_id
+        varchar profile_image_key
+        uuid role_id FK
+        uuid invited_by_user_id FK
+        varchar token_hash UK
+        timestamptz expires_at
+        timestamptz accepted_at
+        timestamptz revoked_at
+    }
+    USER_INVITATION_TEAMS {
+        uuid invitation_id PK,FK
+        uuid team_id PK,FK
+    }
+```
+
+On successful acceptance, create the `USERS` record and corresponding `TEAM_MEMBERS` rows in one transaction, then set `accepted_at`. Store only the hash of the invitation token. This is a planned schema extension and must receive an Alembic migration before implementation; it is not part of the current applied migration.

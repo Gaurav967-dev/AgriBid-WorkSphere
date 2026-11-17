@@ -284,20 +284,21 @@ Project Manager:
 
 Developer:
 - TODO -> IN_PROGRESS.
-- TODO -> IN_REVIEW.
+- IN_PROGRESS -> IN_REVIEW.
+- An assigned Developer may move REOPENED -> IN_PROGRESS.
 - Other transitions are not permitted unless approved.
 
 Tester:
 - TESTING -> TESTING_DONE.
 - TESTING -> BUG_FIXED.
+- TESTING -> REOPENED.
+- Failed testing may return to IN_PROGRESS or REOPENED with a comment.
 - Other transitions are not permitted unless approved.
 
 Bug-fix workflow:
 - BUG_FIXED -> COMPLETED.
 
-The actor responsible for this final transition and the exact
-relationship between TESTING_DONE and final ticket completion
-must follow the senior-approved workflow.
+Admin and PM can perform BUG_FIXED -> COMPLETED under their any-status authority. TESTING_DONE remains distinct from COMPLETED. Follow ../workflows/ticket-workflow.md.
 
 ### FR-TKT-006: Ticket Assignment
 PM/Admin can:
@@ -745,3 +746,11 @@ Tester may return failed testing to `IN_PROGRESS` or `REOPENED` with a comment. 
 Admin and PM can manage `BLOCKED`, `REOPENED` and `CANCELLED` and retain their any-status authority.
 
 `BUG_FIXED` proceeds to `COMPLETED`. `TESTING_DONE` remains distinct from `COMPLETED`.
+
+## Authoritative scope and workflow corrections — 17 November 2026
+
+Use `../workflows/ticket-workflow.md` as the canonical transition specification. The earlier Developer `TODO` → `IN_REVIEW` statement is superseded: use `TODO` → `IN_PROGRESS` → `IN_REVIEW`. An assigned Developer may move `REOPENED` → `IN_PROGRESS`. Tester may move failed testing to `IN_PROGRESS` or `REOPENED` with a comment and may mark `REOPENED`. Admin and PM retain any-status authority within authorized scope. `BUG_FIXED` proceeds to `COMPLETED`; `TESTING_DONE` remains distinct.
+
+Notifications and Automate Pro are excluded by senior clarification. Retain relevant requirement IDs for historical traceability, but mark them excluded and do not implement their navigation, UI, APIs, tables or background delivery. Ticket activity history and audit logs remain in scope.
+
+User Management is Admin-only: list/search/filter employees; create an invitation; edit permitted employee fields; assign exactly one role; assign zero or more teams; activate/deactivate accounts; view details. Invitation acceptance creates the user and selected memberships transactionally after validating the single-use, expiring token and hashing the employee's password. Public self-registration is prohibited.

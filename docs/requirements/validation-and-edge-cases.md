@@ -240,7 +240,7 @@ Detailed test cases:
 | TKT-TR-001 | Admin | Any configured transition | Allowed |
 | TKT-TR-002 | PM | Any configured transition | Allowed within project permissions |
 | TKT-TR-003 | Developer | TODO -> IN_PROGRESS | Allowed |
-| TKT-TR-004 | Developer | TODO -> IN_REVIEW | Allowed as explicitly stated by senior |
+| TKT-TR-004 | Developer | IN_PROGRESS -> IN_REVIEW | Allowed |
 | TKT-TR-005 | Developer | TESTING -> COMPLETED | Denied |
 | TKT-TR-006 | Tester | TESTING -> TESTING_DONE | Allowed |
 | TKT-TR-007 | Tester | TESTING -> BUG_FIXED | Allowed |
@@ -251,8 +251,12 @@ Detailed test cases:
 | TKT-TR-012 | Any role | Nonexistent status | Validation error |
 | TKT-TR-013 | Any role | Concurrent status update | Conflict handled |
 | TKT-TR-014 | Any role | Invalid drag-and-drop transition | API rejects and UI restores original position |
+| TKT-TR-015 | Tester | TESTING -> REOPENED | Allowed with required comment |
+| TKT-TR-016 | Tester | TESTING -> IN_PROGRESS | Allowed with required comment |
+| TKT-TR-017 | Assigned Developer | REOPENED -> IN_PROGRESS | Allowed |
+| TKT-TR-018 | Tester | REOPENED -> COMPLETED | Denied |
 
-The actor responsible for BUG_FIXED -> COMPLETED and the meaning of TESTING_DONE relative to workflow completion must remain configurable until confirmed.
+The canonical actor and status rules are confirmed in ../workflows/ticket-workflow.md: Admin and PM perform BUG_FIXED -> COMPLETED; TESTING_DONE remains distinct from COMPLETED.
 
 ### 8.3 Ticket Assignment
 
@@ -543,3 +547,29 @@ Tester may return failed testing to `IN_PROGRESS` or `REOPENED` with a comment. 
 Admin and PM can manage `BLOCKED`, `REOPENED` and `CANCELLED` and retain their any-status authority.
 
 `BUG_FIXED` proceeds to `COMPLETED`. `TESTING_DONE` remains distinct from `COMPLETED`.
+
+## User Management and invitation test additions — 17 November 2026
+
+Add the following scenarios before accepting the User Management module:
+
+| ID | Scenario | Expected result |
+|---|---|---|
+| USER-SC-011 | Invitation includes valid name, email, one role and multiple valid teams | Pending invitation saved with all selected details |
+| USER-SC-012 | Invitation email matches an existing employee, case-insensitively | Reject duplicate |
+| USER-SC-013 | Invitation email matches another active pending invitation | Reject or require explicit revoke/resend flow |
+| USER-SC-014 | Invitation references a nonexistent or archived team | Reject entire request |
+| USER-SC-015 | Invitation has no role or invalid role | Reject |
+| USER-SC-016 | Invitation token is invalid, expired or revoked | Reject without creating user |
+| USER-SC-017 | Invitation is accepted twice | Second acceptance rejected; no duplicate user/membership |
+| USER-SC-018 | Password confirmation differs | Reject; invitation remains unused |
+| USER-SC-019 | Acceptance database operation fails partway through | Roll back user, memberships and accepted state |
+| USER-SC-020 | Two invitations attempt the same normalized email concurrently | Unique constraint/transaction prevents duplicate users |
+| USER-SC-021 | Selected team appears twice | Normalize or reject duplicates; never create duplicate active membership |
+| USER-SC-022 | Deactivated employee attempts to sign in with a valid password | Reject authentication |
+| USER-SC-023 | Non-Admin calls employee-management endpoint | 403 |
+| USER-SC-024 | Employee has exactly one role and multiple memberships | Accept |
+| USER-SC-025 | Admin deactivates employee with active sessions | Access and refresh sessions must no longer authorize |
+
+These are proposed test cases to be implemented and verified. Do not mark them passed merely because they are documented.
+
+The canonical ticket workflow is `../workflows/ticket-workflow.md`; it supersedes stale `TKT-TR-004` direct `TODO` → `IN_REVIEW` scenario text.

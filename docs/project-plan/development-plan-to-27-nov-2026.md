@@ -93,3 +93,54 @@ By 26 November:
 - Setup instructions must work on a clean local environment.
 
 On 27 November, focus on acceptance verification and delivery rather than introducing new features.
+
+## Recovery schedule and daily integration cadence — 17 November 2026
+
+### Current position
+
+The authentication foundation is implemented and locally verified, but invitation creation/acceptance and the full User Management module are not complete. Therefore Module 1 is still in progress. Team Management (Module 3) and Project Management (Module 4) remain to be delivered. The schedule below is a recovery target, not a claim that those modules are already complete.
+
+### Recovery milestones
+
+| Date | Module / focus | Minimum integrated deliverable |
+|---|---|---|
+| 17 Nov | Documentation and repository alignment | Current auth contract, invitation schema decision, test plan, repository folder-level config and updated recovery plan |
+| 18 Nov | Module 1 + Module 2 — User Management backend | Invitation schema migration, Admin-protected invitation create/list/detail/status APIs, token validation and transactional acceptance |
+| 19 Nov | Module 2 — User Management frontend and verification | Employee table, search/filter/pagination, create-invitation flow, edit/status/role operations and User API tests |
+| 20 Nov | Module 3 — Team Management | Team CRUD, team lead, multiple membership add/remove, duplicate prevention and membership history |
+| 21–22 Nov | Planned non-working days | No milestone dependency |
+| 23 Nov | Module 3 completion + Module 4 backend | Team UI/integration and project models/migrations/API foundation |
+| 24 Nov | Module 4 — Project Management | Project list/create/detail/edit/archive, manager/team assignment and project access checks |
+| 25 Nov | Module 4 integration + Module 5 start | Project UI/API integrated and tested; ticket schema/API foundations started |
+| 26 Nov | Module 5 — Ticket Management | Ticket create/list/detail/assignment and canonical backend status-transition service; role-based tests |
+| 27 Nov | Integration, regression and handover | Verify integrated priority workflows, fix critical bugs, update RTM/test evidence/README and report any deferred requirements explicitly |
+
+This plan targets completion through Module 4 by 24 November, then prioritizes the core ticket workflow. It does not assume that every remaining PDF feature can be completed by the deadline. Any required feature that cannot be delivered must be identified to the senior before handover rather than silently omitted.
+
+### Daily development and integration rules
+
+1. Start from the latest remote `develop`: fetch and fast-forward before creating or updating a feature branch.
+2. Work in a short-lived feature branch for one coherent module or fix.
+3. Implement a small vertical slice: migration/model, API/service, UI, and relevant tests.
+4. Run backend tests and Ruff for backend changes; run frontend lint and production build for frontend changes. Run both when changing shared contracts.
+5. Commit completed, tested increments each working day. Do not make empty commits or backdate history.
+6. Push the feature branch to the personal GitHub repository during the day; keep the remote branch current.
+7. At the daily integration checkpoint, merge tested work into `develop` locally and push `develop`. Pull requests are optional because the senior has said they are not required for this assignment.
+8. Keep `main` stable; integrate to `main` only at an agreed milestone or final handover.
+9. Update the development progress log and traceability/test evidence with actual work completed. Record blockers and the next day's target.
+10. Never commit .env files, secrets, real tokens or passwords.
+
+### Commit message convention
+
+Use the senior's requested Conventional Commit style:
+
+- `feat(auth): implement invitation acceptance API`
+- `feat(users): add employee listing and filters`
+- `feat(teams): support multiple team memberships`
+- `feat(projects): add project creation API`
+- `feat(tickets): enforce role-based status transitions`
+- `fix(tickets): prevent invalid status transition`
+- `test(users): cover duplicate invitation handling`
+- `docs(api): align user management endpoint contract`
+
+A commit title must describe the change actually included in that commit.

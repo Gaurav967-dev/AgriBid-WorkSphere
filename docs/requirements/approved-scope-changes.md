@@ -102,7 +102,7 @@ No real company GitHub Enterprise credentials are assumed.
 | Admin | Any configured status | Any configured status |
 | PM | Any configured status | Any configured status |
 | Developer | TODO | IN_PROGRESS |
-| Developer | TODO | IN_REVIEW |
+| Developer | IN_PROGRESS | IN_REVIEW |
 | Tester | TESTING | TESTING_DONE |
 | Tester | TESTING | BUG_FIXED |
 | Bug-fix workflow | BUG_FIXED | COMPLETED |
@@ -114,7 +114,7 @@ Additional rules:
 3. Status transitions must be checked by the backend.
 4. The actor responsible for the final BUG_FIXED-to-COMPLETED
    transition must follow the approved workflow implementation.
-5. No other developer/tester transitions should be invented.
+5. Developer and Tester transitions must follow ../workflows/ticket-workflow.md, including Tester reopening failed tests with a comment and assigned Developer resuming REOPENED work in IN_PROGRESS.
 
 ## 6. Confirmed User and Team Rules
 
@@ -163,3 +163,9 @@ implementation is modified.
 
 ---
 End of Document
+
+## Authoritative correction — 17 November 2026
+
+The workflow table in section 5 is superseded by `../workflows/ticket-workflow.md`. The Developer's allowed normal transitions are `TODO` → `IN_PROGRESS` and `IN_PROGRESS` → `IN_REVIEW`; the earlier `TODO` → `IN_REVIEW` row is not valid. An assigned Developer can move `REOPENED` → `IN_PROGRESS`. Tester may move failed testing to `IN_PROGRESS` or `REOPENED` with a comment and may mark `REOPENED`. Admin and PM retain any-status authority within their authorized scope. `BUG_FIXED` proceeds to `COMPLETED`; `TESTING_DONE` remains distinct.
+
+The Notifications use case and every notification UI/API/database/delivery requirement are excluded. Ticket activity and system audit logs remain in scope. The GitHub toolbar link to the developer's personal GitHub destination remains in scope; application activity data is mock data.

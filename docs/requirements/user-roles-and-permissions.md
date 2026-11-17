@@ -128,23 +128,27 @@ Other transitions require senior approval.
 
 ## 7. Ticket Transition Permission Matrix
 
+The complete canonical workflow is maintained in `../workflows/ticket-workflow.md`. The table below summarizes the confirmed source/target/actor rules.
+
 | Current status | Target status | Admin | PM | Developer | Tester |
 |---|---|---|---|---|---|
-| Any configured status | Any configured status | Yes | Yes | No | No |
+| Any configured status | Any configured status | Yes | Yes, within authorized projects | No | No |
 | TODO | IN_PROGRESS | Yes | Yes | Yes | No |
-| TODO | IN_REVIEW | Yes | Yes | Yes - source interpretation pending | No |
+| IN_PROGRESS | IN_REVIEW | Yes | Yes | Yes | No |
+| REOPENED | IN_PROGRESS | Yes | Yes | Assigned Developer | No |
 | TESTING | TESTING_DONE | Yes | Yes | No | Yes |
 | TESTING | BUG_FIXED | Yes | Yes | No | Yes |
-| Any status | BLOCKED | Yes | Yes | TBD | TBD |
-| Any status | REOPENED | Yes | Yes | TBD | TBD |
-| Any status | CANCELLED | Yes | Yes | No | No |
+| TESTING | REOPENED | Yes | Yes | No | Yes, with comment |
+| TESTING | IN_PROGRESS | Yes | Yes | No | Yes, with comment |
+| BUG_FIXED | COMPLETED | Yes | Yes | No | No |
+| Any configured status | BLOCKED / CANCELLED | Yes | Yes | No | No |
 
-Important:
-
-- Backend must validate both role and source/target status.
-- PM/Admin permissions remain subject to project authorization.
-- The matrix does not imply arbitrary transitions for Developer or Tester.
-- Remaining transition rules require senior approval.
+Additional rules:
+- Admin and PM can manage REOPENED; Tester may also mark REOPENED from TESTING.
+- An assigned Developer resumes reopened work using REOPENED -> IN_PROGRESS.
+- Reasons/comments are required for BLOCKED, REOPENED and CANCELLED as specified by the canonical workflow.
+- Backend authorization is authoritative; frontend visibility is not a security boundary.
+- PM/Admin any-status authority remains limited to authorized project scope.
 
 ## 8. Resource-Level Authorization
 
@@ -253,3 +257,9 @@ Tester may return failed testing to `IN_PROGRESS` or `REOPENED` with a comment. 
 Admin and PM can manage `BLOCKED`, `REOPENED` and `CANCELLED` and retain their any-status authority.
 
 `BUG_FIXED` proceeds to `COMPLETED`. `TESTING_DONE` remains distinct from `COMPLETED`.
+
+## Authoritative permission corrections — 17 November 2026
+
+Use `../workflows/ticket-workflow.md` as the only canonical ticket-transition matrix. Replace the stale Developer row in section 7: Developer does not have `TODO` → `IN_REVIEW`; the normal path is `TODO` → `IN_PROGRESS` followed by `IN_PROGRESS` → `IN_REVIEW`. An assigned Developer may move `REOPENED` → `IN_PROGRESS`. Tester may move `TESTING` → `TESTING_DONE`, `BUG_FIXED` or `REOPENED`, and may return failed testing to `IN_PROGRESS` or `REOPENED` with a comment. Admin and PM retain any-status authority within authorized project scope.
+
+For the next User Management module, employee list/create invitation/edit/role/status operations are Admin-only unless a separate self-service permission is approved. Admin may assign one role and multiple team memberships to an employee. This does not grant PM permission to manage employee accounts. Notification-management permissions are out of scope because Notifications is excluded.
