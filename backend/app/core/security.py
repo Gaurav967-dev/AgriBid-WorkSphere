@@ -45,6 +45,16 @@ def hash_refresh_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+def generate_invitation_token() -> str:
+    """Generate a high-entropy opaque invitation token."""
+    return secrets.token_urlsafe(48)
+
+
+def hash_invitation_token(token: str) -> str:
+    """Return a SHA-256 digest of an invitation token."""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
 def generate_refresh_token() -> str:
     """Generate a high-entropy opaque refresh token."""
     return secrets.token_urlsafe(64)
