@@ -451,3 +451,290 @@ def test_invitation_cannot_be_accepted_when_assigned_team_is_archived(
 
         assert invitation is not None
         assert invitation.accepted_at is None
+
+
+def test_team_management_requires_authentication(users_environment):
+    client, _, _, _ = users_environment
+
+    response = client.get("/api/v1/teams")
+
+    assert response.status_code == 401
+
+
+def test_non_admin_cannot_manage_teams(users_environment):
+    client, _, _, _ = users_environment
+
+    assert sign_in(client, DEVELOPER_EMAIL).status_code == 200
+
+    response = client.get("/api/v1/teams")
+
+    assert response.status_code == 403
+
+
+def test_admin_can_create_list_and_view_team(users_environment):
+    client, session_factory, _, _ = users_environment
+
+    assert sign_in(client).status_code == 200
+
+    with session_factory() as session:
+        developer = session.scalar(select(User).where(User.email == DEVELOPER_EMAIL))
+        assert developer is not None
+        developer_id = str(developer.id)
+
+    create_response = client.post(
+        "/api/v1/teams",
+        json={
+            "name": "Platform Engineering",
+            "description": "Platform and infrastructure team",
+            "lead_user_id": developer_id,
+            "member_ids": [developer_id],
+        },
+    )
+
+    assert create_response.status_code == 201
+
+    created = create_response.json()
+    assert created["name"] == "Platform Engineering"
+    assert created["status"] == "ACTIVE"
+    assert created["member_count"] == 1
+    assert created["lead"]["id"] == developer_id
+    assert len(created["members"]) == 1
+
+    list_response = client.get(
+        "/api/v1/teams",
+        params={"search": "Platform"},
+    )
+
+    assert list_response.status_code == 200
+    assert list_response.json()["total"] == 1
+    assert list_response.json()["items"][0]["id"] == created["id"]
+
+    detail_response = client.get(f"/api/v1/teams/{created['id']}")
+
+    assert detail_response.status_code == 200
+    assert detail_response.json()["members"][0]["user"]["email"] == DEVELOPER_EMAIL
+
+
+def test_team_name_is_unique_case_insensitively(users_environment):
+    client, _, _, _ = users_environment
+
+    assert sign_in(client).status_code == 200
+
+    response = client.post(
+        "/api/v1/teams",
+        json={"name": "engineering"},
+    )
+
+    assert response.status_code == 409
+
+
+def test_admin_can_update_team(users_environment):
+    client, _, _, _ = users_environment
+
+    assert sign_in(client).status_code == 200
+
+    create_response = client.post(
+        "/api/v1/teams",
+        json={"name": "Original Team"},
+    )
+
+    assert create_response.status_code == 201
+
+    team_id = create_response.json()["id"]
+
+    update_response = client.patch(
+        f"/api/v1/teams/{team_id}",
+        json={
+            "name": "Updated Team",
+            "description": "Updated description",
+        },
+    )
+
+    assert update_response.status_code == 200
+    assert update_response.json()["name"] == "Updated Team"
+    assert update_response.json()["description"] == "Updated description"
+
+
+def test_team_member_can_be_removed_without_deleting_history(
+    users_environment,
+):
+    client, session_factory, _, _ = users_environment
+
+    assert sign_in(client).status_code == 200
+
+    with session_factory() as session:
+        developer = session.scalar(select(User).where(User.email == DEVELOPER_EMAIL))
+        assert developer is not None
+        developer_id = str(developer.id)
+
+    create_response = client.post(
+        "/api/v1/teams",
+        json={"name": "Membership Test Team"},
+    )
+
+    assert create_response.status_code == 201
+
+    team_id = create_response.json()["id"]
+
+    add_response = client.post(
+        f"/api/v1/teams/{team_id}/members",
+        json={"user_id": developer_id, "designation": "Backend Developer"},
+    )
+
+    assert add_response.status_code == 200
+    assert add_response.json()["member_count"] == 1
+
+    lead_response = client.patch(
+        f"/api/v1/teams/{team_id}/lead",
+        json={"user_id": developer_id},
+    )
+
+    assert lead_response.status_code == 200
+    assert lead_response.json()["lead"]["id"] == developer_id
+
+    remove_response = client.delete(f"/api/v1/teams/{team_id}/members/{developer_id}")
+
+    assert remove_response.status_code == 200
+
+    detail_response = client.get(f"/api/v1/teams/{team_id}")
+    assert detail_response.status_code == 200
+
+    details = detail_response.json()
+    assert details["member_count"] == 0
+    assert details["members"] == []
+    assert details["lead"] is None
+
+    with session_factory() as session:
+        memberships = session.scalars(
+            select(TeamMember).where(
+                TeamMember.team_id == UUID(team_id),
+                TeamMember.user_id == UUID(developer_id),
+            )
+        ).all()
+
+        assert len(memberships) == 1
+        assert memberships[0].removed_at is not None
+
+
+def test_team_lead_must_be_an_active_member(users_environment):
+    client, session_factory, _, _ = users_environment
+
+    assert sign_in(client).status_code == 200
+
+    with session_factory() as session:
+        developer = session.scalar(select(User).where(User.email == DEVELOPER_EMAIL))
+        assert developer is not None
+        developer_id = str(developer.id)
+
+    create_response = client.post(
+        "/api/v1/teams",
+        json={"name": "Lead Validation Team"},
+    )
+
+    assert create_response.status_code == 201
+
+    team_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/api/v1/teams/{team_id}/lead",
+        json={"user_id": developer_id},
+    )
+
+    assert response.status_code == 422
+
+
+def test_archived_team_is_excluded_from_active_list_and_cannot_add_members(
+    users_environment,
+):
+    client, session_factory, _, _ = users_environment
+
+    assert sign_in(client).status_code == 200
+
+    with session_factory() as session:
+        developer = session.scalar(select(User).where(User.email == DEVELOPER_EMAIL))
+        assert developer is not None
+        developer_id = str(developer.id)
+
+    create_response = client.post(
+        "/api/v1/teams",
+        json={"name": "Archive Test Team"},
+    )
+
+    assert create_response.status_code == 201
+
+    team_id = create_response.json()["id"]
+
+    archive_response = client.post(f"/api/v1/teams/{team_id}/archive")
+
+    assert archive_response.status_code == 200
+    assert archive_response.json()["status"] == "ARCHIVED"
+    assert archive_response.json()["archived_at"] is not None
+
+    active_response = client.get(
+        "/api/v1/teams",
+        params={"search": "Archive Test Team"},
+    )
+
+    assert active_response.status_code == 200
+    assert active_response.json()["total"] == 0
+
+    archived_response = client.get(
+        "/api/v1/teams",
+        params={"status": "ARCHIVED", "search": "Archive Test Team"},
+    )
+
+    assert archived_response.status_code == 200
+    assert archived_response.json()["total"] == 1
+
+    add_response = client.post(
+        f"/api/v1/teams/{team_id}/members",
+        json={"user_id": developer_id},
+    )
+
+    assert add_response.status_code == 409
+
+
+def test_active_users_list_requires_authentication(users_environment):
+    client, _, _, _ = users_environment
+
+    response = client.get("/api/v1/users")
+
+    assert response.status_code == 401
+
+
+def test_admin_can_list_and_search_active_users(users_environment):
+    client, _, _, _ = users_environment
+
+    sign_in_response = sign_in(client)
+    assert sign_in_response.status_code == 200
+
+    list_response = client.get(
+        "/api/v1/users",
+        params={"page": 1, "page_size": 10},
+    )
+
+    assert list_response.status_code == 200
+
+    data = list_response.json()
+
+    assert "items" in data
+    assert data["page"] == 1
+    assert data["page_size"] == 10
+    assert data["total"] >= 1
+
+    for user in data["items"]:
+        assert user["is_active"] is True
+        assert user["role_code"]
+        assert user["role_name"]
+
+    search_response = client.get(
+        "/api/v1/users",
+        params={"search": DEVELOPER_EMAIL},
+    )
+
+    assert search_response.status_code == 200
+
+    search_data = search_response.json()
+
+    assert search_data["total"] == 1
+    assert search_data["items"][0]["email"] == DEVELOPER_EMAIL

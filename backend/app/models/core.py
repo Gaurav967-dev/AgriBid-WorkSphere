@@ -164,6 +164,7 @@ class TeamMember(Base):
             "user_id",
             unique=True,
             postgresql_where=text("removed_at IS NULL"),
+            sqlite_where=text("removed_at IS NULL"),
         ),
     )
 
