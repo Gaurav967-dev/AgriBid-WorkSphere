@@ -86,3 +86,16 @@ def get_admin_user(
         )
 
     return current_user
+
+
+def get_admin_or_pm_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Allow project creation and management to Admins and Project Managers."""
+    if current_user.role.code not in {"ADMIN", "PM"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator or Project Manager access required.",
+        )
+
+    return current_user

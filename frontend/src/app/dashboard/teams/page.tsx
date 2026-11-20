@@ -14,7 +14,7 @@ import {
     Archive,
     CircleAlert,
     Crown,
-    LayoutDashboard,
+    Menu,
     PanelLeft,
     Pencil,
     Plus,
@@ -50,6 +50,8 @@ import {
 import TeamLine from "@/features/teams/components/team-line";
 import { TeamsFilter } from "@/features/teams/components/teams-filter";
 import { TeamsDisplayOptions } from "@/features/teams/components/teams-display-options";
+import { WorkspaceSidebar } from "@/components/workspace-sidebar";
+import { useWorkspaceSidebarState } from "@/components/workspace-sidebar-state";
 
 import {
     DEFAULT_TEAM_DISPLAY_PROPERTIES,
@@ -155,7 +157,9 @@ export default function TeamsPage() {
     const [user, setUser] = useState<AuthUser | null>(null);
     const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+
+    const { collapsed, toggleCollapsed } = useWorkspaceSidebarState();
 
     const [page, setPage] = useState(1);
     const [statusFilter, setStatusFilter] = useState<TeamListStatus>("ACTIVE");
@@ -513,686 +517,635 @@ export default function TeamsPage() {
     const detailTeam = detailQuery.data;
 
     return (
-        <div className="workspace-shell h-svh w-full overflow-hidden bg-[#f7f8fc] p-2 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-            <div className="relative h-full w-full overflow-hidden rounded-md border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-            {/* Collapsible workspace sidebar */}
-            {isSidebarOpen && (
-                <>
-                    <button
-                        type="button"
-                        aria-label="Close sidebar"
-                        onClick={() => setIsSidebarOpen(false)}
-                        className="absolute inset-0 z-40 bg-slate-950/40 md:hidden"
-                    />
+        <div className="workspace-shell flex h-svh min-h-0 w-full overflow-hidden bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+            <WorkspaceSidebar
+                user={user}
+                collapsed={collapsed}
+                mobileOpen={isMobileNavOpen}
+                onMobileClose={() => setIsMobileNavOpen(false)}
+            />
 
-                    <aside className="absolute inset-y-0 left-0 z-50 flex h-full w-60 flex-col border-r border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900">
-                        <div className="flex h-14 items-center gap-3 border-b border-slate-100 px-4 dark:border-slate-800">
-                            <div className="flex size-8 items-center justify-center rounded-lg bg-violet-700 text-white">
-                                <ShieldCheck className="size-4" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-bold text-slate-900 dark:text-white">
-                                    AgriBid
-                                </p>
-                                <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                                    WorkSphere
-                                </p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setIsSidebarOpen(false)}
-                                aria-label="Close sidebar"
-                                className="ml-auto rounded-md p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-                            >
-                                <X className="size-4" />
-                            </button>
-                        </div>
+            <div className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden">
+                <div className="h-full min-h-0 flex-1 overflow-y-auto">
+                    <main className="min-h-full w-full p-0">
+                        <section className="w-full">
+                            {/* Teams heading */}
+                            <div className="sticky top-0 z-20 flex h-10 w-full items-center justify-between border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900 sm:px-6">
+                                <div className="flex items-center gap-2">
+                                    {/* Desktop sidebar control */}
+                                    <button
+                                        type="button"
+                                        onClick={toggleCollapsed}
+                                        aria-label={
+                                            collapsed
+                                                ? "Expand sidebar"
+                                                : "Collapse sidebar"
+                                        }
+                                        aria-expanded={!collapsed}
+                                        className="hidden size-7 items-center justify-center rounded-md text-slate-600 transition hover:bg-slate-100 md:flex dark:text-slate-300 dark:hover:bg-slate-800"
+                                    >
+                                        <PanelLeft className="size-4" />
+                                    </button>
 
-                        <nav className="space-y-1 p-3">
-                            <p className="px-3 pb-2 pt-3 text-[11px] font-semibold text-slate-400">
-                                Workspace
-                            </p>
+                                    {/* Mobile navigation control */}
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsMobileNavOpen(true)}
+                                        aria-label="Open navigation"
+                                        aria-expanded={isMobileNavOpen}
+                                        className="flex size-7 items-center justify-center rounded-md text-slate-600 transition hover:bg-slate-100 md:hidden dark:text-slate-300 dark:hover:bg-slate-800"
+                                    >
+                                        <Menu className="size-4" />
+                                    </button>
 
-                            <Link
-                                href="/dashboard"
-                                className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
-                            >
-                                <LayoutDashboard className="size-4" />
-                                Overview
-                            </Link>
+                                    <span className="text-sm font-medium text-slate-900 dark:text-white">
+                                        Teams
+                                    </span>
 
-                            <Link
-                                href="/dashboard/teams"
-                                aria-current="page"
-                                className="flex items-center gap-3 rounded-md bg-violet-50 px-3 py-2.5 text-sm font-semibold text-violet-800 dark:bg-violet-950/50 dark:text-violet-200"
-                            >
-                                <Users className="size-4" />
-                                Teams
-                            </Link>
+                                    <span className="rounded-md bg-slate-100 px-1.5 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                        {total}
+                                    </span>
+                                </div>
 
-                            <Link
-                                href="/dashboard/users"
-                                className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
-                            >
-                                <ShieldCheck className="size-4" />
-                                User Management
-                            </Link>
-                        </nav>
-                    </aside>
-                </>
-            )}
-
-            {/* Page content shifts when the sidebar is open on desktop */}
-            <div
-                className={`h-full min-h-0 overflow-y-auto transition-[margin] duration-200 ease-in-out ${
-                    isSidebarOpen ? "md:ml-60" : "ml-0"
-                }`}
-            >
-                <main className="w-full h-full min-h-0 overflow-y-auto p-0">
-                    <section className="w-full">
-                        {/* Teams heading */}
-                        <div className="sticky top-0 z-20 flex h-10 w-full items-center justify-between border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900 sm:px-6">
-                            <div className="flex items-center gap-2">
                                 <button
                                     type="button"
-                                    onClick={() => setIsSidebarOpen((current) => !current)}
-                                    aria-label={
-                                        isSidebarOpen ? "Close sidebar" : "Open sidebar"
-                                    }
-                                    aria-expanded={isSidebarOpen}
-                                    className="flex size-7 items-center justify-center rounded-md text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                                    onClick={openCreateForm}
+                                    className="inline-flex h-7 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                                 >
-                                    <PanelLeft className="size-4" />
+                                    <Plus className="size-3.5" />
+                                    Add team
                                 </button>
-
-                                <span className="text-sm font-medium text-slate-900 dark:text-white">
-                                    Teams
-                                </span>
-
-                                <span className="rounded-md bg-slate-100 px-1.5 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                                    {total}
-                                </span>
                             </div>
 
-                            <button
-                                type="button"
-                                onClick={openCreateForm}
-                                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                            >
-                                <Plus className="size-3.5" />
-                                Add team
-                            </button>
-                        </div>
+                            {/* Filter and Display toolbar */}
+                            <div className="sticky top-10 z-20 flex h-10 w-full items-center justify-between border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900 sm:px-6">
+                                <TeamsFilter
+                                    teams={teams}
+                                    membership={membershipFilters}
+                                    identifiers={identifierFilters}
+                                    status={statusFilter}
+                                    sort={sort}
+                                    onMembershipChange={toggleMembership}
+                                    onIdentifierChange={toggleIdentifier}
+                                    onStatusChange={(value) => {
+                                        setStatusFilter(value);
+                                        setPage(1);
+                                    }}
+                                    onSortChange={setSort}
+                                    onClear={clearTeamFilters}
+                                />
 
-                        {/* Filter and Display toolbar */}
-                        <div className="sticky top-10 z-20 flex h-10 w-full items-center justify-between border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900 sm:px-6">
-                            <TeamsFilter
-                                teams={teams}
-                                membership={membershipFilters}
-                                identifiers={identifierFilters}
-                                status={statusFilter}
-                                sort={sort}
-                                onMembershipChange={toggleMembership}
-                                onIdentifierChange={toggleIdentifier}
-                                onStatusChange={(value) => {
-                                    setStatusFilter(value);
-                                    setPage(1);
-                                }}
-                                onSortChange={setSort}
-                                onClear={clearTeamFilters}
-                            />
-
-                            <TeamsDisplayOptions
-                                ordering={ordering}
-                                displayProperties={displayProperties}
-                                onOrderingChange={handleOrderingChange}
-                                onToggleProperty={toggleDisplayProperty}
-                            />
-                        </div>
-
-                        {/* Column headers */}
-                        <div className="sticky top-20 z-10 flex w-full min-w-[760px] items-center border-b border-slate-200 bg-slate-50 px-4 py-1.5 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400 sm:px-6">
-                            <div className="min-w-0 flex-1">Name</div>
-
-                            {displayProperties.membership && (
-                                <div className="w-[15%] min-w-[130px] shrink-0">
-                                    Membership
-                                </div>
-                            )}
-
-                            {displayProperties.owners && (
-                                <div className="hidden w-[70px] shrink-0 lg:block">
-                                    Owners
-                                </div>
-                            )}
-
-                            <div className="w-[15%] min-w-[120px] shrink-0">
-                                Identifier
-                            </div>
-
-                            {displayProperties.members && (
-                                <div className="w-[15%] min-w-[150px] shrink-0">
-                                    Members
-                                </div>
-                            )}
-
-                            {displayProperties.cycle && (
-                                <div className="hidden w-[80px] shrink-0 md:block">
-                                    Cycle
-                                </div>
-                            )}
-
-                            {displayProperties.projects && (
-                                <div className="hidden w-[15%] min-w-[100px] shrink-0 sm:block">
-                                    Projects
-                                </div>
-                            )}
-
-                            {displayProperties.created && (
-                                <div className="hidden w-[90px] shrink-0 xl:block">
-                                    Created
-                                </div>
-                            )}
-
-                            {displayProperties.updated && (
-                                <div className="hidden w-[90px] shrink-0 xl:block">
-                                    Updated
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Team rows */}
-                        <div className="w-full">
-                            {teamsQuery.isPending ? (
-                                <div className="flex min-h-32 items-center justify-center gap-2 text-xs text-slate-500">
-                                    <RefreshCw className="size-4 animate-spin" />
-                                    Loading teams...
-                                </div>
-                            ) : teamsQuery.isError ? (
-                                <div className="flex min-h-32 flex-col items-center justify-center text-center">
-                                    <CircleAlert className="size-6 text-rose-500" />
-                                    <p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-200">
-                                        Unable to load teams
-                                    </p>
-                                    <p className="mt-1 text-xs text-slate-500">
-                                        {teamsQuery.error.message}
-                                    </p>
-                                </div>
-                            ) : displayedTeams.length === 0 ? (
-                                <div className="flex min-h-28 flex-col items-center justify-center text-center">
-                                    <Users className="size-5 text-slate-300 dark:text-slate-600" />
-                                    <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                                        {teams.length === 0
-                                            ? "No teams yet"
-                                            : "No teams match the selected filters"}
-                                    </p>
-
-                                    {teams.length === 0 && statusFilter !== "ARCHIVED" && (
-                                        <button
-                                            type="button"
-                                            onClick={openCreateForm}
-                                            className="mt-1 text-xs font-medium text-violet-700 hover:text-violet-900 dark:text-violet-300"
-                                        >
-                                            + Add team
-                                        </button>
-                                    )}
-                                </div>
-                            ) : (
-                                displayedTeams.map((team) => (
-                                    <TeamLine
-                                        key={team.id}
-                                        team={team}
-                                        displayProperties={displayProperties}
-                                        onOpen={() => setSelectedTeamId(team.id)}
-                                    />
-                                ))
-                            )}
-                        </div>
-                    </section>
-                </main>
-            </div>
-
-            {/* Create / edit team dialog */}
-            {formMode && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4">
-                    <section
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="team-form-title"
-                        className="my-8 w-full max-w-xl rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
-                    >
-                        <div className="flex items-start justify-between border-b border-slate-100 p-5 dark:border-slate-800">
-                            <div>
-                                <h2 id="team-form-title" className="text-lg font-bold text-slate-900 dark:text-white">
-                                    {formMode === "create" ? "Create team" : "Edit team"}
-                                </h2>
-                                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                    {formMode === "create"
-                                        ? "Add a team and optionally assign its initial members."
-                                        : "Update the team's name and description."}
-                                </p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={closeTeamForm}
-                                aria-label="Close dialog"
-                                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                            >
-                                <X className="size-5" />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleSaveTeam} className="space-y-5 p-5">
-                            {formMutationError && (
-                                <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300">
-                                    {formMutationError.message}
-                                </div>
-                            )}
-
-                            <div>
-                                <label htmlFor="team-name" className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                    Team name <span className="text-rose-500">*</span>
-                                </label>
-                                <input
-                                    id="team-name"
-                                    value={teamName}
-                                    onChange={(event) => setTeamName(event.target.value)}
-                                    required
-                                    maxLength={100}
-                                    placeholder="e.g. Backend Engineering"
-                                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-violet-500 focus:ring-3 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-violet-950"
+                                <TeamsDisplayOptions
+                                    ordering={ordering}
+                                    displayProperties={displayProperties}
+                                    onOrderingChange={handleOrderingChange}
+                                    onToggleProperty={toggleDisplayProperty}
                                 />
                             </div>
 
-                            <div>
-                                <label htmlFor="team-description" className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                    Description
-                                </label>
-                                <textarea
-                                    id="team-description"
-                                    value={teamDescription}
-                                    onChange={(event) => setTeamDescription(event.target.value)}
-                                    maxLength={2000}
-                                    rows={3}
-                                    placeholder="Describe the team's responsibilities..."
-                                    className="w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-500 focus:ring-3 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-violet-950"
-                                />
+                            {/* Column headers */}
+                            <div className="sticky top-20 z-10 flex w-full min-w-[760px] items-center border-b border-slate-200 bg-slate-50 px-4 py-1.5 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400 sm:px-6">
+                                <div className="min-w-0 flex-1">Name</div>
+
+                                {displayProperties.membership && (
+                                    <div className="w-[15%] min-w-[130px] shrink-0">
+                                        Membership
+                                    </div>
+                                )}
+
+                                {displayProperties.owners && (
+                                    <div className="hidden w-[70px] shrink-0 lg:block">
+                                        Owners
+                                    </div>
+                                )}
+
+                                <div className="w-[15%] min-w-[120px] shrink-0">
+                                    Identifier
+                                </div>
+
+                                {displayProperties.members && (
+                                    <div className="w-[15%] min-w-[150px] shrink-0">
+                                        Members
+                                    </div>
+                                )}
+
+                                {displayProperties.cycle && (
+                                    <div className="hidden w-[80px] shrink-0 md:block">
+                                        Cycle
+                                    </div>
+                                )}
+
+                                {displayProperties.projects && (
+                                    <div className="hidden w-[15%] min-w-[100px] shrink-0 sm:block">
+                                        Projects
+                                    </div>
+                                )}
+
+                                {displayProperties.created && (
+                                    <div className="hidden w-[90px] shrink-0 xl:block">
+                                        Created
+                                    </div>
+                                )}
+
+                                {displayProperties.updated && (
+                                    <div className="hidden w-[90px] shrink-0 xl:block">
+                                        Updated
+                                    </div>
+                                )}
                             </div>
 
-                            {formMode === "create" && (
-                                <>
-                                    <div>
-                                        <label htmlFor="team-members" className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                            Initial members
-                                        </label>
-                                        <select
-                                            id="team-members"
-                                            multiple
-                                            value={selectedMemberIds}
-                                            onChange={handleMemberSelection}
-                                            size={Math.min(Math.max(employees.length, 3), 6)}
-                                            className="w-full rounded-lg border border-slate-200 bg-white p-2 text-sm outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                                        >
-                                            {employees.map((employee) => (
-                                                <option key={employee.id} value={employee.id}>
-                                                    {employee.full_name} · {roleLabel(employee.role_code)}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <p className="mt-1.5 text-xs text-slate-400">
-                                            Use Ctrl (Windows) or Command (Mac) to select multiple employees.
+                            {/* Team rows */}
+                            <div className="w-full">
+                                {teamsQuery.isPending ? (
+                                    <div className="flex min-h-32 items-center justify-center gap-2 text-xs text-slate-500">
+                                        <RefreshCw className="size-4 animate-spin" />
+                                        Loading teams...
+                                    </div>
+                                ) : teamsQuery.isError ? (
+                                    <div className="flex min-h-32 flex-col items-center justify-center text-center">
+                                        <CircleAlert className="size-6 text-rose-500" />
+                                        <p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                                            Unable to load teams
+                                        </p>
+                                        <p className="mt-1 text-xs text-slate-500">
+                                            {teamsQuery.error.message}
                                         </p>
                                     </div>
-
-                                    <div>
-                                        <label htmlFor="team-lead" className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                            Team lead
-                                        </label>
-                                        <select
-                                            id="team-lead"
-                                            value={leadUserId}
-                                            onChange={(event) => setLeadUserId(event.target.value)}
-                                            className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                                        >
-                                            <option value="">No team lead</option>
-                                            {employees.map((employee) => (
-                                                <option key={employee.id} value={employee.id}>
-                                                    {employee.full_name} · {roleLabel(employee.role_code)}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <p className="mt-1 text-xs text-slate-400">
-                                            A selected lead will automatically be added as a team member.
+                                ) : displayedTeams.length === 0 ? (
+                                    <div className="flex min-h-28 flex-col items-center justify-center text-center">
+                                        <Users className="size-5 text-slate-300 dark:text-slate-600" />
+                                        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                                            {teams.length === 0
+                                                ? "No teams yet"
+                                                : "No teams match the selected filters"}
                                         </p>
+
+                                        {teams.length === 0 && statusFilter !== "ARCHIVED" && (
+                                            <button
+                                                type="button"
+                                                onClick={openCreateForm}
+                                                className="mt-1 text-xs font-medium text-violet-700 hover:text-violet-900 dark:text-violet-300"
+                                            >
+                                                + Add team
+                                            </button>
+                                        )}
                                     </div>
-                                </>
-                            )}
+                                ) : (
+                                    displayedTeams.map((team) => (
+                                        <TeamLine
+                                            key={team.id}
+                                            team={team}
+                                            displayProperties={displayProperties}
+                                            onOpen={() => setSelectedTeamId(team.id)}
+                                        />
+                                    ))
+                                )}
+                            </div>
+                        </section>
+                    </main>
+                </div>
 
-                            {formMode === "edit" && (
-                                <p className="rounded-lg bg-slate-50 p-3 text-xs leading-5 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                                    Manage team membership and team lead from the team details panel.
-                                </p>
-                            )}
-
-                            {usersQuery.isError && formMode === "create" && (
-                                <p role="alert" className="text-sm text-rose-600">
-                                    Unable to load active employees. Refresh the page and try again.
-                                </p>
-                            )}
-
-                            <div className="flex justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
+                {/* Create / edit team dialog */}
+                {formMode && (
+                    <div className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4">
+                        <section
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="team-form-title"
+                            className="my-8 w-full max-w-xl rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+                        >
+                            <div className="flex items-start justify-between border-b border-slate-100 p-5 dark:border-slate-800">
+                                <div>
+                                    <h2 id="team-form-title" className="text-lg font-bold text-slate-900 dark:text-white">
+                                        {formMode === "create" ? "Create team" : "Edit team"}
+                                    </h2>
+                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                        {formMode === "create"
+                                            ? "Add a team and optionally assign its initial members."
+                                            : "Update the team's name and description."}
+                                    </p>
+                                </div>
                                 <button
                                     type="button"
                                     onClick={closeTeamForm}
-                                    className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                                    aria-label="Close dialog"
+                                    className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                                 >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={
-                                        !teamName.trim() ||
-                                        createMutation.isPending ||
-                                        updateMutation.isPending
-                                    }
-                                    className="inline-flex items-center gap-2 rounded-lg bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                    {(createMutation.isPending || updateMutation.isPending) && (
-                                        <RefreshCw className="size-4 animate-spin" />
-                                    )}
-                                    {formMode === "create" ? "Create team" : "Save changes"}
+                                    <X className="size-5" />
                                 </button>
                             </div>
-                        </form>
-                    </section>
-                </div>
-            )}
 
-            {/* Team detail / membership panel */}
-            {selectedTeamId && (
-                <div className="fixed inset-0 z-[65] flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4">
-                    <section
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="team-detail-title"
-                        className="my-8 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
-                    >
-                        {detailQuery.isPending ? (
-                            <div className="flex min-h-64 items-center justify-center gap-3 text-sm text-slate-500">
-                                <RefreshCw className="size-4 animate-spin" />
-                                Loading team details...
-                            </div>
-                        ) : detailQuery.isError || !detailTeam ? (
-                            <div className="p-8 text-center">
-                                <CircleAlert className="mx-auto size-8 text-rose-500" />
-                                <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">
-                                    Unable to load team details
-                                </p>
-                                <p className="mt-1 text-xs text-slate-500">
-                                    {detailQuery.error instanceof Error
-                                        ? detailQuery.error.message
-                                        : "Please try again."}
-                                </p>
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedTeamId(null)}
-                                    className="mt-5 rounded-lg border border-slate-200 px-4 py-2 text-sm dark:border-slate-700"
-                                >
-                                    Close
-                                </button>
-                            </div>
-                        ) : (
-                            <>
-                                <div className="flex items-start justify-between border-b border-slate-100 p-5 dark:border-slate-800">
-                                    <div className="min-w-0">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <h2 id="team-detail-title" className="truncate text-lg font-bold text-slate-900 dark:text-white">
-                                                {detailTeam.name}
-                                            </h2>
-                                            <StatusBadge status={detailTeam.status} />
-                                        </div>
-                                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                            {detailTeam.description || "No team description"}
-                                        </p>
-                                        <p className="mt-2 text-xs text-slate-400">
-                                            Created {formatDate(detailTeam.created_at)}
-                                        </p>
+                            <form onSubmit={handleSaveTeam} className="space-y-5 p-5">
+                                {formMutationError && (
+                                    <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300">
+                                        {formMutationError.message}
                                     </div>
+                                )}
+
+                                <div>
+                                    <label htmlFor="team-name" className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                        Team name <span className="text-rose-500">*</span>
+                                    </label>
+                                    <input
+                                        id="team-name"
+                                        value={teamName}
+                                        onChange={(event) => setTeamName(event.target.value)}
+                                        required
+                                        maxLength={100}
+                                        placeholder="e.g. Backend Engineering"
+                                        className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-violet-500 focus:ring-3 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-violet-950"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label htmlFor="team-description" className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                        Description
+                                    </label>
+                                    <textarea
+                                        id="team-description"
+                                        value={teamDescription}
+                                        onChange={(event) => setTeamDescription(event.target.value)}
+                                        maxLength={2000}
+                                        rows={3}
+                                        placeholder="Describe the team's responsibilities..."
+                                        className="w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-500 focus:ring-3 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-violet-950"
+                                    />
+                                </div>
+
+                                {formMode === "create" && (
+                                    <>
+                                        <div>
+                                            <label htmlFor="team-members" className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                                Initial members
+                                            </label>
+                                            <select
+                                                id="team-members"
+                                                multiple
+                                                value={selectedMemberIds}
+                                                onChange={handleMemberSelection}
+                                                size={Math.min(Math.max(employees.length, 3), 6)}
+                                                className="w-full rounded-lg border border-slate-200 bg-white p-2 text-sm outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                                            >
+                                                {employees.map((employee) => (
+                                                    <option key={employee.id} value={employee.id}>
+                                                        {employee.full_name} · {roleLabel(employee.role_code)}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <p className="mt-1.5 text-xs text-slate-400">
+                                                Use Ctrl (Windows) or Command (Mac) to select multiple employees.
+                                            </p>
+                                        </div>
+
+                                        <div>
+                                            <label htmlFor="team-lead" className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                                Team lead
+                                            </label>
+                                            <select
+                                                id="team-lead"
+                                                value={leadUserId}
+                                                onChange={(event) => setLeadUserId(event.target.value)}
+                                                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                                            >
+                                                <option value="">No team lead</option>
+                                                {employees.map((employee) => (
+                                                    <option key={employee.id} value={employee.id}>
+                                                        {employee.full_name} · {roleLabel(employee.role_code)}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <p className="mt-1 text-xs text-slate-400">
+                                                A selected lead will automatically be added as a team member.
+                                            </p>
+                                        </div>
+                                    </>
+                                )}
+
+                                {formMode === "edit" && (
+                                    <p className="rounded-lg bg-slate-50 p-3 text-xs leading-5 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                        Manage team membership and team lead from the team details panel.
+                                    </p>
+                                )}
+
+                                {usersQuery.isError && formMode === "create" && (
+                                    <p role="alert" className="text-sm text-rose-600">
+                                        Unable to load active employees. Refresh the page and try again.
+                                    </p>
+                                )}
+
+                                <div className="flex justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
                                     <button
                                         type="button"
-                                        onClick={() => setSelectedTeamId(null)}
-                                        aria-label="Close team details"
-                                        className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                        onClick={closeTeamForm}
+                                        className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                                     >
-                                        <X className="size-5" />
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={
+                                            !teamName.trim() ||
+                                            createMutation.isPending ||
+                                            updateMutation.isPending
+                                        }
+                                        className="inline-flex items-center gap-2 rounded-lg bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        {(createMutation.isPending || updateMutation.isPending) && (
+                                            <RefreshCw className="size-4 animate-spin" />
+                                        )}
+                                        {formMode === "create" ? "Create team" : "Save changes"}
                                     </button>
                                 </div>
+                            </form>
+                        </section>
+                    </div>
+                )}
 
-                                <div className="space-y-6 p-5">
-                                    {detailTeam.status === "ACTIVE" && (
-                                        <div className="grid gap-4 sm:grid-cols-2">
-                                            <div>
-                                                <label htmlFor="assign-team-lead" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                                    Team lead
-                                                </label>
-                                                <div className="relative">
-                                                    <Crown className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-amber-500" />
-                                                    <select
-                                                        id="assign-team-lead"
-                                                        value={detailTeam.lead?.id ?? ""}
-                                                        disabled={leadMutation.isPending}
-                                                        onChange={(event) =>
-                                                            leadMutation.mutate({
-                                                                teamId: detailTeam.id,
-                                                                userId: event.target.value || null,
-                                                            })
-                                                        }
-                                                        className="h-10 w-full rounded-lg border border-slate-200 bg-white pr-3 pl-9 text-sm outline-none focus:border-violet-500 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                                                    >
-                                                        <option value="">No team lead</option>
-                                                        {detailTeam.members.map((member) => (
-                                                            <option key={member.user.id} value={member.user.id}>
-                                                                {member.user.full_name}
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                                {leadMutation.error && (
-                                                    <p className="mt-1 text-xs text-rose-600">
-                                                        {leadMutation.error.message}
-                                                    </p>
-                                                )}
-                                            </div>
-
-                                            <div className="flex items-end">
-                                                <div className="rounded-lg bg-violet-50 px-3 py-2.5 text-xs text-violet-800 dark:bg-violet-950/50 dark:text-violet-200">
-                                                    <Users className="mr-1 inline size-3.5" />
-                                                    {detailTeam.member_count} active members
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div>
-                                        <div className="mb-3 flex items-center justify-between gap-3">
-                                            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                                                Team members
-                                            </h3>
-                                            <span className="text-xs text-slate-400">
-                                                {detailTeam.members.length} members
-                                            </span>
-                                        </div>
-
-                                        {detailTeam.members.length === 0 ? (
-                                            <p className="rounded-lg border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-400 dark:border-slate-700">
-                                                No active members in this team yet.
-                                            </p>
-                                        ) : (
-                                            <div className="divide-y divide-slate-100 rounded-lg border border-slate-100 dark:divide-slate-800 dark:border-slate-800">
-                                                {detailTeam.members.map((member) => (
-                                                    <div key={member.id} className="flex items-center justify-between gap-3 px-3 py-3">
-                                                        <div className="flex min-w-0 items-center gap-3">
-                                                            <TeamAvatar user={member.user} />
-                                                            <div className="min-w-0">
-                                                                <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
-                                                                    {member.user.full_name}
-                                                                    {detailTeam.lead?.id === member.user.id && (
-                                                                        <Crown className="size-3.5 shrink-0 text-amber-500" />
-                                                                    )}
-                                                                </p>
-                                                                <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                                                                    {member.designation || roleLabel(member.user.role_code)}
-                                                                    {" · "}
-                                                                    {member.user.email}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-
-                                                        {detailTeam.status === "ACTIVE" && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleRemoveMember(member)}
-                                                                disabled={removeMemberMutation.isPending}
-                                                                className="shrink-0 rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-50 dark:border-rose-900 dark:hover:bg-rose-950/40"
-                                                            >
-                                                                Remove
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {removeMemberMutation.error && (
-                                        <p role="alert" className="text-sm text-rose-600">
-                                            {removeMemberMutation.error.message}
-                                        </p>
-                                    )}
-
-                                    {detailTeam.status === "ACTIVE" && (
-                                        <form
-                                            onSubmit={(event) => {
-                                                event.preventDefault();
-                                                if (!newMemberId) return;
-
-                                                addMemberMutation.mutate({
-                                                    teamId: detailTeam.id,
-                                                    userId: newMemberId,
-                                                    designation: newMemberDesignation.trim() || null,
-                                                });
-                                            }}
-                                            className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950"
-                                        >
-                                            <div className="mb-3 flex items-center gap-2">
-                                                <UserPlus className="size-4 text-violet-700 dark:text-violet-300" />
-                                                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                                                    Add team member
-                                                </h3>
-                                            </div>
-
-                                            {usersQuery.isError ? (
-                                                <p className="text-sm text-rose-600">
-                                                    Unable to load the employee directory.
-                                                </p>
-                                            ) : (
-                                                <div className="grid gap-2 sm:grid-cols-[1.4fr_1fr_auto]">
-                                                    <select
-                                                        value={newMemberId}
-                                                        onChange={(event) => setNewMemberId(event.target.value)}
-                                                        required
-                                                        className="h-10 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                                                    >
-                                                        <option value="">Select employee</option>
-                                                        {availableEmployees.map((employee) => (
-                                                            <option key={employee.id} value={employee.id}>
-                                                                {employee.full_name} · {roleLabel(employee.role_code)}
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                    <input
-                                                        value={newMemberDesignation}
-                                                        onChange={(event) => setNewMemberDesignation(event.target.value)}
-                                                        maxLength={100}
-                                                        placeholder="Designation (optional)"
-                                                        className="h-10 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                                                    />
-                                                    <button
-                                                        type="submit"
-                                                        disabled={!newMemberId || addMemberMutation.isPending}
-                                                        className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-violet-700 px-3 text-xs font-semibold text-white hover:bg-violet-800 disabled:opacity-50"
-                                                    >
-                                                        {addMemberMutation.isPending ? (
-                                                            <RefreshCw className="size-3.5 animate-spin" />
-                                                        ) : (
-                                                            <Plus className="size-3.5" />
-                                                        )}
-                                                        Add
-                                                    </button>
-                                                </div>
-                                            )}
-
-                                            {availableEmployees.length === 0 && employees.length > 0 && (
-                                                <p className="mt-2 text-xs text-slate-400">
-                                                    All currently listed active employees are already members of this team.
-                                                </p>
-                                            )}
-
-                                            {addMemberMutation.error && (
-                                                <p role="alert" className="mt-2 text-xs text-rose-600">
-                                                    {addMemberMutation.error.message}
-                                                </p>
-                                            )}
-                                        </form>
-                                    )}
-
-                                    {detailTeam.status === "ARCHIVED" && (
-                                        <p className="rounded-lg bg-slate-100 p-3 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-300">
-                                            This team is archived. Membership changes and lead updates are disabled.
-                                        </p>
-                                    )}
+                {/* Team detail / membership panel */}
+                {selectedTeamId && (
+                    <div className="fixed inset-0 z-[65] flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4">
+                        <section
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="team-detail-title"
+                            className="my-8 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+                        >
+                            {detailQuery.isPending ? (
+                                <div className="flex min-h-64 items-center justify-center gap-3 text-sm text-slate-500">
+                                    <RefreshCw className="size-4 animate-spin" />
+                                    Loading team details...
                                 </div>
-
-                                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 p-5 dark:border-slate-800">
-                                    <div className="flex flex-wrap gap-2">
-                                        {detailTeam.status === "ACTIVE" && (
-                                            <>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        openEditForm(detailTeam);
-                                                        setSelectedTeamId(null);
-                                                    }}
-                                                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                                                >
-                                                    <Pencil className="size-3.5" />
-                                                    Edit team
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleArchive(detailTeam)}
-                                                    disabled={archiveMutation.isPending}
-                                                    className="inline-flex items-center gap-2 rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:border-rose-900 dark:hover:bg-rose-950/40"
-                                                >
-                                                    <Archive className="size-3.5" />
-                                                    Archive team
-                                                </button>
-                                            </>
-                                        )}
-                                    </div>
+                            ) : detailQuery.isError || !detailTeam ? (
+                                <div className="p-8 text-center">
+                                    <CircleAlert className="mx-auto size-8 text-rose-500" />
+                                    <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">
+                                        Unable to load team details
+                                    </p>
+                                    <p className="mt-1 text-xs text-slate-500">
+                                        {detailQuery.error instanceof Error
+                                            ? detailQuery.error.message
+                                            : "Please try again."}
+                                    </p>
                                     <button
                                         type="button"
                                         onClick={() => setSelectedTeamId(null)}
-                                        className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600"
+                                        className="mt-5 rounded-lg border border-slate-200 px-4 py-2 text-sm dark:border-slate-700"
                                     >
                                         Close
                                     </button>
                                 </div>
-                            </>
-                        )}
-                    </section>
-                </div>
-            )}
+                            ) : (
+                                <>
+                                    <div className="flex items-start justify-between border-b border-slate-100 p-5 dark:border-slate-800">
+                                        <div className="min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <h2 id="team-detail-title" className="truncate text-lg font-bold text-slate-900 dark:text-white">
+                                                    {detailTeam.name}
+                                                </h2>
+                                                <StatusBadge status={detailTeam.status} />
+                                            </div>
+                                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                                {detailTeam.description || "No team description"}
+                                            </p>
+                                            <p className="mt-2 text-xs text-slate-400">
+                                                Created {formatDate(detailTeam.created_at)}
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedTeamId(null)}
+                                            aria-label="Close team details"
+                                            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                        >
+                                            <X className="size-5" />
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-6 p-5">
+                                        {detailTeam.status === "ACTIVE" && (
+                                            <div className="grid gap-4 sm:grid-cols-2">
+                                                <div>
+                                                    <label htmlFor="assign-team-lead" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                                        Team lead
+                                                    </label>
+                                                    <div className="relative">
+                                                        <Crown className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-amber-500" />
+                                                        <select
+                                                            id="assign-team-lead"
+                                                            value={detailTeam.lead?.id ?? ""}
+                                                            disabled={leadMutation.isPending}
+                                                            onChange={(event) =>
+                                                                leadMutation.mutate({
+                                                                    teamId: detailTeam.id,
+                                                                    userId: event.target.value || null,
+                                                                })
+                                                            }
+                                                            className="h-10 w-full rounded-lg border border-slate-200 bg-white pr-3 pl-9 text-sm outline-none focus:border-violet-500 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                                                        >
+                                                            <option value="">No team lead</option>
+                                                            {detailTeam.members.map((member) => (
+                                                                <option key={member.user.id} value={member.user.id}>
+                                                                    {member.user.full_name}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    {leadMutation.error && (
+                                                        <p className="mt-1 text-xs text-rose-600">
+                                                            {leadMutation.error.message}
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex items-end">
+                                                    <div className="rounded-lg bg-violet-50 px-3 py-2.5 text-xs text-violet-800 dark:bg-violet-950/50 dark:text-violet-200">
+                                                        <Users className="mr-1 inline size-3.5" />
+                                                        {detailTeam.member_count} active members
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div>
+                                            <div className="mb-3 flex items-center justify-between gap-3">
+                                                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                                                    Team members
+                                                </h3>
+                                                <span className="text-xs text-slate-400">
+                                                    {detailTeam.members.length} members
+                                                </span>
+                                            </div>
+
+                                            {detailTeam.members.length === 0 ? (
+                                                <p className="rounded-lg border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-400 dark:border-slate-700">
+                                                    No active members in this team yet.
+                                                </p>
+                                            ) : (
+                                                <div className="divide-y divide-slate-100 rounded-lg border border-slate-100 dark:divide-slate-800 dark:border-slate-800">
+                                                    {detailTeam.members.map((member) => (
+                                                        <div key={member.id} className="flex items-center justify-between gap-3 px-3 py-3">
+                                                            <div className="flex min-w-0 items-center gap-3">
+                                                                <TeamAvatar user={member.user} />
+                                                                <div className="min-w-0">
+                                                                    <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
+                                                                        {member.user.full_name}
+                                                                        {detailTeam.lead?.id === member.user.id && (
+                                                                            <Crown className="size-3.5 shrink-0 text-amber-500" />
+                                                                        )}
+                                                                    </p>
+                                                                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                                                                        {member.designation || roleLabel(member.user.role_code)}
+                                                                        {" · "}
+                                                                        {member.user.email}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+
+                                                            {detailTeam.status === "ACTIVE" && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleRemoveMember(member)}
+                                                                    disabled={removeMemberMutation.isPending}
+                                                                    className="shrink-0 rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-50 dark:border-rose-900 dark:hover:bg-rose-950/40"
+                                                                >
+                                                                    Remove
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {removeMemberMutation.error && (
+                                            <p role="alert" className="text-sm text-rose-600">
+                                                {removeMemberMutation.error.message}
+                                            </p>
+                                        )}
+
+                                        {detailTeam.status === "ACTIVE" && (
+                                            <form
+                                                onSubmit={(event) => {
+                                                    event.preventDefault();
+                                                    if (!newMemberId) return;
+
+                                                    addMemberMutation.mutate({
+                                                        teamId: detailTeam.id,
+                                                        userId: newMemberId,
+                                                        designation: newMemberDesignation.trim() || null,
+                                                    });
+                                                }}
+                                                className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950"
+                                            >
+                                                <div className="mb-3 flex items-center gap-2">
+                                                    <UserPlus className="size-4 text-violet-700 dark:text-violet-300" />
+                                                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                                                        Add team member
+                                                    </h3>
+                                                </div>
+
+                                                {usersQuery.isError ? (
+                                                    <p className="text-sm text-rose-600">
+                                                        Unable to load the employee directory.
+                                                    </p>
+                                                ) : (
+                                                    <div className="grid gap-2 sm:grid-cols-[1.4fr_1fr_auto]">
+                                                        <select
+                                                            value={newMemberId}
+                                                            onChange={(event) => setNewMemberId(event.target.value)}
+                                                            required
+                                                            className="h-10 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                                                        >
+                                                            <option value="">Select employee</option>
+                                                            {availableEmployees.map((employee) => (
+                                                                <option key={employee.id} value={employee.id}>
+                                                                    {employee.full_name} · {roleLabel(employee.role_code)}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        <input
+                                                            value={newMemberDesignation}
+                                                            onChange={(event) => setNewMemberDesignation(event.target.value)}
+                                                            maxLength={100}
+                                                            placeholder="Designation (optional)"
+                                                            className="h-10 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                                                        />
+                                                        <button
+                                                            type="submit"
+                                                            disabled={!newMemberId || addMemberMutation.isPending}
+                                                            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-violet-700 px-3 text-xs font-semibold text-white hover:bg-violet-800 disabled:opacity-50"
+                                                        >
+                                                            {addMemberMutation.isPending ? (
+                                                                <RefreshCw className="size-3.5 animate-spin" />
+                                                            ) : (
+                                                                <Plus className="size-3.5" />
+                                                            )}
+                                                            Add
+                                                        </button>
+                                                    </div>
+                                                )}
+
+                                                {availableEmployees.length === 0 && employees.length > 0 && (
+                                                    <p className="mt-2 text-xs text-slate-400">
+                                                        All currently listed active employees are already members of this team.
+                                                    </p>
+                                                )}
+
+                                                {addMemberMutation.error && (
+                                                    <p role="alert" className="mt-2 text-xs text-rose-600">
+                                                        {addMemberMutation.error.message}
+                                                    </p>
+                                                )}
+                                            </form>
+                                        )}
+
+                                        {detailTeam.status === "ARCHIVED" && (
+                                            <p className="rounded-lg bg-slate-100 p-3 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+                                                This team is archived. Membership changes and lead updates are disabled.
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 p-5 dark:border-slate-800">
+                                        <div className="flex flex-wrap gap-2">
+                                            {detailTeam.status === "ACTIVE" && (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            openEditForm(detailTeam);
+                                                            setSelectedTeamId(null);
+                                                        }}
+                                                        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                                                    >
+                                                        <Pencil className="size-3.5" />
+                                                        Edit team
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleArchive(detailTeam)}
+                                                        disabled={archiveMutation.isPending}
+                                                        className="inline-flex items-center gap-2 rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:border-rose-900 dark:hover:bg-rose-950/40"
+                                                    >
+                                                        <Archive className="size-3.5" />
+                                                        Archive team
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedTeamId(null)}
+                                            className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600"
+                                        >
+                                            Close
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </section>
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -18,6 +18,17 @@ function endpoint(path: string): string {
     return `${API_BASE_URL}${path}`;
 }
 
+export async function publicFetch(
+    path: string,
+    init: RequestInit = {},
+): Promise<Response> {
+    return fetch(endpoint(path), {
+        ...init,
+        credentials: "omit",
+        cache: "no-store",
+    });
+}
+
 async function readPayload(response: Response): Promise<ApiPayload> {
     const data: unknown = await response.json().catch(() => ({}));
     if (data && typeof data === "object" && !Array.isArray(data)) {

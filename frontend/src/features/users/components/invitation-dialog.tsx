@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+} from "@tanstack/react-query";
 import {
     createInvitation,
     type InvitationCreated,
     type UserRole,
 } from "@/features/users/api/users-api";
+import { getTeams } from "@/features/teams/api/teams-api";
 
 type InvitationDialogProps = {
     open: boolean;
@@ -30,9 +35,18 @@ export function InvitationDialog({
     const [email, setEmail] = useState("");
     const [employeeId, setEmployeeId] = useState("");
     const [roleCode, setRoleCode] = useState<UserRole>("DEVELOPER");
+    const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
+
     const [createdInvitation, setCreatedInvitation] =
         useState<InvitationCreated | null>(null);
     const [copyMessage, setCopyMessage] = useState("");
+
+    const teamsQuery = useQuery({
+        queryKey: ["teams", "active-for-invitation"],
+        queryFn: () => getTeams(1, 100, "", "ACTIVE"),
+        enabled: open && !createdInvitation,
+        staleTime: 60_000,
+    });
 
     const mutation = useMutation({
         mutationFn: createInvitation,
@@ -66,6 +80,7 @@ export function InvitationDialog({
         setEmail("");
         setEmployeeId("");
         setRoleCode("DEVELOPER");
+        setSelectedTeamIds([]);
         setCreatedInvitation(null);
         setCopyMessage("");
         mutation.reset();
@@ -82,7 +97,7 @@ export function InvitationDialog({
                 email: email.trim().toLowerCase(),
                 employee_id: employeeId.trim() || null,
                 role_code: roleCode,
-                team_ids: [],
+                team_ids: selectedTeamIds,
             });
 
             setCreatedInvitation(result);
@@ -163,6 +178,15 @@ export function InvitationDialog({
                                 {createdInvitation.full_name} ·{" "}
                                 {createdInvitation.email}
                             </p>
+
+                            {createdInvitation.teams.length > 0 && (
+                                <p className="mt-2 text-xs text-emerald-700">
+                                    Assigned teams:{" "}
+                                    {createdInvitation.teams
+                                        .map((team) => team.name)
+                                        .join(", ")}
+                                </p>
+                            )}
                         </div>
 
                         <div>
@@ -309,13 +333,102 @@ export function InvitationDialog({
                             </select>
                         </div>
 
-                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                            <p className="text-xs leading-5 text-amber-800">
-                                Team assignment will be connected when the
-                                active-teams API is available. This invitation
-                                will be created without a team assignment.
+                        <fieldset className="space-y-2">
+                            <legend className="text-sm font-medium text-slate-700">
+                                Assign teams{" "}
+                                <span className="font-normal text-slate-400">
+                                    (Optional)
+                                </span>
+                            </legend>
+
+                            <p className="text-xs leading-5 text-slate-500">
+                                Select one or multiple teams for this employee.
+                                Team memberships will be activated after the invitation is accepted.
                             </p>
-                        </div>
+
+                            {teamsQuery.isPending ? (
+                                <div className="flex items-center gap-2 rounded-lg border border-slate-200 p-4 text-sm text-slate-500">
+                                    <span className="size-4 animate-spin rounded-full border-2 border-violet-600 border-t-transparent" />
+                                    Loading active teams...
+                                </div>
+                            ) : teamsQuery.isError ? (
+                                <div
+                                    role="alert"
+                                    className="rounded-lg border border-rose-200 bg-rose-50 p-3"
+                                >
+                                    <p className="text-sm text-rose-700">
+                                        {teamsQuery.error instanceof Error
+                                            ? teamsQuery.error.message
+                                            : "Unable to load active teams."}
+                                    </p>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => void teamsQuery.refetch()}
+                                        className="mt-2 text-xs font-semibold text-rose-700 underline underline-offset-2"
+                                    >
+                                        Retry loading teams
+                                    </button>
+                                </div>
+                            ) : teamsQuery.data?.items.length ? (
+                                <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-3">
+                                    {teamsQuery.data.items.map((team) => {
+                                        const selected = selectedTeamIds.includes(team.id);
+
+                                        return (
+                                            <label
+                                                key={team.id}
+                                                className={`flex cursor-pointer items-center gap-3 rounded-md border p-3 transition ${selected
+                                                        ? "border-violet-300 bg-violet-50"
+                                                        : "border-slate-100 bg-white hover:bg-slate-50"
+                                                    }`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selected}
+                                                    onChange={(event) => {
+                                                        setSelectedTeamIds((current) =>
+                                                            event.target.checked
+                                                                ? [...current, team.id]
+                                                                : current.filter(
+                                                                    (id) => id !== team.id,
+                                                                ),
+                                                        );
+                                                    }}
+                                                    className="size-4 accent-violet-700"
+                                                />
+
+                                                <span className="text-sm font-medium text-slate-700">
+                                                    {team.name}
+                                                </span>
+
+                                                {selected && (
+                                                    <span className="ml-auto text-xs font-semibold text-violet-700">
+                                                        Selected
+                                                    </span>
+                                                )}
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="rounded-lg border border-dashed border-slate-300 p-4 text-center">
+                                    <p className="text-sm font-medium text-slate-600">
+                                        No active teams found
+                                    </p>
+                                    <p className="mt-1 text-xs text-slate-400">
+                                        Create an active team before assigning employees.
+                                    </p>
+                                </div>
+                            )}
+
+                            {selectedTeamIds.length > 0 && (
+                                <p className="text-xs font-medium text-violet-700">
+                                    {selectedTeamIds.length}{" "}
+                                    {selectedTeamIds.length === 1 ? "team" : "teams"} selected
+                                </p>
+                            )}
+                        </fieldset>
 
                         {mutation.error && (
                             <div
@@ -340,7 +453,11 @@ export function InvitationDialog({
 
                             <button
                                 type="submit"
-                                disabled={mutation.isPending}
+                                disabled={
+                                    mutation.isPending ||
+                                    teamsQuery.isPending ||
+                                    teamsQuery.isError
+                                }
                                 className="rounded-lg bg-violet-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {mutation.isPending

@@ -1,4 +1,7 @@
-import { authenticatedFetch } from "@/features/auth/api/auth-api";
+import {
+    authenticatedFetch,
+    publicFetch,
+} from "@/features/auth/api/auth-api";
 
 export type UserRole = "ADMIN" | "PM" | "DEVELOPER" | "TESTER";
 
@@ -163,4 +166,44 @@ export async function revokeInvitation(
     await ensureSuccess(response, "Unable to revoke the invitation.");
 
     return readPayload<RevokeInvitationResponse>(response);
+}
+
+export type InvitationAcceptResponse = {
+    message: string;
+    user: {
+        id: string;
+        full_name: string;
+        email: string;
+        role_code: UserRole;
+        role_name: string;
+    };
+};
+
+export async function acceptInvitation(input: {
+    token: string;
+    password: string;
+}): Promise<InvitationAcceptResponse> {
+    const response = await publicFetch("/users/invitations/accept", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            token: input.token,
+            password: input.password,
+        }),
+    });
+
+    if (!response.ok) {
+        const payload = await readPayload<ApiErrorPayload>(response);
+
+        throw new Error(
+            getErrorMessage(
+                payload,
+                "Unable to accept the invitation. Please try again.",
+            ),
+        );
+    }
+
+    return readPayload<InvitationAcceptResponse>(response);
 }

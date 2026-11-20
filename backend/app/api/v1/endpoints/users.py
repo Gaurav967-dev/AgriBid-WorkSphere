@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -34,6 +35,7 @@ from app.services.user_invitation_service import (
     revoke_invitation,
 )
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/users", tags=["User Management"])
 
 
@@ -280,6 +282,7 @@ def accept_user_invitation(
         ) from None
 
     except SQLAlchemyError:
+        logger.exception("Database error occurred while accepting employee invitation.")
         db.rollback()
         raise _database_error("Unable to accept the invitation.") from None
 
