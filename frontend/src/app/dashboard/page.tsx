@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut, verifyToken, type AuthUser } from "@/features/auth/api/auth-api";
 
@@ -76,7 +77,7 @@ export default function DashboardPage() {
                     Your sign-in is verified. The dashboard modules will be added in the next implementation steps.
                 </p>
 
-                <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                         <h2 className="text-sm font-semibold text-slate-500">Signed-in account</h2>
                         <p className="mt-2 break-all text-base font-semibold">{user.email ?? "Authenticated employee"}</p>
@@ -85,6 +86,25 @@ export default function DashboardPage() {
                         <h2 className="text-sm font-semibold text-slate-500">Assigned role</h2>
                         <p className="mt-2 text-base font-semibold">{user.role_name ?? user.role_code ?? "Not provided by API"}</p>
                     </article>
+                    {user.role_code === "ADMIN" && (
+                        <Link
+                            href="/dashboard/users"
+                            className="rounded-xl border border-violet-200 bg-white p-5 shadow-sm transition hover:border-violet-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-violet-300"
+                        >
+                            <h2 className="text-sm font-semibold text-violet-700">
+                                User Management
+                            </h2>
+                            <p className="mt-2 text-base font-semibold text-slate-900">
+                                Manage employee accounts
+                            </p>
+                            <p className="mt-1 text-sm text-slate-600">
+                                Invite employees and review active accounts and invitations.
+                            </p>
+                            <span className="mt-4 inline-flex text-sm font-semibold text-violet-700">
+                                Open User Management →
+                            </span>
+                        </Link>
+                    )}
                 </div>
             </section>
         </main>
