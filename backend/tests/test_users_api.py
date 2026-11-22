@@ -349,6 +349,31 @@ def test_invitation_acceptance_requires_token(users_environment):
     assert response.status_code == 400
 
 
+@pytest.mark.parametrize(
+    "password",
+    [
+        "Short1!",
+        "lowercaseonly123!",
+        "NoDigitsPassword!",
+    ],
+)
+def test_invitation_acceptance_rejects_passwords_that_violate_policy(
+    users_environment,
+    password,
+):
+    client, _, _, _ = users_environment
+
+    response = client.post(
+        "/api/v1/users/invitations/accept",
+        json={
+            "token": "x" * 64,
+            "password": password,
+        },
+    )
+
+    assert response.status_code == 422, response.text
+
+
 def test_acceptance_rolls_back_if_team_membership_insert_fails(
     users_environment,
 ):

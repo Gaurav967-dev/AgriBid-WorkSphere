@@ -134,6 +134,20 @@ export async function authenticatedFetch(
     return response;
 }
 
+/**
+ * Fetch a public API endpoint without sending authentication cookies
+ * or attempting an access-token refresh.
+ */
+export async function unauthenticatedFetch(
+    path: string,
+    init: RequestInit = {},
+): Promise<Response> {
+    return fetch(endpoint(path), {
+        ...init,
+        credentials: "omit",
+        cache: "no-store",
+    });
+}
 async function verifyTokenRequest(): Promise<{ user: AuthUser }> {
     const response = await authenticatedFetch("/auth/verify-token", {
         method: "GET",

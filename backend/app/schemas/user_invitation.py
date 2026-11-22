@@ -61,7 +61,18 @@ class InvitationCreateRequest(BaseModel):
 
 class InvitationAcceptRequest(BaseModel):
     token: str = Field(min_length=32, max_length=512)
-    password: str = Field(min_length=1, max_length=1024)
+    password: str = Field(min_length=8, max_length=1024)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_policy(cls, value: str) -> str:
+        if not re.search(r"[A-Z]", value):
+            raise ValueError("Password must contain at least one uppercase letter.")
+
+        if not re.search(r"[0-9]", value):
+            raise ValueError("Password must contain at least one number.")
+
+        return value
 
 
 class InvitationTeamResponse(BaseModel):

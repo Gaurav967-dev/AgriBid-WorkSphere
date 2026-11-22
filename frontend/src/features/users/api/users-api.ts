@@ -1,4 +1,4 @@
-import { authenticatedFetch } from "@/features/auth/api/auth-api";
+import { authenticatedFetch, unauthenticatedFetch } from "@/features/auth/api/auth-api";
 
 export type UserRole = "ADMIN" | "PM" | "DEVELOPER" | "TESTER";
 
@@ -70,6 +70,24 @@ export type ActiveUserListResponse = {
     page_size: number;
     total_pages: number;
 };
+export type InvitationAcceptedUser = {
+    id: string;
+    full_name: string;
+    email: string;
+    role_code: UserRole;
+    role_name: string;
+    is_active: boolean;
+};
+
+export type InvitationAcceptResponse = {
+    message: string;
+    user: InvitationAcceptedUser;
+};
+
+export type InvitationAcceptInput = {
+    token: string;
+    password: string;
+};
 type ApiErrorPayload = {
     detail?: unknown;
     message?: unknown;
@@ -128,6 +146,24 @@ async function ensureSuccess(
     throw new Error(getErrorMessage(payload, fallback));
 }
 
+export async function acceptInvitation(
+    input: InvitationAcceptInput,
+): Promise<InvitationAcceptResponse> {
+    const response = await unauthenticatedFetch(
+        "/users/invitations/accept",
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(input),
+        },
+    );
+
+    await ensureSuccess(response, "Unable to accept the invitation.");
+
+    return readPayload<InvitationAcceptResponse>(response);
+}
 export async function getInvitations(
     page = 1,
     pageSize = 20,
