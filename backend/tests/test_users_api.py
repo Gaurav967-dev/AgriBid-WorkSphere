@@ -349,6 +349,31 @@ def test_invitation_acceptance_requires_token(users_environment):
     assert response.status_code == 400
 
 
+@pytest.mark.parametrize(
+    "password",
+    [
+        "Short1!",
+        "lowercaseonly123!",
+        "NoDigitsPassword!",
+    ],
+)
+def test_invitation_acceptance_rejects_passwords_that_violate_policy(
+    users_environment,
+    password,
+):
+    client, _, _, _ = users_environment
+
+    response = client.post(
+        "/api/v1/users/invitations/accept",
+        json={
+            "token": "x" * 64,
+            "password": password,
+        },
+    )
+
+    assert response.status_code == 422, response.text
+
+
 def test_acceptance_rolls_back_if_team_membership_insert_fails(
     users_environment,
 ):
@@ -451,3 +476,49 @@ def test_invitation_cannot_be_accepted_when_assigned_team_is_archived(
 
         assert invitation is not None
         assert invitation.accepted_at is None
+
+
+def test_active_users_list_requires_authentication(users_environment):
+    client, _, _, _ = users_environment
+
+    response = client.get("/api/v1/users")
+
+    assert response.status_code == 401
+
+
+def test_admin_can_list_and_search_active_users(users_environment):
+    client, _, _, _ = users_environment
+
+    sign_in_response = sign_in(client)
+    assert sign_in_response.status_code == 200
+
+    list_response = client.get(
+        "/api/v1/users",
+        params={"page": 1, "page_size": 10},
+    )
+
+    assert list_response.status_code == 200
+
+    data = list_response.json()
+
+    assert "items" in data
+    assert data["page"] == 1
+    assert data["page_size"] == 10
+    assert data["total"] >= 1
+
+    for user in data["items"]:
+        assert user["is_active"] is True
+        assert user["role_code"]
+        assert user["role_name"]
+
+    search_response = client.get(
+        "/api/v1/users",
+        params={"search": DEVELOPER_EMAIL},
+    )
+
+    assert search_response.status_code == 200
+
+    search_data = search_response.json()
+
+    assert search_data["total"] == 1
+    assert search_data["items"][0]["email"] == DEVELOPER_EMAIL

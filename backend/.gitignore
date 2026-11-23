@@ -1,24 +1,34 @@
-# Python runtime and virtual environments
-.venv/
-venv/
-env/
-__pycache__/
-*.py[cod]
-
-# Test and quality-tool output
-.pytest_cache/
-.ruff_cache/
-.mypy_cache/
-.coverage
-htmlcov/
-coverage/
-test-results/
-
-# Local environment and secrets
+﻿# Environment variables and secrets
 .env
 .env.*
 !.env.example
 !.env.*.example
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test, coverage, and quality-tool artifacts
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyright/
+.coverage
+.coverage.*
+htmlcov/
+coverage/
+test-results/
+
+# Build and packaging artifacts
+build/
+dist/
 
 # Local uploads and temporary data
 storage/uploads/
@@ -28,19 +38,5 @@ storage/temp/
 *.log
 *.tsbuildinfo
 
-# Local auth debugging backups and temporary patch scripts
+# Local auth debugging backups
 .auth-cookie-final-backup-*/
-.auth-token-scope-backup-*/
-.single-flight-auth-backup-*/
-apply-single-flight-auth-refresh.py
-apply_auth_token_scope_improvements.py
-finish-auth-cookie-scope.py
-setup-frontend-auth.ps1
-
-# Editors and operating systems
-.idea/
-.vscode/
-*.swp
-*.swo
-.DS_Store
-Thumbs.db

@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import joinedload, selectinload
 from starlette import status
@@ -24,6 +24,7 @@ from app.schemas.user_invitation import (
     InvitationRevokeResponse,
     InvitationTeamResponse,
 )
+from app.schemas.user_management import UserListResponse, UserSummaryResponse
 from app.services.user_invitation_service import (
     InvitationServiceError,
     accept_invitation,
@@ -34,6 +35,69 @@ from app.services.user_invitation_service import (
 )
 
 router = APIRouter(prefix="/users", tags=["User Management"])
+
+
+@router.get(
+    "",
+    response_model=UserListResponse,
+)
+@limiter.limit("60/minute")
+def get_active_users(
+    request: Request,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    search: str | None = Query(default=None, max_length=100),
+    admin: User = Depends(get_admin_user),
+    db=Depends(get_db),
+) -> UserListResponse:
+    """Return paginated active employees. Admin access required."""
+    try:
+        filters = [User.is_active.is_(True)]
+
+        search_term = search.strip() if search else None
+
+        if search_term:
+            pattern = f"%{search_term}%"
+            filters.append(
+                or_(
+                    User.full_name.ilike(pattern),
+                    User.email.ilike(pattern),
+                    User.employee_id.ilike(pattern),
+                )
+            )
+
+        total = db.scalar(select(func.count(User.id)).where(*filters)) or 0
+
+        users = db.scalars(
+            select(User)
+            .options(joinedload(User.role))
+            .where(*filters)
+            .order_by(User.full_name.asc(), User.id.asc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        ).all()
+
+        return UserListResponse(
+            items=[
+                UserSummaryResponse(
+                    id=user.id,
+                    full_name=user.full_name,
+                    email=user.email,
+                    employee_id=user.employee_id,
+                    role_code=user.role.code,
+                    role_name=user.role.name,
+                    is_active=user.is_active,
+                )
+                for user in users
+            ],
+            total=total,
+            page=page,
+            page_size=page_size,
+            total_pages=(total + page_size - 1) // page_size,
+        )
+
+    except SQLAlchemyError:
+        raise _database_error("Unable to retrieve active users.") from None
 
 
 def _invitation_response(

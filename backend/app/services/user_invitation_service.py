@@ -203,7 +203,7 @@ def accept_invitation(
             selectinload(UserInvitation.teams),
         )
         .where(UserInvitation.token_hash == token_digest)
-        .with_for_update()
+        .with_for_update(of=UserInvitation)
     )
 
     if invitation is None:
