@@ -6,13 +6,11 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     AlertCircle,
-    ArrowLeft,
     CheckCircle2,
     ChevronLeft,
     ChevronRight,
     Clock3,
-    LayoutDashboard,
-    LogOut,
+
     Plus,
     RefreshCw,
     Search,
@@ -21,6 +19,7 @@ import {
     XCircle,
     X,
     Menu,
+    PanelLeft,
 } from "lucide-react";
 
 import {
@@ -34,12 +33,15 @@ import {
     getInvitations,
     revokeInvitation,
     type ActiveUser,
+    type EmployeeStatusFilter,
     type Invitation,
     type InvitationStatus,
 } from "@/features/users/api/users-api";
 
 import { InvitationDialog } from "@/features/users/components/invitation-dialog";
 import { WorkspaceActions } from "@/components/workspace-actions";
+import { WorkspaceSidebar } from "@/components/workspace-sidebar";
+import { useWorkspaceSidebarState } from "@/components/workspace-sidebar-state";
 
 const PAGE_SIZE = 10;
 const ACTIVE_USER_PAGE_SIZE = 12;
@@ -60,6 +62,16 @@ function formatDate(value: string): string {
         month: "short",
         year: "numeric",
     }).format(date);
+}
+
+function relativeUpdate(value?: string | null): string {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    const days = Math.max(0, Math.floor((Date.now() - date.getTime()) / 86_400_000));
+    if (days === 0) return "Today";
+    if (days === 1) return "1 day ago";
+    return `${days} days ago`;
 }
 
 function StatusBadge({ status }: { status: InvitationStatus }) {
@@ -109,36 +121,10 @@ function RoleBadge({ role }: { role: string }) {
     );
 }
 
-function SummaryCard({
-    title,
-    value,
-    detail,
-    icon,
-}: {
-    title: string;
-    value: string | number;
-    detail: string;
-    icon: React.ReactNode;
-}) {
-    return (
-        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-4">
-                <p className="text-sm font-medium text-slate-500">{title}</p>
-                <span className="rounded-lg bg-violet-50 p-2 text-violet-700">
-                    {icon}
-                </span>
-            </div>
-            <p className="mt-4 text-2xl font-bold tracking-tight text-slate-900">
-                {value}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">{detail}</p>
-        </article>
-    );
-}
-
 export default function UsersPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
+    const { collapsed, toggleCollapsed } = useWorkspaceSidebarState();
 
     const [user, setUser] = useState<AuthUser | null>(null);
     const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -149,6 +135,8 @@ export default function UsersPage() {
 
     const [employeePage, setEmployeePage] = useState(1);
     const [employeeSearch, setEmployeeSearch] = useState("");
+    const [employeeStatusFilter, setEmployeeStatusFilter] =
+        useState<EmployeeStatusFilter>("ACTIVE");
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
     const [isInvitationDialogOpen, setIsInvitationDialogOpen] =
         useState(false);
@@ -190,12 +178,14 @@ export default function UsersPage() {
             employeePage,
             ACTIVE_USER_PAGE_SIZE,
             employeeSearch.trim(),
+            employeeStatusFilter,
         ],
         queryFn: () =>
             getActiveUsers(
                 employeePage,
                 ACTIVE_USER_PAGE_SIZE,
                 employeeSearch,
+                employeeStatusFilter,
             ),
         enabled: !isCheckingAuth && isAdmin,
     });
@@ -240,13 +230,10 @@ export default function UsersPage() {
         1,
         activeUsersQuery.data?.total_pages ?? 1,
     );
-    const pendingOnPage = invitations.filter(
-        (item) => item.status === "PENDING",
-    ).length;
-
-    const acceptedOnPage = invitations.filter(
-        (item) => item.status === "ACCEPTED",
-    ).length;
+    const latestInvitationUpdate = invitations
+        .map((item) => item.created_at)
+        .filter(Boolean)
+        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
 
     async function handleSignOut() {
         setIsSigningOut(true);
@@ -279,7 +266,7 @@ export default function UsersPage() {
 
     if (isCheckingAuth || !user) {
         return (
-            <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
+            <main className="workspace-shell flex min-h-screen items-center justify-center bg-slate-50 px-6">
                 <div className="flex items-center gap-3 text-sm text-slate-600">
                     <RefreshCw className="size-4 animate-spin" />
                     Verifying your session...
@@ -290,7 +277,7 @@ export default function UsersPage() {
 
     if (!isAdmin) {
         return (
-            <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
+            <main className="workspace-shell flex min-h-screen items-center justify-center bg-slate-50 px-6">
                 <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
                     <ShieldCheck className="mx-auto size-10 text-rose-500" />
                     <h1 className="mt-4 text-xl font-bold text-slate-900">
@@ -301,7 +288,7 @@ export default function UsersPage() {
                     </p>
                     <Link
                         href="/dashboard"
-                        className="mt-6 inline-flex rounded-lg bg-violet-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-800"
+                        className="mt-4 inline-flex rounded-lg bg-violet-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-800"
                     >
                         Return to dashboard
                     </Link>
@@ -311,75 +298,26 @@ export default function UsersPage() {
     }
 
     return (
-        <div className="workspace-shell min-h-screen bg-[#f7f8fc] text-slate-900">
-            <aside className="fixed inset-y-0 left-0 z-30 hidden w-16 flex-col border-r border-slate-200 bg-white md:flex xl:w-64">
-                <div className="flex h-20 items-center justify-center gap-3 border-b border-slate-100 px-2 xl:justify-start xl:px-6">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-violet-700 text-white">
-                        <ShieldCheck className="size-5" />
-                    </div>
-                    <div className="hidden xl:block">
-                        <p className="text-sm font-bold tracking-tight text-slate-900">
-                            AgriBid
-                        </p>
-                        <p className="text-xs text-slate-500">WorkSphere</p>
-                    </div>
-                </div>
-
-                <div className="px-2 pt-7 xl:px-4">
-                    <p className="hidden px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 xl:block">
-                        Workspace
-                    </p>
-
-                    <nav className="mt-3 space-y-1">
-                        <Link
-                            href="/dashboard"
-                            title="Overview"
-                            className="flex items-center justify-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 xl:justify-start"
-                        >
-                            <LayoutDashboard className="size-4 shrink-0" />
-                            <span className="hidden xl:inline">Overview</span>
-                        </Link>
-
-
-                        <Link
-                            href="/dashboard/users"
-                            title="User Management"
-                            aria-current="page"
-                            className="flex items-center justify-center gap-3 rounded-lg bg-violet-50 px-3 py-2.5 text-sm font-semibold text-violet-800 xl:justify-start"
-                        >
-                            <Users className="size-4 shrink-0" />
-                            <span className="hidden xl:inline">User Management</span>
-                        </Link>
-                    </nav>
-                </div>
-
-                <div className="mt-auto border-t border-slate-100 p-3 xl:p-5">
-                    <div className="hidden xl:block">
-                        <p className="text-xs font-semibold text-slate-700">
-                            Signed in as
-                        </p>
-                        <p className="mt-1 truncate text-xs text-slate-500">
-                            {user.email}
-                        </p>
-                        <span className="mt-2 inline-flex rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">
-                            Administrator
-                        </span>
-                    </div>
-
-                    <div
-                        className="flex justify-center xl:hidden"
-                        title="Administrator account"
-                    >
-                        <ShieldCheck className="size-5 text-violet-700" />
-                    </div>
-                </div>
-            </aside>
-
-            <div className="md:pl-16 xl:pl-64">
-                <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-                    <div className="flex min-h-16 items-center justify-between gap-3 px-4 sm:px-8">
+        <div className="workspace-shell flex min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+            <WorkspaceSidebar
+                user={user}
+                collapsed={collapsed}
+                mobileOpen={isMobileNavOpen}
+                onMobileClose={() => setIsMobileNavOpen(false)}
+            />
+            <div className="flex min-w-0 flex-1 flex-col">
+                <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900 sm:px-6">
+                    <div className="flex h-full w-full min-w-0 items-center justify-between gap-3">
                         <div className="flex min-w-0 items-center gap-3">
                             <button
+                                type="button"
+                                onClick={toggleCollapsed}
+                                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                                aria-expanded={!collapsed}
+                                className="hidden size-8 items-center justify-center rounded-md text-slate-600 transition hover:bg-slate-100 md:flex"
+                            >
+                                <PanelLeft className="size-4" />
+                            </button><button
                                 type="button"
                                 onClick={() =>
                                     setIsMobileNavOpen((current) => !current)
@@ -388,7 +326,7 @@ export default function UsersPage() {
                                     isMobileNavOpen ? "Close navigation" : "Open navigation"
                                 }
                                 aria-expanded={isMobileNavOpen}
-                                className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50 md:hidden"
+                                className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50 md:hidden"
                             >
                                 {isMobileNavOpen ? (
                                     <X className="size-4" />
@@ -398,134 +336,27 @@ export default function UsersPage() {
                             </button>
 
                             <div className="min-w-0">
-                                <p className="truncate text-sm font-semibold text-slate-900">
-                                    AgriBid WorkSphere
-                                </p>
-                                <p className="hidden text-xs text-slate-500 sm:block">
-                                    Project and team workspace
+                                <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                    User Management
                                 </p>
                             </div>
                         </div>
 
-                        <div className="flex shrink-0 items-center gap-3">
-                            <WorkspaceActions />
-                            <div className="hidden text-right sm:block">
-                                <p className="max-w-48 truncate text-sm font-medium text-slate-800">
-                                    {user.full_name ?? user.email}
-                                </p>
-                                <p className="text-xs text-slate-500">Administrator</p>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={handleSignOut}
-                                disabled={isSigningOut}
-                                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-                            >
-                                <LogOut className="size-4" />
-                                <span className="hidden sm:inline">
-                                    {isSigningOut ? "Signing out..." : "Sign out"}
-                                </span>
-                            </button>
+                        <div className="flex shrink-0 items-center gap-2">
+                            <WorkspaceActions user={user} lastUpdated={relativeUpdate(latestInvitationUpdate)}  onSignOut={handleSignOut} isSigningOut={isSigningOut} />
                         </div>
                     </div>
                 </header>
 
-                {isMobileNavOpen && (
-                    <div className="fixed inset-0 z-50 md:hidden">
-                        <button
-                            type="button"
-                            aria-label="Close navigation drawer"
-                            onClick={() => setIsMobileNavOpen(false)}
-                            className="absolute inset-0 bg-slate-950/40"
-                        />
 
-                        <aside className="absolute inset-y-0 left-0 flex w-[min(84vw,18rem)] flex-col border-r border-slate-200 bg-white shadow-xl">
-                            <div className="flex h-20 items-center justify-between border-b border-slate-100 px-5">
-                                <div className="flex items-center gap-3">
-                                    <div className="flex size-10 items-center justify-center rounded-xl bg-violet-700 text-white">
-                                        <ShieldCheck className="size-5" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-bold text-slate-900">
-                                            AgriBid
-                                        </p>
-                                        <p className="text-xs text-slate-500">
-                                            WorkSphere
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <button
-                                    type="button"
-                                    onClick={() => setIsMobileNavOpen(false)}
-                                    aria-label="Close navigation"
-                                    className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
-                                >
-                                    <X className="size-5" />
-                                </button>
-                            </div>
-
-                            <nav className="space-y-1 px-4 py-6">
-                                <p className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                                    Workspace
-                                </p>
-
-                                <Link
-                                    href="/dashboard"
-                                    onClick={() => setIsMobileNavOpen(false)}
-                                    className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50"
-                                >
-                                    <LayoutDashboard className="size-4" />
-                                    Overview
-                                </Link>
-
-
-                                <Link
-                                    href="/dashboard/users"
-                                    onClick={() => setIsMobileNavOpen(false)}
-                                    aria-current="page"
-                                    className="flex items-center gap-3 rounded-lg bg-violet-50 px-3 py-3 text-sm font-semibold text-violet-800"
-                                >
-                                    <Users className="size-4" />
-                                    User Management
-                                </Link>
-                            </nav>
-
-                            <div className="mt-auto border-t border-slate-100 p-5">
-                                <p className="text-xs font-semibold text-slate-700">
-                                    Signed in as
-                                </p>
-                                <p className="mt-1 truncate text-sm text-slate-500">
-                                    {user.email}
-                                </p>
-                                <span className="mt-2 inline-flex rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">
-                                    Administrator
-                                </span>
-                            </div>
-                        </aside>
-                    </div>
-                )}
-
-                <main className="mx-auto max-w-[1500px] px-5 py-8 sm:px-8">
-                    <div className="mb-7">
-                        <Link
-                            href="/dashboard"
-                            className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 transition hover:text-violet-700"
-                        >
-                            <ArrowLeft className="size-3.5" />
-                            Back to overview
-                        </Link>
-
-                        <div className="mt-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+                <main className="w-full max-w-none px-3 pb-3 pt-1 sm:px-4">
+                    <div className="mb-3">
+                        <div className="mt-0 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
                             <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-violet-700">
-                                    Workspace administration
-                                </p>
-                                <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                                <h1 className="mt-0 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
                                     User Management
                                 </h1>
-                                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                                <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-500">
                                     Invite employees, manage pending invitations,
                                     and track account onboarding.
                                 </p>
@@ -542,35 +373,14 @@ export default function UsersPage() {
                         </div>
                     </div>
 
-                    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                        <SummaryCard
-                            title="Total invitations"
-                            value={total}
-                            detail="All invitations recorded"
-                            icon={<Users className="size-5" />}
-                        />
-                        <SummaryCard
-                            title="Pending on this page"
-                            value={pendingOnPage}
-                            detail="Awaiting employee acceptance"
-                            icon={<Clock3 className="size-5" />}
-                        />
-                        <SummaryCard
-                            title="Accepted on this page"
-                            value={acceptedOnPage}
-                            detail="Accounts created from invitations"
-                            icon={<CheckCircle2 className="size-5" />}
-                        />
-                    </section>
-
-                    <section className="mt-7 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                        <div className="flex flex-col gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+                    <section className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                        <div className="flex flex-col gap-2 border-b border-slate-100 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-3">
                             <div>
                                 <h2 className="text-base font-bold text-slate-900">
-                                    Active employees
+                                    Employee accounts
                                 </h2>
                                 <p className="mt-1 text-xs text-slate-500">
-                                    View and search active employee accounts.
+                                    Search employees, review their details, and manage account status.
                                 </p>
                             </div>
 
@@ -586,16 +396,32 @@ export default function UsersPage() {
                                             setEmployeePage(1);
                                         }}
                                         placeholder="Search name, email or employee ID"
-                                        aria-label="Search active employees"
+                                        aria-label="Search employees"
                                         className="h-10 w-full rounded-lg border border-slate-200 bg-white pr-3 pl-9 text-sm outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-3 focus:ring-violet-100"
                                     />
                                 </div>
+
+                                <select
+                                    value={employeeStatusFilter}
+                                    onChange={(event) => {
+                                        setEmployeeStatusFilter(
+                                            event.target.value as EmployeeStatusFilter,
+                                        );
+                                        setEmployeePage(1);
+                                    }}
+                                    aria-label="Filter employees by account status"
+                                    className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-violet-500 focus:ring-3 focus:ring-violet-100"
+                                >
+                                    <option value="ACTIVE">Active</option>
+                                    <option value="INACTIVE">Inactive</option>
+                                    <option value="ALL">All employees</option>
+                                </select>
 
                                 <button
                                     type="button"
                                     onClick={() => void activeUsersQuery.refetch()}
                                     disabled={activeUsersQuery.isFetching}
-                                    aria-label="Refresh active employees"
+                                    aria-label="Refresh employees"
                                     className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
                                 >
                                     <RefreshCw
@@ -616,13 +442,13 @@ export default function UsersPage() {
                                 role="status"
                             >
                                 <RefreshCw className="size-4 animate-spin" />
-                                Loading active employees...
+                                Loading employees...
                             </div>
                         ) : activeUsersQuery.isError ? (
                             <div className="flex min-h-48 flex-col items-center justify-center px-6 text-center">
                                 <AlertCircle className="size-9 text-rose-500" />
                                 <h3 className="mt-3 text-sm font-semibold text-slate-900">
-                                    Unable to load active employees
+                                    Unable to load employees
                                 </h3>
                                 <p className="mt-1 max-w-md text-sm text-slate-500">
                                     {activeUsersQuery.error instanceof Error
@@ -643,7 +469,7 @@ export default function UsersPage() {
                             <div className="flex min-h-48 flex-col items-center justify-center px-6 text-center">
                                 <Users className="size-9 text-slate-300" />
                                 <h3 className="mt-3 text-sm font-semibold text-slate-900">
-                                    No active employees found
+                                    No employees found
                                 </h3>
                                 <p className="mt-1 text-sm text-slate-500">
                                     {employeeSearch.trim()
@@ -654,20 +480,23 @@ export default function UsersPage() {
                         ) : (
                             <>
                                 <div className="overflow-x-auto">
-                                    <table className="w-full min-w-[760px] border-collapse text-left">
+                                    <table className="w-full min-w-[900px] border-collapse text-left">
                                         <thead>
                                             <tr className="border-b border-slate-100 bg-slate-50/80">
-                                                <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
                                                     Employee
                                                 </th>
-                                                <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
                                                     Employee ID
                                                 </th>
-                                                <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
                                                     Role
                                                 </th>
-                                                <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
                                                     Account status
+                                                </th>
+                                                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                                    Actions
                                                 </th>
                                             </tr>
                                         </thead>
@@ -678,7 +507,7 @@ export default function UsersPage() {
                                                     key={employee.id}
                                                     className="transition hover:bg-slate-50/70"
                                                 >
-                                                    <td className="px-6 py-4">
+                                                    <td className="px-4 py-3">
                                                         <div className="min-w-0">
                                                             <p className="truncate text-sm font-semibold text-slate-900">
                                                                 {employee.full_name}
@@ -689,17 +518,17 @@ export default function UsersPage() {
                                                         </div>
                                                     </td>
 
-                                                    <td className="px-6 py-4 text-sm text-slate-600">
+                                                    <td className="px-4 py-3 text-sm text-slate-600">
                                                         {employee.employee_id || "—"}
                                                     </td>
 
-                                                    <td className="px-6 py-4">
+                                                    <td className="px-4 py-3">
                                                         <RoleBadge
                                                             role={employee.role_code}
                                                         />
                                                     </td>
 
-                                                    <td className="px-6 py-4">
+                                                    <td className="px-4 py-3">
                                                         <span
                                                             className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${
                                                                 employee.is_active
@@ -712,13 +541,21 @@ export default function UsersPage() {
                                                                 : "Inactive"}
                                                         </span>
                                                     </td>
+                                                    <td className="px-4 py-3 text-right">
+                                                        <Link
+                                                            href={`/dashboard/users/${employee.id}`}
+                                                            className="inline-flex items-center rounded-lg border border-violet-200 px-3 py-1.5 text-xs font-semibold text-violet-700 transition hover:bg-violet-50"
+                                                        >
+                                                            View details
+                                                        </Link>
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
                                 </div>
 
-                                <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                                <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                                     <p className="text-xs text-slate-500">
                                         Showing{" "}
                                         {(employeePage - 1) *
@@ -782,19 +619,22 @@ export default function UsersPage() {
                             </>
                         )}
                     </section>
-                    <section className="mt-7 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                        <div className="flex flex-col gap-4 border-b border-slate-100 p-5 sm:p-6">
-                            <div>
+                    <section className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                        <div className="flex flex-col gap-3 border-b border-slate-100 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                            <div className="min-w-0 shrink-0">
                                 <h2 className="text-base font-bold text-slate-900">
                                     Employee invitations
                                 </h2>
                                 <p className="mt-1 text-xs text-slate-500">
                                     Review and manage invitations sent to employees.
                                 </p>
+                                <p className="mt-0.5 text-[11px] text-slate-400">
+                                    Search and status filters apply to the currently loaded page.
+                                </p>
                             </div>
 
-                            <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                                <div className="relative min-w-0 flex-1">
+                            <div className="flex min-w-0 flex-col gap-2 sm:flex-1 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
+                                <div className="relative min-w-0 sm:w-72 sm:flex-1 sm:max-w-[360px]">
                                     <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
                                     <input
                                         type="search"
@@ -802,7 +642,7 @@ export default function UsersPage() {
                                         onChange={(event) =>
                                             setSearch(event.target.value)
                                         }
-                                        placeholder="Search this page by name, email or employee ID"
+                                        placeholder="Search invitations by name, email or ID"
                                         aria-label="Search invitations on this page"
                                         className="h-10 w-full rounded-lg border border-slate-200 bg-white pr-3 pl-9 text-sm outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-3 focus:ring-violet-100"
                                     />
@@ -816,7 +656,7 @@ export default function UsersPage() {
                                         )
                                     }
                                     aria-label="Filter invitations by status"
-                                    className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-violet-500 focus:ring-3 focus:ring-violet-100"
+                                    className="h-10 w-full shrink-0 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-violet-500 focus:ring-3 focus:ring-violet-100 sm:w-36"
                                 >
                                     <option value="ALL">All statuses</option>
                                     <option value="PENDING">Pending</option>
@@ -830,22 +670,14 @@ export default function UsersPage() {
                                     onClick={() => void invitationsQuery.refetch()}
                                     disabled={invitationsQuery.isFetching}
                                     aria-label="Refresh invitations"
-                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
                                 >
                                     <RefreshCw
-                                        className={`size-4 ${invitationsQuery.isFetching
-                                                ? "animate-spin"
-                                                : ""
-                                            }`}
+                                        className={`size-4 ${invitationsQuery.isFetching ? "animate-spin" : ""}`}
                                     />
                                     <span>Refresh</span>
                                 </button>
                             </div>
-
-                            <p className="text-xs text-slate-400">
-                                Search and status filters apply to the currently
-                                loaded page of invitations.
-                            </p>
                         </div>
 
                         {revokeMutation.error && (
@@ -922,7 +754,7 @@ export default function UsersPage() {
                                     <table className="w-full min-w-[1050px] border-collapse text-left">
                                         <thead>
                                             <tr className="border-b border-slate-100 bg-slate-50/80">
-                                                <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
                                                     Employee
                                                 </th>
                                                 <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -953,7 +785,7 @@ export default function UsersPage() {
                                                         key={invitation.id}
                                                         className="transition hover:bg-slate-50/70"
                                                     >
-                                                        <td className="px-6 py-4">
+                                                        <td className="px-4 py-3">
                                                             <div className="flex items-center gap-3">
                                                                 <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-800">
                                                                     {invitation.full_name
@@ -984,13 +816,13 @@ export default function UsersPage() {
                                                             </div>
                                                         </td>
 
-                                                        <td className="px-5 py-4">
+                                                        <td className="px-4 py-3">
                                                             <RoleBadge
                                                                 role={invitation.role_code}
                                                             />
                                                         </td>
 
-                                                        <td className="px-5 py-4">
+                                                        <td className="px-4 py-3">
                                                             {invitation.teams.length ? (
                                                                 <div className="flex max-w-48 flex-wrap gap-1">
                                                                     {invitation.teams.map(
@@ -1011,25 +843,25 @@ export default function UsersPage() {
                                                             )}
                                                         </td>
 
-                                                        <td className="px-5 py-4">
+                                                        <td className="px-4 py-3">
                                                             <StatusBadge
                                                                 status={invitation.status}
                                                             />
                                                         </td>
 
-                                                        <td className="px-5 py-4 text-xs text-slate-600">
+                                                        <td className="px-4 py-3 text-xs text-slate-600">
                                                             {formatDate(
                                                                 invitation.created_at,
                                                             )}
                                                         </td>
 
-                                                        <td className="px-5 py-4 text-xs text-slate-600">
+                                                        <td className="px-4 py-3 text-xs text-slate-600">
                                                             {formatDate(
                                                                 invitation.expires_at,
                                                             )}
                                                         </td>
 
-                                                        <td className="px-5 py-4 text-right">
+                                                        <td className="px-4 py-3 text-right">
                                                             {invitation.status ===
                                                                 "PENDING" ? (
                                                                 <button
@@ -1063,7 +895,7 @@ export default function UsersPage() {
                                     </table>
                                 </div>
 
-                                <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                                <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                                     <p className="text-xs text-slate-500">
                                         Showing{" "}
                                         {total === 0
@@ -1121,7 +953,7 @@ export default function UsersPage() {
                         )}
                     </section>
 
-                    <p className="mt-6 text-center text-xs text-slate-400">
+                    <p className="mt-4 text-center text-xs text-slate-400">
                         AgriBid WorkSphere · Internal employee workspace
                     </p>
                 </main>

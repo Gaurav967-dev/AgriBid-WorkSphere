@@ -1,11 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import {
-    useMutation,
-    useQuery,
-    useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     createInvitation,
     type InvitationCreated,
@@ -36,17 +32,9 @@ export function InvitationDialog({
     const [employeeId, setEmployeeId] = useState("");
     const [roleCode, setRoleCode] = useState<UserRole>("DEVELOPER");
     const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
-
     const [createdInvitation, setCreatedInvitation] =
         useState<InvitationCreated | null>(null);
     const [copyMessage, setCopyMessage] = useState("");
-
-    const teamsQuery = useQuery({
-        queryKey: ["teams", "active-for-invitation"],
-        queryFn: () => getTeams(1, 100, "", "ACTIVE"),
-        enabled: open && !createdInvitation,
-        staleTime: 60_000,
-    });
 
     const mutation = useMutation({
         mutationFn: createInvitation,
@@ -56,6 +44,23 @@ export function InvitationDialog({
             });
         },
     });
+
+    const teamsQuery = useQuery({
+        queryKey: ["teams", "invitation-options"],
+        queryFn: () => getTeams(1, 100, "", "ACTIVE"),
+        enabled: open,
+        staleTime: 60_000,
+    });
+
+    const activeTeams = teamsQuery.data?.items ?? [];
+
+    function toggleTeam(teamId: string) {
+        setSelectedTeamIds((current) =>
+            current.includes(teamId)
+                ? current.filter((id) => id !== teamId)
+                : [...current, teamId],
+        );
+    }
 
     useEffect(() => {
         if (!open) return;
@@ -134,16 +139,13 @@ export function InvitationDialog({
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="invitation-dialog-title"
-                className="my-auto w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-8"
+                className="my-auto max-h-[94vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-6"
             >
                 <div className="flex items-start justify-between gap-4">
                     <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-700">
-                            User Management
-                        </p>
                         <h2
                             id="invitation-dialog-title"
-                            className="mt-2 text-xl font-bold tracking-tight text-slate-900"
+                            className="mt-0 text-lg font-bold tracking-tight text-slate-900"
                         >
                             {createdInvitation
                                 ? "Invitation created"
@@ -169,7 +171,7 @@ export function InvitationDialog({
                 </div>
 
                 {createdInvitation ? (
-                    <div className="mt-7 space-y-5">
+                    <div className="mt-4 space-y-4">
                         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                             <p className="text-sm font-semibold text-emerald-800">
                                 Invitation successfully created
@@ -178,21 +180,17 @@ export function InvitationDialog({
                                 {createdInvitation.full_name} ·{" "}
                                 {createdInvitation.email}
                             </p>
-
-                            {createdInvitation.teams.length > 0 && (
-                                <p className="mt-2 text-xs text-emerald-700">
-                                    Assigned teams:{" "}
-                                    {createdInvitation.teams
-                                        .map((team) => team.name)
-                                        .join(", ")}
-                                </p>
-                            )}
+                            <p className="mt-1 text-xs text-emerald-700">
+                                Teams: {createdInvitation.teams.length
+                                    ? createdInvitation.teams.map((team) => team.name).join(", ")
+                                    : "No team assigned"}
+                            </p>
                         </div>
 
                         <div>
                             <label
                                 htmlFor="invitation-url"
-                                className="mb-2 block text-sm font-medium text-slate-700"
+                                className="mb-1.5 block text-xs font-medium text-slate-700"
                             >
                                 One-time invitation link
                             </label>
@@ -237,11 +235,11 @@ export function InvitationDialog({
                         </button>
                     </div>
                 ) : (
-                    <form onSubmit={handleSubmit} className="mt-7 space-y-5">
+                    <form onSubmit={handleSubmit} className="mt-4 space-y-3">
                         <div>
                             <label
                                 htmlFor="invite-full-name"
-                                className="mb-2 block text-sm font-medium text-slate-700"
+                                className="mb-1.5 block text-xs font-medium text-slate-700"
                             >
                                 Full name <span className="text-rose-500">*</span>
                             </label>
@@ -263,7 +261,7 @@ export function InvitationDialog({
                         <div>
                             <label
                                 htmlFor="invite-email"
-                                className="mb-2 block text-sm font-medium text-slate-700"
+                                className="mb-1.5 block text-xs font-medium text-slate-700"
                             >
                                 Company email{" "}
                                 <span className="text-rose-500">*</span>
@@ -286,7 +284,7 @@ export function InvitationDialog({
                         <div>
                             <label
                                 htmlFor="invite-employee-id"
-                                className="mb-2 block text-sm font-medium text-slate-700"
+                                className="mb-1.5 block text-xs font-medium text-slate-700"
                             >
                                 Employee ID{" "}
                                 <span className="font-normal text-slate-400">
@@ -309,7 +307,7 @@ export function InvitationDialog({
                         <div>
                             <label
                                 htmlFor="invite-role"
-                                className="mb-2 block text-sm font-medium text-slate-700"
+                                className="mb-1.5 block text-xs font-medium text-slate-700"
                             >
                                 Assign role{" "}
                                 <span className="text-rose-500">*</span>
@@ -334,100 +332,62 @@ export function InvitationDialog({
                         </div>
 
                         <fieldset className="space-y-2">
-                            <legend className="text-sm font-medium text-slate-700">
+                            <legend className="block text-sm font-medium text-slate-700">
                                 Assign teams{" "}
                                 <span className="font-normal text-slate-400">
-                                    (Optional)
+                                    (Optional · Multiple teams allowed)
                                 </span>
                             </legend>
 
+                            <div className="max-h-36 space-y-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2">
+                                {teamsQuery.isPending ? (
+                                    <p className="px-2 py-3 text-xs text-slate-500" role="status">
+                                        Loading active teams...
+                                    </p>
+                                ) : teamsQuery.isError ? (
+                                    <div className="flex items-center justify-between gap-3 px-2 py-2">
+                                        <p className="text-xs text-rose-600">
+                                            Unable to load active teams.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => void teamsQuery.refetch()}
+                                            className="shrink-0 text-xs font-semibold text-violet-700 hover:text-violet-900"
+                                        >
+                                            Retry
+                                        </button>
+                                    </div>
+                                ) : activeTeams.length === 0 ? (
+                                    <p className="px-2 py-3 text-xs text-slate-500">
+                                        No active teams are currently available.
+                                    </p>
+                                ) : (
+                                    activeTeams.map((team) => (
+                                        <label
+                                            key={team.id}
+                                            className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedTeamIds.includes(team.id)}
+                                                onChange={() => toggleTeam(team.id)}
+                                                disabled={mutation.isPending}
+                                                className="size-4 rounded border-slate-300 text-violet-700 accent-violet-700 focus:ring-violet-500"
+                                            />
+                                            <span className="min-w-0 flex-1 truncate">
+                                                {team.name}
+                                            </span>
+                                            <span className="text-[11px] text-slate-400">
+                                                {team.member_count} {team.member_count === 1 ? "member" : "members"}
+                                            </span>
+                                        </label>
+                                    ))
+                                )}
+                            </div>
+
                             <p className="text-xs leading-5 text-slate-500">
-                                Select one or multiple teams for this employee.
-                                Team memberships will be activated after the invitation is accepted.
+                                The employee will be added to the selected active teams after accepting the invitation.
                             </p>
-
-                            {teamsQuery.isPending ? (
-                                <div className="flex items-center gap-2 rounded-lg border border-slate-200 p-4 text-sm text-slate-500">
-                                    <span className="size-4 animate-spin rounded-full border-2 border-violet-600 border-t-transparent" />
-                                    Loading active teams...
-                                </div>
-                            ) : teamsQuery.isError ? (
-                                <div
-                                    role="alert"
-                                    className="rounded-lg border border-rose-200 bg-rose-50 p-3"
-                                >
-                                    <p className="text-sm text-rose-700">
-                                        {teamsQuery.error instanceof Error
-                                            ? teamsQuery.error.message
-                                            : "Unable to load active teams."}
-                                    </p>
-
-                                    <button
-                                        type="button"
-                                        onClick={() => void teamsQuery.refetch()}
-                                        className="mt-2 text-xs font-semibold text-rose-700 underline underline-offset-2"
-                                    >
-                                        Retry loading teams
-                                    </button>
-                                </div>
-                            ) : teamsQuery.data?.items.length ? (
-                                <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-3">
-                                    {teamsQuery.data.items.map((team) => {
-                                        const selected = selectedTeamIds.includes(team.id);
-
-                                        return (
-                                            <label
-                                                key={team.id}
-                                                className={`flex cursor-pointer items-center gap-3 rounded-md border p-3 transition ${selected
-                                                        ? "border-violet-300 bg-violet-50"
-                                                        : "border-slate-100 bg-white hover:bg-slate-50"
-                                                    }`}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selected}
-                                                    onChange={(event) => {
-                                                        setSelectedTeamIds((current) =>
-                                                            event.target.checked
-                                                                ? [...current, team.id]
-                                                                : current.filter(
-                                                                    (id) => id !== team.id,
-                                                                ),
-                                                        );
-                                                    }}
-                                                    className="size-4 accent-violet-700"
-                                                />
-
-                                                <span className="text-sm font-medium text-slate-700">
-                                                    {team.name}
-                                                </span>
-
-                                                {selected && (
-                                                    <span className="ml-auto text-xs font-semibold text-violet-700">
-                                                        Selected
-                                                    </span>
-                                                )}
-                                            </label>
-                                        );
-                                    })}
-                                </div>
-                            ) : (
-                                <div className="rounded-lg border border-dashed border-slate-300 p-4 text-center">
-                                    <p className="text-sm font-medium text-slate-600">
-                                        No active teams found
-                                    </p>
-                                    <p className="mt-1 text-xs text-slate-400">
-                                        Create an active team before assigning employees.
-                                    </p>
-                                </div>
-                            )}
-
-                            {selectedTeamIds.length > 0 && (
-                                <p className="text-xs font-medium text-violet-700">
-                                    {selectedTeamIds.length}{" "}
-                                    {selectedTeamIds.length === 1 ? "team" : "teams"} selected
-                                </p>
-                            )}
                         </fieldset>
 
                         {mutation.error && (
@@ -453,11 +413,8 @@ export function InvitationDialog({
 
                             <button
                                 type="submit"
-                                disabled={
-                                    mutation.isPending ||
-                                    teamsQuery.isPending ||
-                                    teamsQuery.isError
-                                }
+                                disabled={mutation.isPending || teamsQuery.isPending || teamsQuery.isError}
+                                title={teamsQuery.isError ? "Retry loading active teams before creating the invitation." : undefined}
                                 className="rounded-lg bg-violet-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {mutation.isPending

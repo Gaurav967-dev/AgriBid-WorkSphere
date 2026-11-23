@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Check, Play, Users } from "lucide-react";
+import { Box, Check, Info, Play, Users } from "lucide-react";
 
 import type { Team } from "@/features/teams/api/teams-api";
 import type { TeamDisplayProperties } from "./teams-ui-types";
@@ -41,16 +41,7 @@ export default function TeamLine({
 }: Props) {
     return (
         <div
-            role="button"
-            tabIndex={0}
-            onClick={() => onOpen(team)}
-            onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onOpen(team);
-                }
-            }}
-            className="flex w-full min-w-[760px] cursor-pointer items-center border-b border-slate-200/70 px-4 py-2.5 text-sm transition-colors hover:bg-slate-50/70 dark:border-slate-800 dark:hover:bg-slate-800/40 sm:px-6"
+            className="flex w-full min-w-[760px] items-center border-b border-slate-200/70 px-4 py-2.5 text-sm transition-colors hover:bg-slate-50/70 dark:border-slate-800 dark:hover:bg-slate-800/40 sm:px-6"
         >
             {/* Name */}
             <div className="flex min-w-0 flex-1 items-center gap-2.5">
@@ -61,6 +52,15 @@ export default function TeamLine({
                 <span className="truncate font-medium text-slate-800 dark:text-slate-100">
                     {team.name}
                 </span>
+                <button
+                    type="button"
+                    onClick={() => onOpen(team)}
+                    aria-label={`View ${team.name} details`}
+                    title={`View ${team.name} details`}
+                    className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-slate-400 transition hover:bg-violet-50 hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:hover:bg-violet-950/50 dark:hover:text-violet-300"
+                >
+                    <Info className="size-4" />
+                </button>
             </div>
 
             {/* Membership */}
@@ -101,10 +101,7 @@ export default function TeamLine({
 
             {/* Members */}
             {displayProperties.members && (
-                <div
-                    className="w-[15%] min-w-[150px] shrink-0"
-                    onClick={(event) => event.stopPropagation()}
-                >
+                <div className="w-[15%] min-w-[150px] shrink-0">
                     <TeamMembersTooltip team={team} />
                 </div>
             )}

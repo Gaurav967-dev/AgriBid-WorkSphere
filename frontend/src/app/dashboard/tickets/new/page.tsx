@@ -80,7 +80,7 @@ const INPUT_CLASS =
     "mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:ring-violet-950 dark:disabled:bg-slate-900";
 
 const TEXTAREA_CLASS =
-    "mt-1.5 min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:ring-violet-950";
+    "mt-1.5 min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:ring-violet-950";
 
 const LABEL_CLASS =
     "text-xs font-semibold text-slate-700 dark:text-slate-300";
@@ -104,8 +104,8 @@ function FormSection({
     children: React.ReactNode;
 }) {
     return (
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
-            <div className="mb-5 flex items-start gap-3 border-b border-slate-100 pb-4 dark:border-slate-800">
+        <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-3">
+            <div className="mb-3 flex items-start gap-2 border-b border-slate-100 pb-2 dark:border-slate-800">
                 <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
                     {icon}
                 </div>
@@ -119,7 +119,7 @@ function FormSection({
                 </div>
             </div>
 
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
                 {children}
             </div>
         </section>
@@ -361,7 +361,7 @@ export default function CreateTicketPage() {
 
     if (isCheckingAuth || !user) {
         return (
-            <main className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
+            <main className="workspace-shell flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
                 <div
                     className="flex items-center gap-2 text-sm text-slate-500"
                     role="status"
@@ -375,7 +375,7 @@ export default function CreateTicketPage() {
 
     if (!canCreateTicket) {
         return (
-            <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 dark:bg-slate-950">
+            <main className="workspace-shell flex min-h-screen items-center justify-center bg-slate-50 px-6 dark:bg-slate-950">
                 <section className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
                     <ShieldCheck className="mx-auto size-10 text-rose-500" />
                     <h1 className="mt-4 text-xl font-bold text-slate-900 dark:text-white">
@@ -386,7 +386,7 @@ export default function CreateTicketPage() {
                     </p>
                     <Link
                         href="/dashboard/tickets"
-                        className="mt-6 inline-flex items-center gap-2 rounded-lg bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800"
+                        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-violet-700 px-4 py-2 text-xs font-semibold text-white hover:bg-violet-800"
                     >
                         <ArrowLeft className="size-4" />
                         Back to tickets
@@ -397,7 +397,7 @@ export default function CreateTicketPage() {
     }
 
     return (
-        <main className="flex min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+        <main className="workspace-shell flex min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
             <WorkspaceSidebar
                 user={user}
                 collapsed={collapsed}
@@ -433,28 +433,16 @@ export default function CreateTicketPage() {
                             <p className="truncate text-sm font-semibold">
                                 Create ticket
                             </p>
-                            <p className="hidden text-[11px] text-slate-400 sm:block">
-                                Add a new item to your project
-                            </p>
                         </div>
                     </div>
 
                     <div className="flex shrink-0 items-center gap-2">
-                        <WorkspaceActions />
-
-                        <button
-                            type="button"
-                            onClick={handleSignOut}
-                            disabled={isSigningOut}
-                            className="rounded-md border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                        >
-                            {isSigningOut ? "Signing out..." : "Sign out"}
-                        </button>
+                        <WorkspaceActions user={user}  onSignOut={handleSignOut} isSigningOut={isSigningOut} />
                     </div>
                 </header>
 
-                <section className="flex-1 p-4 sm:p-6 lg:p-8">
-                    <div className="mx-auto max-w-4xl">
+                <section className="flex-1 px-2 pb-3 pt-1 sm:px-3 sm:pb-3 sm:pt-1 lg:px-3 lg:pb-3 lg:pt-1">
+                    <div className="w-full max-w-none">
                         <Link
                             href="/dashboard/tickets"
                             className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 transition hover:text-violet-700 dark:text-slate-400 dark:hover:text-violet-300"
@@ -463,11 +451,8 @@ export default function CreateTicketPage() {
                             Back to tickets
                         </Link>
 
-                        <div className="mt-5">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-violet-700 dark:text-violet-300">
-                                Workspace
-                            </p>
-                            <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+                        <div className="mt-2">
+                            <h1 className="mt-0 text-xl font-bold tracking-tight text-slate-900 dark:text-white">
                                 Create a new ticket
                             </h1>
                             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -475,7 +460,7 @@ export default function CreateTicketPage() {
                             </p>
                         </div>
 
-                        <div className="mt-5 flex items-start gap-3 rounded-lg border border-sky-200 bg-sky-50 p-4 dark:border-sky-900 dark:bg-sky-950/30">
+                        <div className="mt-3 flex items-start gap-2 rounded-lg border border-sky-200 bg-sky-50 p-3 dark:border-sky-900 dark:bg-sky-950/30">
                             <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-sky-600 dark:text-sky-400" />
                             <div className="text-xs leading-5 text-sky-800 dark:text-sky-200">
                                 <p className="font-semibold">
@@ -505,7 +490,7 @@ export default function CreateTicketPage() {
                             </div>
                         )}
 
-                        <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+                        <form onSubmit={handleSubmit} className="mt-2 space-y-2">
                             <FormSection
                                 title="Basic information"
                                 description="Select the project and provide the ticket details."

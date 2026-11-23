@@ -706,7 +706,7 @@ export default function TicketDetailsPage() {
                     </div>
 
                     <div className="flex shrink-0 items-center gap-2">
-                        <WorkspaceActions />
+                        <WorkspaceActions user={user}  onSignOut={handleSignOut} isSigningOut={isSigningOut} />
                     </div>
                 </header>
 

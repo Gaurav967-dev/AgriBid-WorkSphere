@@ -349,7 +349,7 @@ export default function TicketsPage() {
 
     if (isCheckingAuth || !user) {
         return (
-            <main className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
+            <main className="workspace-shell flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
                 <p className="text-sm text-slate-600 dark:text-slate-300" role="status">
                     Verifying your session...
                 </p>
@@ -358,7 +358,7 @@ export default function TicketsPage() {
     }
 
     return (
-        <main className="flex min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+        <main className="workspace-shell flex min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
             <WorkspaceSidebar
                 user={user}
                 collapsed={collapsed}
@@ -390,33 +390,19 @@ export default function TicketsPage() {
 
                         <div className="min-w-0">
                             <p className="truncate text-sm font-semibold">Tasks</p>
-                            <p className="hidden text-[11px] text-slate-400 sm:block">
-                                Track tickets and development work
-                            </p>
                         </div>
                     </div>
 
                     <div className="flex shrink-0 items-center gap-2">
-                        <WorkspaceActions />
-                        <button
-                            type="button"
-                            onClick={handleSignOut}
-                            disabled={isSigningOut}
-                            className="rounded-md border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                        >
-                            {isSigningOut ? "Signing out..." : "Sign out"}
-                        </button>
+                        <WorkspaceActions user={user}  onSignOut={handleSignOut} isSigningOut={isSigningOut} />
                     </div>
                 </header>
 
-                <section className="flex-1 p-4 sm:p-6 lg:p-8">
+                <section className="flex-1 px-3 pb-3 pt-1 sm:px-3 sm:pb-3 sm:pt-1 lg:px-4 lg:pb-4 lg:pt-1">
                     <div className="mx-auto max-w-7xl">
                         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                             <div>
-                                <p className="text-xs font-semibold uppercase tracking-wider text-violet-700 dark:text-violet-300">
-                                    Workspace
-                                </p>
-                                <h1 className="mt-1 text-2xl font-bold tracking-tight">
+                                <h1 className="mt-0 text-2xl font-bold tracking-tight">
                                     Tickets
                                 </h1>
                                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -435,7 +421,7 @@ export default function TicketsPage() {
                             )}
                         </div>
 
-                        <div className="mt-6 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                             <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
                                 <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                                     <FileText className="size-4 text-violet-600" />
@@ -589,7 +575,7 @@ export default function TicketsPage() {
                         </div>
 
                         {ticketsQuery.isError && (
-                            <div className="mt-6 flex items-start gap-3 rounded-lg border border-rose-200 bg-rose-50 p-4 text-rose-800 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200">
+                            <div className="mt-4 flex items-start gap-3 rounded-lg border border-rose-200 bg-rose-50 p-4 text-rose-800 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200">
                                 <AlertCircle className="mt-0.5 size-5 shrink-0" />
                                 <div className="min-w-0 flex-1">
                                     <p className="text-sm font-semibold">
@@ -612,7 +598,7 @@ export default function TicketsPage() {
                         )}
 
                         {ticketsQuery.isLoading ? (
-                            <div className="mt-6 space-y-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+                            <div className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
                                 {Array.from({ length: 7 }).map((_, index) => (
                                     <div
                                         key={index}
@@ -621,7 +607,7 @@ export default function TicketsPage() {
                                 ))}
                             </div>
                         ) : !ticketsQuery.isError && tickets.length === 0 ? (
-                            <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white px-5 py-16 text-center dark:border-slate-700 dark:bg-slate-900">
+                            <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white px-5 py-16 text-center dark:border-slate-700 dark:bg-slate-900">
                                 <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
                                     <FileText className="size-6" />
                                 </div>
@@ -655,7 +641,7 @@ export default function TicketsPage() {
                             </div>
                         ) : (
                             <>
-                                <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
                                     <div className="overflow-x-auto">
                                         <table className="w-full min-w-[950px] border-collapse text-left">
                                             <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/60">

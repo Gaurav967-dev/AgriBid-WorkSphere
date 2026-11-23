@@ -11,6 +11,8 @@ import {
     CalendarDays,
     CheckCircle2,
     CirclePause,
+    Clock3,
+    Send,
     FolderKanban,
     Layers3,
     Menu,
@@ -36,6 +38,7 @@ import {
 import { WorkspaceActions } from "@/components/workspace-actions";
 import { WorkspaceSidebar } from "@/components/workspace-sidebar";
 import { useWorkspaceSidebarState } from "@/components/workspace-sidebar-state";
+import { getInvitations } from "@/features/users/api/users-api";
 
 const METRIC_ICONS: Record<string, LucideIcon> = {
     total_users: Users,
@@ -109,27 +112,64 @@ function formatDate(value: string | null): string {
     }).format(date);
 }
 
+
+
+function InvitationSummaryCard({
+    title,
+    value,
+    detail,
+    icon: Icon,
+}: {
+    title: string;
+    value: number;
+    detail: string;
+    icon: LucideIcon;
+}) {
+    return (
+        <article className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{title}</p>
+                <span className="flex size-8 items-center justify-center rounded-lg bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
+                    <Icon className="size-4" />
+                </span>
+            </div>
+            <p className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{value.toLocaleString("en-IN")}</p>
+            <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{detail}</p>
+        </article>
+    );
+}
+
+function relativeUpdate(value?: string | null): string {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    const days = Math.max(0, Math.floor((Date.now() - date.getTime()) / 86_400_000));
+    if (days === 0) return "Today";
+    if (days === 1) return "1 day ago";
+    return `${days} days ago`;
+}
+
 function MetricCard({ metric }: { metric: DashboardMetric }) {
     const Icon = METRIC_ICONS[metric.key] ?? Activity;
 
     return (
-        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <article className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                         {metric.title}
                     </p>
-                    <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+                    <p className="mt-1 text-xl font-bold tracking-tight text-slate-900 dark:text-white">
                         {metric.value.toLocaleString("en-IN")}
                     </p>
                 </div>
 
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
                     <Icon className="size-5" />
                 </div>
             </div>
 
-            <p className="mt-3 text-xs leading-5 text-slate-500 dark:text-slate-400">
+            <p className="mt-2 text-[11px] leading-4 text-slate-500 dark:text-slate-400">
                 {metric.description}
             </p>
         </article>
@@ -144,7 +184,7 @@ function ProjectCard({ project }: { project: DashboardProject }) {
         >
             <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
+                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
                         <FolderKanban className="size-5" />
                     </div>
 
@@ -266,7 +306,7 @@ function TeamDistribution({
     }
 
     return (
-        <div className="space-y-5">
+        <div className="space-y-3">
             {items.map((item) => (
                 <div key={item.team_id}>
                     <div className="mb-2 flex items-center justify-between gap-3">
@@ -352,6 +392,13 @@ export default function DashboardPage() {
         enabled: !isCheckingAuth && Boolean(user),
     });
 
+    const invitationSummaryQuery = useQuery({
+        queryKey: ["users", "dashboard-invitation-summary"],
+        queryFn: () => getInvitations(1, 100),
+        enabled: !isCheckingAuth && user?.role_code === "ADMIN",
+        staleTime: 30_000,
+    });
+
     async function handleSignOut() {
         setIsSigningOut(true);
 
@@ -367,7 +414,7 @@ export default function DashboardPage() {
 
     if (isCheckingAuth || !user) {
         return (
-            <main className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
+            <main className="workspace-shell flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
                 <p
                     className="text-sm text-slate-600 dark:text-slate-300"
                     role="status"
@@ -388,9 +435,16 @@ export default function DashboardPage() {
     const isAdmin = role === "ADMIN";
     const projects = dashboard?.projects ?? [];
     const metrics = dashboard?.metrics ?? [];
+    const invitationItems = invitationSummaryQuery.data?.items ?? [];
+    const pendingInvitations = invitationItems.filter((item) => item.status === "PENDING").length;
+    const acceptedInvitations = invitationItems.filter((item) => item.status === "ACCEPTED").length;
+    const latestProjectUpdate = projects
+        .map((project) => project.updated_at)
+        .filter(Boolean)
+        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
 
     return (
-        <main className="flex min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+        <main className="workspace-shell flex min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
             <WorkspaceSidebar
                 user={user}
                 collapsed={collapsed}
@@ -423,35 +477,19 @@ export default function DashboardPage() {
                             <p className="truncate text-sm font-semibold">
                                 Dashboard
                             </p>
-                            <p className="hidden text-[11px] text-slate-400 sm:block">
-                                Workspace dashboard
-                            </p>
                         </div>
                     </div>
 
                     <div className="flex shrink-0 items-center gap-2">
-                        <WorkspaceActions />
-
-                        <button
-                            type="button"
-                            onClick={handleSignOut}
-                            disabled={isSigningOut}
-                            className="rounded-md border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                        >
-                            {isSigningOut ? "Signing out..." : "Sign out"}
-                        </button>
+                        <WorkspaceActions user={user} lastUpdated={relativeUpdate(latestProjectUpdate)}  onSignOut={handleSignOut} isSigningOut={isSigningOut} />
                     </div>
                 </header>
 
-                <section className="flex-1 p-4 sm:p-6 lg:p-8">
-                    <div className="mx-auto max-w-7xl">
-                        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                <section className="flex-1 px-3 pb-3 pt-1 sm:px-3 sm:pb-3 sm:pt-1 lg:px-4 lg:pb-4 lg:pt-1">
+                    <div className="mx-auto max-w-none">
+                        <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
                             <div>
-                                <p className="text-xs font-semibold uppercase tracking-wider text-violet-700 dark:text-violet-300">
-                                    {roleContent.eyebrow}
-                                </p>
-
-                                <h1 className="mt-1 text-2xl font-bold tracking-tight">
+                                <h1 className="mt-0 text-2xl font-bold tracking-tight">
                                     {roleContent.title}
                                 </h1>
 
@@ -459,7 +497,7 @@ export default function DashboardPage() {
                                     {roleContent.description}
                                 </p>
 
-                                <p className="mt-3 text-sm font-medium text-slate-700 dark:text-slate-200">
+                                <p className="mt-2 text-xs font-medium text-slate-700 dark:text-slate-200">
                                     Welcome, {user.full_name || user.email}
                                 </p>
                             </div>
@@ -478,11 +516,11 @@ export default function DashboardPage() {
                         </div>
 
                         {dashboardQuery.isLoading ? (
-                            <div className="mt-7">
+                            <div className="mt-4">
                                 <DashboardSkeleton />
                             </div>
                         ) : dashboardQuery.isError ? (
-                            <div className="mt-7 rounded-xl border border-rose-200 bg-rose-50 p-5 dark:border-rose-900 dark:bg-rose-950/30">
+                            <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 dark:border-rose-900 dark:bg-rose-950/30">
                                 <p className="text-sm font-semibold text-rose-800 dark:text-rose-200">
                                     Unable to load dashboard
                                 </p>
@@ -501,19 +539,39 @@ export default function DashboardPage() {
                             </div>
                         ) : dashboard ? (
                             <>
-                                <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                                     {metrics.map((metric) => (
-                                        <MetricCard
-                                            key={metric.key}
-                                            metric={metric}
-                                        />
+                                        <MetricCard key={metric.key} metric={metric} />
                                     ))}
                                 </div>
 
+                                {isAdmin && (
+                                    <section className="mt-2 grid gap-2 sm:grid-cols-3">
+                                        <InvitationSummaryCard
+                                            title="Total invitations"
+                                            value={invitationSummaryQuery.data?.total ?? 0}
+                                            detail="All invitations recorded"
+                                            icon={Send}
+                                        />
+                                        <InvitationSummaryCard
+                                            title="Pending invitations"
+                                            value={pendingInvitations}
+                                            detail="Awaiting employee acceptance"
+                                            icon={Clock3}
+                                        />
+                                        <InvitationSummaryCard
+                                            title="Accepted invitations"
+                                            value={acceptedInvitations}
+                                            detail="Accounts created from invitations"
+                                            icon={CheckCircle2}
+                                        />
+                                    </section>
+                                )}
+
                                 <div
-                                    className={`mt-6 grid gap-6 ${isAdmin ? "xl:grid-cols-[1.5fr_1fr]" : "grid-cols-1"}`}
+                                    className={`mt-4 grid gap-4 ${isAdmin ? "xl:grid-cols-[1.5fr_1fr]" : "grid-cols-1"}`}
                                 >
-                                    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                    <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                                         <div className="flex items-center justify-between gap-3">
                                             <div>
                                                 <h2 className="text-sm font-semibold">
@@ -569,7 +627,7 @@ export default function DashboardPage() {
                                     </section>
 
                                     {isAdmin && (
-                                        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                        <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                                             <div>
                                                 <h2 className="text-sm font-semibold">
                                                     Team-wise project distribution
@@ -579,7 +637,7 @@ export default function DashboardPage() {
                                                 </p>
                                             </div>
 
-                                            <div className="mt-6">
+                                            <div className="mt-4">
                                                 <TeamDistribution
                                                     items={
                                                         dashboard.team_project_distribution
@@ -590,7 +648,7 @@ export default function DashboardPage() {
                                     )}
                                 </div>
 
-                                <div className="mt-6 flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+                                <div className="mt-4 flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
                                     <ShieldCheck className="mt-0.5 size-4 shrink-0 text-violet-600 dark:text-violet-300" />
                                     <div>
                                         <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">

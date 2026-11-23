@@ -290,7 +290,7 @@ export function WorkspaceSidebar({
 }: WorkspaceSidebarProps) {
     return (
         <>
-            <div className="hidden h-full md:block">
+            <div className="sticky top-0 hidden h-screen shrink-0 self-start md:block">
                 <SidebarPanel
                     user={user}
                     collapsed={collapsed}

@@ -18,17 +18,6 @@ function endpoint(path: string): string {
     return `${API_BASE_URL}${path}`;
 }
 
-export async function publicFetch(
-    path: string,
-    init: RequestInit = {},
-): Promise<Response> {
-    return fetch(endpoint(path), {
-        ...init,
-        credentials: "omit",
-        cache: "no-store",
-    });
-}
-
 async function readPayload(response: Response): Promise<ApiPayload> {
     const data: unknown = await response.json().catch(() => ({}));
     if (data && typeof data === "object" && !Array.isArray(data)) {
@@ -204,4 +193,62 @@ export async function signOut(): Promise<void> {
     if (!response.ok) {
         throw responseError(payload, "Unable to complete sign out.");
     }
+}
+
+
+export async function forgotPassword(email: string): Promise<string> {
+    const response = await unauthenticatedFetch("/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+    });
+
+    const payload = await readPayload(response);
+    if (!response.ok) {
+        throw responseError(payload, "Unable to process the password-reset request.");
+    }
+
+    return typeof payload.message === "string"
+        ? payload.message
+        : "If an active account exists for that email address, a password reset link will be sent.";
+}
+
+export async function resetPassword(input: {
+    token: string;
+    new_password: string;
+}): Promise<string> {
+    const response = await unauthenticatedFetch("/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+    });
+
+    const payload = await readPayload(response);
+    if (!response.ok) {
+        throw responseError(payload, "Unable to reset the password. The link may have expired.");
+    }
+
+    return typeof payload.message === "string"
+        ? payload.message
+        : "Password reset successfully. Please sign in again.";
+}
+
+export async function changePassword(input: {
+    current_password: string;
+    new_password: string;
+}): Promise<string> {
+    const response = await authenticatedFetch("/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+    });
+
+    const payload = await readPayload(response);
+    if (!response.ok) {
+        throw responseError(payload, "Unable to change the password.");
+    }
+
+    return typeof payload.message === "string"
+        ? payload.message
+        : "Password changed successfully. Please sign in again.";
 }

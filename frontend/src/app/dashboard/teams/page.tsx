@@ -52,6 +52,7 @@ import { TeamsFilter } from "@/features/teams/components/teams-filter";
 import { TeamsDisplayOptions } from "@/features/teams/components/teams-display-options";
 import { WorkspaceSidebar } from "@/components/workspace-sidebar";
 import { useWorkspaceSidebarState } from "@/components/workspace-sidebar-state";
+import { WorkspaceActions } from "@/components/workspace-actions";
 
 import {
     DEFAULT_TEAM_DISPLAY_PROPERTIES,
@@ -79,6 +80,16 @@ function formatDate(value: string): string {
         month: "short",
         year: "numeric",
     }).format(date);
+}
+
+function relativeUpdate(value?: string | null): string {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    const days = Math.max(0, Math.floor((Date.now() - date.getTime()) / 86_400_000));
+    if (days === 0) return "Today";
+    if (days === 1) return "1 day ago";
+    return `${days} days ago`;
 }
 
 function getInitials(name: string): string {
@@ -233,6 +244,10 @@ export default function TeamsPage() {
     const employees = usersQuery.data?.items ?? EMPTY_USERS;
     const teams = teamsQuery.data?.items ?? EMPTY_TEAMS;
     const total = teamsQuery.data?.total ?? 0;
+    const latestTeamUpdate = teams
+        .map((team) => team.updated_at)
+        .filter(Boolean)
+        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
 
     const displayedTeams = useMemo(() => {
         let list = [...teams];
@@ -482,7 +497,7 @@ export default function TeamsPage() {
 
     if (isCheckingAuth || !user) {
         return (
-            <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 dark:bg-slate-950">
+            <main className="workspace-shell flex min-h-screen items-center justify-center bg-slate-50 px-6 dark:bg-slate-950">
                 <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
                     <RefreshCw className="size-4 animate-spin" />
                     Verifying your session...
@@ -493,7 +508,7 @@ export default function TeamsPage() {
 
     if (!isAdmin) {
         return (
-            <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 dark:bg-slate-950">
+            <main className="workspace-shell flex min-h-screen items-center justify-center bg-slate-50 px-6 dark:bg-slate-950">
                 <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
                     <ShieldCheck className="mx-auto size-10 text-rose-500" />
                     <h1 className="mt-4 text-xl font-bold text-slate-900 dark:text-white">
@@ -504,7 +519,7 @@ export default function TeamsPage() {
                     </p>
                     <Link
                         href="/dashboard"
-                        className="mt-6 inline-flex rounded-lg bg-violet-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-800"
+                        className="mt-4 inline-flex rounded-lg bg-violet-700 px-5 py-2 text-xs font-semibold text-white hover:bg-violet-800"
                     >
                         Return to dashboard
                     </Link>
@@ -530,7 +545,7 @@ export default function TeamsPage() {
                     <main className="min-h-full w-full p-0">
                         <section className="w-full">
                             {/* Teams heading */}
-                            <div className="sticky top-0 z-20 flex h-10 w-full items-center justify-between border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900 sm:px-6">
+                            <div className="sticky top-0 z-20 flex h-14 w-full shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900 sm:px-6">
                                 <div className="flex items-center gap-2">
                                     {/* Desktop sidebar control */}
                                     <button
@@ -542,7 +557,7 @@ export default function TeamsPage() {
                                                 : "Collapse sidebar"
                                         }
                                         aria-expanded={!collapsed}
-                                        className="hidden size-7 items-center justify-center rounded-md text-slate-600 transition hover:bg-slate-100 md:flex dark:text-slate-300 dark:hover:bg-slate-800"
+                                        className="hidden size-8 items-center justify-center rounded-md text-slate-600 transition hover:bg-slate-100 md:flex dark:text-slate-300 dark:hover:bg-slate-800"
                                     >
                                         <PanelLeft className="size-4" />
                                     </button>
@@ -553,12 +568,12 @@ export default function TeamsPage() {
                                         onClick={() => setIsMobileNavOpen(true)}
                                         aria-label="Open navigation"
                                         aria-expanded={isMobileNavOpen}
-                                        className="flex size-7 items-center justify-center rounded-md text-slate-600 transition hover:bg-slate-100 md:hidden dark:text-slate-300 dark:hover:bg-slate-800"
+                                        className="flex size-8 items-center justify-center rounded-md text-slate-600 transition hover:bg-slate-100 md:hidden dark:text-slate-300 dark:hover:bg-slate-800"
                                     >
                                         <Menu className="size-4" />
                                     </button>
 
-                                    <span className="text-sm font-medium text-slate-900 dark:text-white">
+                                    <span className="text-sm font-semibold text-slate-900 dark:text-white">
                                         Teams
                                     </span>
 
@@ -567,18 +582,11 @@ export default function TeamsPage() {
                                     </span>
                                 </div>
 
-                                <button
-                                    type="button"
-                                    onClick={openCreateForm}
-                                    className="inline-flex h-7 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                                >
-                                    <Plus className="size-3.5" />
-                                    Add team
-                                </button>
+<WorkspaceActions user={user} lastUpdated={relativeUpdate(latestTeamUpdate)} />
                             </div>
 
                             {/* Filter and Display toolbar */}
-                            <div className="sticky top-10 z-20 flex h-10 w-full items-center justify-between border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900 sm:px-6">
+                            <div className="sticky top-14 z-20 flex h-10 w-full shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900 sm:px-6">
                                 <TeamsFilter
                                     teams={teams}
                                     membership={membershipFilters}
@@ -595,16 +603,26 @@ export default function TeamsPage() {
                                     onClear={clearTeamFilters}
                                 />
 
-                                <TeamsDisplayOptions
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={openCreateForm}
+                                        className="inline-flex h-7 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                                    >
+                                        <Plus className="size-3.5" />
+                                        Add team
+                                    </button>
+                                    <TeamsDisplayOptions
                                     ordering={ordering}
                                     displayProperties={displayProperties}
                                     onOrderingChange={handleOrderingChange}
                                     onToggleProperty={toggleDisplayProperty}
-                                />
+                                    />
+                                </div>
                             </div>
 
                             {/* Column headers */}
-                            <div className="sticky top-20 z-10 flex w-full min-w-[760px] items-center border-b border-slate-200 bg-slate-50 px-4 py-1.5 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400 sm:px-6">
+                            <div className="sticky top-[5.25rem] z-10 flex w-full min-w-[760px] items-center border-b border-slate-200 bg-slate-50 px-4 py-1.5 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400 sm:px-6">
                                 <div className="min-w-0 flex-1">Name</div>
 
                                 {displayProperties.membership && (
@@ -712,14 +730,14 @@ export default function TeamsPage() {
                             role="dialog"
                             aria-modal="true"
                             aria-labelledby="team-form-title"
-                            className="my-8 w-full max-w-xl rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+                            className="my-3 w-full max-w-xl rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
                         >
-                            <div className="flex items-start justify-between border-b border-slate-100 p-5 dark:border-slate-800">
+                            <div className="flex items-start justify-between border-b border-slate-100 p-4 dark:border-slate-800">
                                 <div>
-                                    <h2 id="team-form-title" className="text-lg font-bold text-slate-900 dark:text-white">
+                                    <h2 id="team-form-title" className="text-base font-bold text-slate-900 dark:text-white">
                                         {formMode === "create" ? "Create team" : "Edit team"}
                                     </h2>
-                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                    <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
                                         {formMode === "create"
                                             ? "Add a team and optionally assign its initial members."
                                             : "Update the team's name and description."}
@@ -735,7 +753,7 @@ export default function TeamsPage() {
                                 </button>
                             </div>
 
-                            <form onSubmit={handleSaveTeam} className="space-y-5 p-5">
+                            <form onSubmit={handleSaveTeam} className="space-y-2.5 p-3">
                                 {formMutationError && (
                                     <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300">
                                         {formMutationError.message}
@@ -768,7 +786,7 @@ export default function TeamsPage() {
                                         maxLength={2000}
                                         rows={3}
                                         placeholder="Describe the team's responsibilities..."
-                                        className="w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-500 focus:ring-3 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-violet-950"
+                                        className="w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-violet-500 focus:ring-3 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-violet-950"
                                     />
                                 </div>
 
@@ -837,7 +855,7 @@ export default function TeamsPage() {
                                     <button
                                         type="button"
                                         onClick={closeTeamForm}
-                                        className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                                        className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                                     >
                                         Cancel
                                     </button>
@@ -848,7 +866,7 @@ export default function TeamsPage() {
                                             createMutation.isPending ||
                                             updateMutation.isPending
                                         }
-                                        className="inline-flex items-center gap-2 rounded-lg bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                        className="inline-flex items-center gap-2 rounded-lg bg-violet-700 px-4 py-2 text-xs font-semibold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         {(createMutation.isPending || updateMutation.isPending) && (
                                             <RefreshCw className="size-4 animate-spin" />
@@ -868,7 +886,7 @@ export default function TeamsPage() {
                             role="dialog"
                             aria-modal="true"
                             aria-labelledby="team-detail-title"
-                            className="my-8 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+                            className="my-3 max-h-[calc(100vh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
                         >
                             {detailQuery.isPending ? (
                                 <div className="flex min-h-64 items-center justify-center gap-3 text-sm text-slate-500">
@@ -896,15 +914,15 @@ export default function TeamsPage() {
                                 </div>
                             ) : (
                                 <>
-                                    <div className="flex items-start justify-between border-b border-slate-100 p-5 dark:border-slate-800">
+                                    <div className="flex items-start justify-between border-b border-slate-100 p-4 dark:border-slate-800">
                                         <div className="min-w-0">
                                             <div className="flex flex-wrap items-center gap-2">
-                                                <h2 id="team-detail-title" className="truncate text-lg font-bold text-slate-900 dark:text-white">
+                                                <h2 id="team-detail-title" className="truncate text-base font-bold text-slate-900 dark:text-white">
                                                     {detailTeam.name}
                                                 </h2>
                                                 <StatusBadge status={detailTeam.status} />
                                             </div>
-                                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                            <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
                                                 {detailTeam.description || "No team description"}
                                             </p>
                                             <p className="mt-2 text-xs text-slate-400">
@@ -921,9 +939,9 @@ export default function TeamsPage() {
                                         </button>
                                     </div>
 
-                                    <div className="space-y-6 p-5">
+                                    <div className="space-y-3 p-3">
                                         {detailTeam.status === "ACTIVE" && (
-                                            <div className="grid gap-4 sm:grid-cols-2">
+                                            <div className="grid gap-3 sm:grid-cols-2">
                                                 <div>
                                                     <label htmlFor="assign-team-lead" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                                                         Team lead
@@ -977,7 +995,7 @@ export default function TeamsPage() {
                                             </div>
 
                                             {detailTeam.members.length === 0 ? (
-                                                <p className="rounded-lg border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-400 dark:border-slate-700">
+                                                <p className="rounded-lg border border-dashed border-slate-200 px-4 py-5 text-center text-sm text-slate-400 dark:border-slate-700">
                                                     No active members in this team yet.
                                                 </p>
                                             ) : (
@@ -1106,7 +1124,7 @@ export default function TeamsPage() {
                                         )}
                                     </div>
 
-                                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 p-5 dark:border-slate-800">
+                                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 p-4 dark:border-slate-800">
                                         <div className="flex flex-wrap gap-2">
                                             {detailTeam.status === "ACTIVE" && (
                                                 <>

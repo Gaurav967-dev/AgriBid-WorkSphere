@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn, signOut, verifyIdToken } from "@/features/auth/api/auth-api";
 import { useForm } from "react-hook-form";
@@ -149,6 +150,8 @@ export function SignInForm() {
     const {
         register,
         handleSubmit,
+        setError,
+        clearErrors,
         formState: { errors, isSubmitting },
     } = useForm<SignInValues>({
         resolver: zodResolver(signInSchema),
@@ -162,6 +165,7 @@ export function SignInForm() {
     async function onSubmit(values: SignInValues) {
         setNotice("");
         setNoticeIsError(false);
+        clearErrors("password");
 
         try {
             await signIn({
@@ -177,12 +181,21 @@ export function SignInForm() {
             router.replace("/dashboard");
             router.refresh();
         } catch (error) {
-            setNoticeIsError(true);
-            setNotice(
+            const message =
                 error instanceof Error
                     ? error.message
-                    : "Unable to sign in. Please try again."
-            );
+                    : "Unable to sign in. Please try again.";
+
+            if (message.startsWith("Your account has been deactivated.")) {
+                setError("password", {
+                    type: "server",
+                    message,
+                });
+                return;
+            }
+
+            setNoticeIsError(true);
+            setNotice(message);
         }
     }
 
@@ -296,15 +309,12 @@ export function SignInForm() {
                             Remember me
                         </label>
 
-                        <button
-                            type="button"
-                            onClick={() =>
-                                setNotice("The forgot password screen will be available next.")
-                            }
+                        <Link
+                            href="/forgot-password"
                             className="whitespace-nowrap text-[10px] font-semibold text-[#6031E6] hover:text-[#4120B8]"
                         >
                             Forgot Password?
-                        </button>
+                        </Link>
                     </div>
 
                     {/* Sign in button */}

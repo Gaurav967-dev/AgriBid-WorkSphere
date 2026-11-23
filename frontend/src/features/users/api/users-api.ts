@@ -183,14 +183,18 @@ export async function getInvitations(
     return readPayload<InvitationListResponse>(response);
 }
 
+export type EmployeeStatusFilter = "ACTIVE" | "INACTIVE" | "ALL";
+
 export async function getActiveUsers(
     page = 1,
     pageSize = 12,
     search = "",
+    accountStatus: EmployeeStatusFilter = "ACTIVE",
 ): Promise<ActiveUserListResponse> {
     const query = new URLSearchParams({
         page: String(page),
         page_size: String(pageSize),
+        account_status: accountStatus,
     });
 
     const searchTerm = search.trim();
@@ -241,4 +245,72 @@ export async function revokeInvitation(
     await ensureSuccess(response, "Unable to revoke the invitation.");
 
     return readPayload<RevokeInvitationResponse>(response);
+}
+export type UserTeamSummary = {
+    id: string;
+    name: string;
+};
+
+export type UserDetails = ActiveUser & {
+    profile_image_key: string | null;
+    created_at: string;
+    updated_at: string;
+    last_login_at: string | null;
+    deactivated_at: string | null;
+    teams: UserTeamSummary[];
+};
+
+export type UpdateUserInput = {
+    full_name?: string;
+    employee_id?: string | null;
+    role_code?: UserRole;
+    team_ids?: string[];
+};
+
+export async function getUserDetails(userId: string): Promise<UserDetails> {
+    const response = await authenticatedFetch(
+        `/users/${encodeURIComponent(userId)}`,
+        { method: "GET" },
+    );
+
+    await ensureSuccess(response, "Unable to load employee details.");
+    return readPayload<UserDetails>(response);
+}
+
+export async function updateUser(
+    userId: string,
+    input: UpdateUserInput,
+): Promise<UserDetails> {
+    const response = await authenticatedFetch(
+        `/users/${encodeURIComponent(userId)}`,
+        {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                ...input,
+                full_name: input.full_name?.trim(),
+                employee_id: input.employee_id?.trim() || null,
+            }),
+        },
+    );
+
+    await ensureSuccess(response, "Unable to update the employee.");
+    return readPayload<UserDetails>(response);
+}
+
+export async function updateUserStatus(
+    userId: string,
+    isActive: boolean,
+): Promise<UserDetails> {
+    const response = await authenticatedFetch(
+        `/users/${encodeURIComponent(userId)}/status`,
+        {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ is_active: isActive }),
+        },
+    );
+
+    await ensureSuccess(response, "Unable to update employee status.");
+    return readPayload<UserDetails>(response);
 }
