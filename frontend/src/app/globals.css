@@ -130,3 +130,158 @@
         @apply font-sans;
     }
 }
+
+/* AgriBid WorkSphere workspace theme */
+.dark .workspace-shell {
+    background-color: #0b1120 !important;
+    color: #e2e8f0;
+}
+
+.dark .workspace-shell .bg-white {
+    background-color: #111b2e !important;
+}
+
+.dark .workspace-shell .bg-slate-50 {
+    background-color: #172338 !important;
+}
+
+.dark .workspace-shell .bg-slate-50\/80 {
+    background-color: rgb(23 35 56 / 80%) !important;
+}
+
+.dark .workspace-shell .text-slate-900 {
+    color: #f8fafc !important;
+}
+
+.dark .workspace-shell .text-slate-800 {
+    color: #e8eef8 !important;
+}
+
+.dark .workspace-shell .text-slate-700 {
+    color: #d5deed !important;
+}
+
+.dark .workspace-shell .text-slate-600 {
+    color: #bdc9da !important;
+}
+
+.dark .workspace-shell .text-slate-500 {
+    color: #9eacc1 !important;
+}
+
+.dark .workspace-shell .text-slate-400 {
+    color: #8999b0 !important;
+}
+
+.dark .workspace-shell .text-slate-300 {
+    color: #71829b !important;
+}
+
+.dark .workspace-shell .border-slate-100,
+.dark .workspace-shell .border-slate-200 {
+    border-color: #29374d !important;
+}
+
+.dark .workspace-shell .divide-slate-100> :not(:last-child) {
+    border-color: #29374d !important;
+}
+
+.dark .workspace-shell .hover\:bg-slate-50:hover {
+    background-color: #1b2a41 !important;
+}
+
+.dark .workspace-shell .hover\:bg-slate-100:hover {
+    background-color: #23334d !important;
+}
+
+/* Violet navigation and selected elements */
+.dark .workspace-shell .bg-violet-50 {
+    background-color: rgb(139 92 246 / 17%) !important;
+}
+
+.dark .workspace-shell .text-violet-800 {
+    color: #c4b5fd !important;
+}
+
+.dark .workspace-shell .text-violet-700 {
+    color: #c4b5fd !important;
+}
+
+.dark .workspace-shell .border-violet-200 {
+    border-color: #59428a !important;
+}
+
+/* Status colors */
+.dark .workspace-shell .bg-emerald-50 {
+    background-color: rgb(16 185 129 / 13%) !important;
+}
+
+.dark .workspace-shell .bg-amber-50 {
+    background-color: rgb(245 158 11 / 13%) !important;
+}
+
+.dark .workspace-shell .bg-rose-50 {
+    background-color: rgb(244 63 94 / 13%) !important;
+}
+
+.dark .workspace-shell .border-emerald-200 {
+    border-color: #27634f !important;
+}
+
+.dark .workspace-shell .border-amber-200 {
+    border-color: #715323 !important;
+}
+
+.dark .workspace-shell .border-rose-200 {
+    border-color: #713c4b !important;
+}
+
+.dark .workspace-shell .text-emerald-700,
+.dark .workspace-shell .text-emerald-800 {
+    color: #6ee7b7 !important;
+}
+
+.dark .workspace-shell .text-amber-700,
+.dark .workspace-shell .text-amber-800 {
+    color: #fcd34d !important;
+}
+
+.dark .workspace-shell .text-rose-600,
+.dark .workspace-shell .text-rose-700 {
+    color: #fda4af !important;
+}
+
+/* Form controls */
+.dark .workspace-shell input,
+.dark .workspace-shell select,
+.dark .workspace-shell textarea {
+    color: #e2e8f0;
+    border-color: #34445c;
+}
+
+.dark .workspace-shell input::placeholder,
+.dark .workspace-shell textarea::placeholder {
+    color: #8493a8;
+}
+
+.dark .workspace-shell input:focus,
+.dark .workspace-shell select:focus,
+.dark .workspace-shell textarea:focus {
+    border-color: #8b5cf6;
+}
+
+/* Table rows */
+.dark .workspace-shell tbody tr:hover {
+    background-color: #172338;
+}
+
+/* Modal and panels */
+.dark .workspace-shell .bg-amber-50 p,
+.dark .workspace-shell .bg-rose-50 p {
+    color: inherit;
+}
+
+.dark .workspace-shell header {
+    background-color: rgb(17 27 46 / 95%) !important;
+    border-color: #29374d !important;
+}

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
     Boolean,
     Column,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -164,6 +165,7 @@ class TeamMember(Base):
             "user_id",
             unique=True,
             postgresql_where=text("removed_at IS NULL"),
+            sqlite_where=text("removed_at IS NULL"),
         ),
     )
 
@@ -353,4 +355,144 @@ class PasswordResetToken(Base):
     used_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
+    )
+
+
+class Project(Base):
+    __tablename__ = "projects"
+    __table_args__ = (
+        Index(
+            "uq_projects_key_lower",
+            func.lower(text("key")),
+            unique=True,
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    name: Mapped[str] = mapped_column(String(150), nullable=False)
+    key: Mapped[str] = mapped_column(String(20), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    logo_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    project_manager_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    team_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("teams.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    created_by_user_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    status: Mapped[str] = mapped_column(
+        String(30),
+        default="PLANNING",
+        server_default=text("'PLANNING'"),
+        nullable=False,
+        index=True,
+    )
+    visibility: Mapped[str] = mapped_column(
+        String(30),
+        default="INTERNAL",
+        server_default=text("'INTERNAL'"),
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    project_manager: Mapped[User] = relationship(
+        foreign_keys=[project_manager_id],
+    )
+    team: Mapped[Team] = relationship()
+    created_by: Mapped[User] = relationship(
+        foreign_keys=[created_by_user_id],
+    )
+    memberships: Mapped[list[ProjectMember]] = relationship(
+        back_populates="project",
+    )
+
+
+class ProjectMember(Base):
+    __tablename__ = "project_members"
+    __table_args__ = (
+        Index(
+            "uq_project_members_active",
+            "project_id",
+            "user_id",
+            unique=True,
+            postgresql_where=text("removed_at IS NULL"),
+            sqlite_where=text("removed_at IS NULL"),
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    project_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    added_by_user_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+
+    joined_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    removed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    project: Mapped[Project] = relationship(
+        back_populates="memberships",
+    )
+    user: Mapped[User] = relationship(
+        foreign_keys=[user_id],
+    )
+    added_by: Mapped[User] = relationship(
+        foreign_keys=[added_by_user_id],
     )

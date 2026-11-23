@@ -1,8 +1,11 @@
 
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
-
+import {
+    useState,
+    useSyncExternalStore,
+    type FormEvent,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -18,39 +21,52 @@ import {
 
 import { acceptInvitation } from "@/features/users/api/users-api";
 
+function subscribeToHash(onChange: () => void) {
+    window.addEventListener("hashchange", onChange);
+
+    return () => {
+        window.removeEventListener("hashchange", onChange);
+    };
+}
+
+function getHashSnapshot() {
+    return window.location.hash;
+}
+
+function getServerHashSnapshot() {
+    return "";
+}
+
+function subscribeToHydration() {
+    return () => { };
+}
+
+function getClientSnapshot() {
+    return true;
+}
+
+function getServerSnapshot() {
+    return false;
+}
+
 export default function AcceptInvitationPage() {
     const router = useRouter();
 
-    const [token, setToken] = useState("");
-    const [isHydrated, setIsHydrated] = useState(false);
+    const hash = useSyncExternalStore(
+        subscribeToHash,
+        getHashSnapshot,
+        getServerHashSnapshot,
+    );
 
-    useEffect(() => {
-        const timer = window.setTimeout(() => {
-            const fragment = window.location.hash.startsWith("#")
-                ? window.location.hash.slice(1)
-                : window.location.hash;
+    const isHydrated = useSyncExternalStore(
+        subscribeToHydration,
+        getClientSnapshot,
+        getServerSnapshot,
+    );
 
-            const invitationToken =
-                new URLSearchParams(fragment).get("token") ?? "";
-
-            // Remove the one-time token from the visible browser URL.
-            window.history.replaceState(
-                window.history.state,
-                document.title,
-                `${window.location.pathname}${window.location.search}`,
-            );
-
-            setToken(
-                invitationToken.length >= 32 &&
-                invitationToken.length <= 512
-                    ? invitationToken
-                    : "",
-            );
-            setIsHydrated(true);
-        }, 0);
-
-        return () => window.clearTimeout(timer);
-    }, []);
+    const token = hash.startsWith("#")
+        ? new URLSearchParams(hash.slice(1)).get("token") ?? ""
+        : "";
 
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -74,17 +90,6 @@ export default function AcceptInvitationPage() {
 
         if (!password.trim()) {
             setError("Please enter a password.");
-            return;
-        }
-
-        if (
-            password.length < 8 ||
-            !/[A-Z]/.test(password) ||
-            !/[0-9]/.test(password)
-        ) {
-            setError(
-                "Use at least 8 characters, one uppercase letter, and one number.",
-            );
             return;
         }
 
@@ -119,7 +124,7 @@ export default function AcceptInvitationPage() {
     }
 
     return (
-        <main className="flex min-h-screen items-center justify-center bg-[#f7f8fc] px-4 py-6 dark:bg-slate-950">
+        <main className="flex min-h-screen items-center justify-center bg-[#f7f8fc] px-4 py-10 dark:bg-slate-950">
             <div className="w-full max-w-md">
                 <div className="mb-7 flex items-center justify-center gap-3">
                     <div className="flex size-10 items-center justify-center rounded-xl bg-violet-700 text-white shadow-sm">
