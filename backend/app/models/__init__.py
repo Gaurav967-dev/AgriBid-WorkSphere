@@ -12,6 +12,7 @@ from app.models.core import (
     role_permissions,
     user_invitation_teams,
 )
+from app.models.ticket import Ticket, TicketActivity
 
 __all__ = [
     "AuthSession",
@@ -26,4 +27,6 @@ __all__ = [
     "UserInvitation",
     "role_permissions",
     "user_invitation_teams",
+    "Ticket",
+    "TicketActivity",
 ]
