@@ -191,8 +191,8 @@ No unnecessary libraries should be introduced without technical justification an
 | BR-003 | An employee may belong to multiple teams. |
 | BR-004 | Admin can change any ticket to any configured status. |
 | BR-005 | PM can create, assign and move tickets to any configured status. |
-| BR-006 | Developer can move tickets from TODO to IN_PROGRESS or IN_REVIEW. |
-| BR-007 | Tester can move tickets from TESTING to TESTING_DONE or BUG_FIXED. |
+| BR-006 | Developer moves tickets from TODO to IN_PROGRESS, then IN_PROGRESS to IN_REVIEW. An assigned Developer may move REOPENED to IN_PROGRESS. |
+| BR-007 | Tester can move tickets from TESTING to TESTING_DONE, BUG_FIXED or REOPENED; failed testing may return to IN_PROGRESS or REOPENED with a comment. |
 | BR-008 | Maximum attachment count is five documents; exact count scope requires clarification. |
 | BR-009 | Working interpretation: maximum 5 MB per document; confirmation of the limit's scope is pending. |
 | BR-010 | Dummy company email addresses such as name@agribid.ai will be used during development. |
@@ -349,3 +349,9 @@ Tester may return failed testing to `IN_PROGRESS` or `REOPENED` with a comment. 
 Admin and PM can manage `BLOCKED`, `REOPENED` and `CANCELLED` and retain their any-status authority.
 
 `BUG_FIXED` proceeds to `COMPLETED`. `TESTING_DONE` remains distinct from `COMPLETED`.
+
+## Scope and workflow authority update — 17 November 2026
+
+The Notifications module listed in the original assignment's included-scope inventory is excluded from this assignment by senior approval. Do not implement Notifications UI, APIs, tables, preferences, delivery or background jobs. Ticket activity history and system audit logs remain in scope. Automate Pro is also excluded. The personal GitHub toolbar link remains included; application GitHub activity remains mock data.
+
+Use `../workflows/ticket-workflow.md` as the canonical source for ticket transitions and `../requirements/approved-scope-changes.md` for the approved scope exclusions. The earlier Developer direct `TODO` → `IN_REVIEW` entry is superseded by `TODO` → `IN_PROGRESS` → `IN_REVIEW`.

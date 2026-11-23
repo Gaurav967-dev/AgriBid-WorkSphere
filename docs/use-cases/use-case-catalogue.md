@@ -75,7 +75,7 @@ and related background operations, where implemented.
 | UC-016 | Perform Ticket Testing | Tester |
 | UC-017 | Add Comments and Mentions | Authorized Employee |
 | UC-018 | Upload and Manage Attachments | Authorized Employee |
-| UC-019 | View and Manage Notifications | Authenticated Employee |
+| UC-019 | Notifications use case | Excluded by senior clarification |
 | UC-020 | Manage Sprint and Backlog | Authorized PM |
 | UC-021 | Search, Filter and Sort Records | Authorized Employee |
 | UC-022 | View Project Dashboard | All Roles |
@@ -805,39 +805,9 @@ Confirm whether the five-file count applies per upload operation, per ticket or 
 Related requirements:
 FR-FILE-001 to FR-FILE-006.
 
-## UC-019: View and Manage Notifications
+## UC-019: Notifications — Excluded
 
-Primary actor: Authenticated Employee.
-
-Supporting actor: Background Processing.
-
-Preconditions:
-- Employee has an active session.
-
-Trigger:
-Employee opens the notification panel.
-
-Main success flow:
-1. System fetches the employee's notifications.
-2. System displays unread count.
-3. Employee opens a notification.
-4. System marks it as read according to the selected action.
-5. Employee follows the related project/ticket link.
-6. Frontend opens the authorized resource.
-
-Alternate flows:
-- No notifications exist.
-- Notification resource is deleted/archived.
-- Employee tries to access another user's notification.
-- API request fails.
-- Notification delivery is repeated.
-
-Postconditions:
-- Read state is maintained.
-- Notification privacy is enforced.
-
-Related requirements:
-FR-NOT-001 to FR-NOT-005.
+This use case is retained as a historical traceability identifier only. Notifications UI, preferences, APIs, delivery, background jobs and notification database entities are excluded by senior clarification. Do not implement this use case. Ticket activity history and system audit logs remain in scope.
 
 ## UC-020: Manage Sprint and Backlog
 
@@ -1066,7 +1036,7 @@ FR-AUDIT-001 to FR-AUDIT-003.
 8. Invitation links must expire and be single-use.
 9. Passwords must never be stored in plaintext.
 10. File downloads must enforce authorization.
-11. Notifications must be private to their recipients.
+11. Notifications are excluded from this assignment and must not be implemented.
 12. Audit records must not be editable by ordinary users.
 13. Email and GitHub use mock data in the initial assignment.
 14. Production hosting is excluded.
@@ -1082,7 +1052,7 @@ FR-AUDIT-001 to FR-AUDIT-003.
 | UC-013 to UC-016 | Ticket Management |
 | UC-017 | Comments and Collaboration |
 | UC-018 | File Management |
-| UC-019 | Notifications |
+| UC-019 | Notifications (excluded) |
 | UC-020 | Sprint and Backlog |
 | UC-021 | Search and Filters |
 | UC-022 | Dashboards |
@@ -1092,14 +1062,12 @@ FR-AUDIT-001 to FR-AUDIT-003.
 
 ## 7. Pending Clarifications
 
-1. Does TESTING_DONE replace COMPLETED?
-2. What should happen after BUG_FIXED?
-3. Confirm the exact interpretation of Developer IN_REVIEW transition.
-4. Confirm permissions for BLOCKED, REOPENED and CANCELLED.
-5. Confirm attachment count scope.
-6. Confirm whether 5 MB is per file.
-7. Confirm final project/team administration permissions.
-8. Confirm final notification and reporting permission rules.
+1. Confirm whether the maximum five-document limit applies per ticket, per project or per upload operation.
+2. Confirm any remaining project/team administration permissions not explicitly defined by the senior.
+3. Confirm report visibility and export permissions.
+4. Confirm any retention duration requiring company policy.
+
+Ticket workflow questions about TESTING_DONE, BUG_FIXED, Developer IN_REVIEW, REOPENED, BLOCKED and CANCELLED are resolved in ../workflows/ticket-workflow.md. Notifications is excluded, not a pending feature.
 
 ---
 End of Document
@@ -1145,3 +1113,11 @@ Tester may return failed testing to `IN_PROGRESS` or `REOPENED` with a comment. 
 Admin and PM can manage `BLOCKED`, `REOPENED` and `CANCELLED` and retain their any-status authority.
 
 `BUG_FIXED` proceeds to `COMPLETED`. `TESTING_DONE` remains distinct from `COMPLETED`.
+
+## Excluded use-case and authoritative workflow update — 17 November 2026
+
+UC-019 is retained only as a traceability identifier and is excluded from implementation. Remove it from active planning, estimates, test execution and acceptance. The Notifications module has no UI, API, data model, preferences, delivery or background jobs in this assignment. Ticket activity and audit records remain separate in-scope capabilities.
+
+For User Management, UC-003 (Create Employee Invitation), UC-004 (Accept Employee Invitation), UC-007 (Manage Employee Accounts), UC-008 (Manage Roles) and UC-010 (Manage Team Membership) are the applicable use cases. Invitation acceptance must create the employee and initial memberships transactionally, using the invitation data model described in `../database/database-design.md`. No public registration is permitted.
+
+Use `../workflows/ticket-workflow.md` as the only authoritative ticket workflow. It supersedes all earlier transition descriptions in detailed use cases.

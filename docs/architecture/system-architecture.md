@@ -455,7 +455,7 @@ The transition service must enforce:
 | Admin | Any configured transition |
 | PM | Any configured transition within authorized projects |
 | Developer | TODO → IN_PROGRESS |
-| Developer | TODO → IN_REVIEW |
+| Developer | IN_PROGRESS → IN_REVIEW |
 | Tester | TESTING → TESTING_DONE |
 | Tester | TESTING → BUG_FIXED |
 | Bug-fix workflow | BUG_FIXED → COMPLETED |
@@ -808,8 +808,8 @@ The architecture should provide:
 |---|---|---|
 | ARC-001 | Database ORM | SQLAlchemy proposed |
 | ARC-002 | Migration tool | Alembic proposed |
-| ARC-003 | Authentication transport | Requires security approval |
-| ARC-004 | Cookie/session expiry | Requires security approval |
+| ARC-003 | Authentication transport | Three HttpOnly cookies; locally implemented; production review required |
+| ARC-004 | Cookie/session expiry | ID 5m, access 15m, refresh 7d; locally implemented |
 | ARC-005 | File storage provider | TBD |
 | ARC-006 | Local file storage adapter | Proposed for development only |
 | ARC-007 | Password hashing parameters | Requires security approval |
@@ -862,3 +862,25 @@ Tester may return failed testing to `IN_PROGRESS` or `REOPENED` with a comment. 
 Admin and PM can manage `BLOCKED`, `REOPENED` and `CANCELLED` and retain their any-status authority.
 
 `BUG_FIXED` proceeds to `COMPLETED`. `TESTING_DONE` remains distinct from `COMPLETED`.
+
+## 20. Implemented authentication transport and current baseline — 17 November 2026
+
+The authentication architecture is now implemented locally. This section supersedes earlier proposed bearer-only transport and pending cookie-policy notes.
+
+- `POST /api/v1/auth/sign` issues ID, access and refresh HttpOnly cookies.
+- `GET /api/v1/auth/id-token/verify` validates the ID token once and clears it.
+- `GET /api/v1/auth/verify-token` validates the active access session.
+- `POST /api/v1/auth/refresh-token` rotates the opaque refresh token and renews access/refresh cookies.
+- `POST /api/v1/auth/refresh-token/logout` revokes the session using the refresh cookie; `POST /api/v1/auth/logout` remains a compatibility alias.
+- ID token: 5 minutes, cookie path `/api/v1/auth/id-token/verify`.
+- Access token: 15 minutes, cookie path `/`.
+- Refresh token: 7 days, cookie path `/api/v1/auth/refresh-token`.
+- Cookies are HttpOnly and SameSite=Lax. Secure follows `COOKIE_SECURE` (false locally over HTTP; true for HTTPS).
+- Access token is the only credential for ordinary protected requests. The backend supports the access cookie and Bearer header; the current frontend uses credentialed cookie requests.
+- Refresh token is used only by the refresh and path-scoped logout operations. ID token is a one-time identity assertion, not a reusable authorization credential.
+
+The current implementation includes the identity/team/session/invitation foundations and authentication endpoints. It does not yet implement invitation creation/acceptance APIs, full employee administration APIs, teams CRUD, or projects CRUD.
+
+### Invitation schema extension before User Management APIs
+
+Extend the current invitation model to retain pending employee full name, optional employee ID and selected initial teams. Represent initial team selection using a normalized invitation-team join table. On acceptance create the user, selected team memberships and accepted invitation state in a single transaction. No placeholder password or prematurely active user is to be created at invitation time. See `../database/database-design.md` and `../database/erd.md`.

@@ -30,7 +30,7 @@ All application APIs use:
 
 Example:
 
-`http://localhost:8000/api/v1/auth/login`
+`http://localhost:8000/api/v1/auth/sign`
 
 The host and port are configurable development settings.
 
@@ -110,23 +110,24 @@ The backend must validate pagination values and enforce a maximum page size.
 - Available roles are ADMIN, PM, DEVELOPER and TESTER.
 - Company email integration uses dummy data such as `name@agribid.ai`.
 
-### 3.2 Proposed Endpoints
+### 3.2 Implemented authentication endpoints
+
+Base path: /api/v1.
 
 | Method | Endpoint | Description | Access |
 |---|---|---|---|
-| POST | /auth/login | Employee login | Public |
-| POST | /auth/refresh | Refresh session | Refresh credential |
-| POST | /auth/logout | Logout | Authenticated |
-| GET | /auth/me | Get current employee | Authenticated |
-| POST | /invitations | Create invitation | Admin |
-| GET | /invitations/{token} | Validate invitation | Invitation token |
-| POST | /invitations/accept | Accept invitation | Valid invitation |
+| POST | /auth/sign | Employee sign-in; issues three cookies | Public; rate limited |
+| GET | /auth/id-token/verify | One-time ID-token verification and clearing | ID-token cookie |
+| GET | /auth/verify-token | Verify current employee/session | Access cookie or Bearer access token |
+| POST | /auth/refresh-token | Rotate refresh session; renew access and refresh cookies | Refresh-token cookie |
+| POST | /auth/refresh-token/logout | Revoke session and clear cookies | Refresh-token cookie |
+| POST | /auth/logout | Compatibility logout alias | Refresh cookie or access cookie |
 
-There is no public registration endpoint.
+There is no public registration endpoint. Invitation endpoints are specified in section 23 as planned work and are not implemented yet.
 
 ### 3.3 Login Request
 
-`POST /auth/login`
+`POST /api/v1/auth/sign`
 
 ```json
 {
@@ -135,15 +136,11 @@ There is no public registration endpoint.
 }
 ```
 
-The backend validates credentials and employee account status.
-
-The authentication response must not expose passwords, password hashes or secret credentials in its JSON body.
-
-Token format, expiry, refresh strategy and cookie configuration require security approval.
+The backend validates credentials and active account status. The response JSON contains the employee identity and role metadata, not token values, password hashes or secrets. The actual token lifetimes and cookie paths are defined in section 23.
 
 ### 3.4 Current Employee
 
-`GET /auth/me`
+`GET /api/v1/auth/verify-token`
 
 Proposed response data:
 
@@ -177,9 +174,7 @@ The invitation flow must validate:
 - Whether it has already been used.
 - Employee account creation eligibility.
 
-Invitation expiry, resend behavior and role assignment during invitation require confirmation.
-
-Email delivery is simulated using dummy data for this assignment. Do not claim a real email was delivered.
+Invitation creation/acceptance is planned for the User Management module. Persist pending employee full name, email, optional employee ID, exactly one role and initial team selections before acceptance. On acceptance, create the user and memberships transactionally. Email delivery is simulated using dummy data; do not claim a real email was delivered.
 
 ## 4. User Management APIs
 
@@ -795,7 +790,7 @@ The valid status key is `COMPLETED`; `DONE` must not be accepted or returned as 
 
 Tester may change `TESTING` to `TESTING_DONE`, `BUG_FIXED` or `REOPENED`.
 
-Developer may change `TODO` to `IN_PROGRESS` or `IN_REVIEW`, and an assigned Developer may move `REOPENED` to `IN_PROGRESS`.
+Developer moves `TODO` to `IN_PROGRESS`, then `IN_PROGRESS` to `IN_REVIEW`; an assigned Developer may move `REOPENED` to `IN_PROGRESS`.
 
 Admin and PM may move tickets between any configured statuses within their authorized scope, including managing `BLOCKED`, `REOPENED` and `CANCELLED`.
 
@@ -803,11 +798,11 @@ Every successful status change must create a ticket activity/history record in t
 
 ### Authentication implementation contract
 
-Use PyJWT for 15-minute access JWTs and an opaque, randomly generated refresh token with a 7-day initial lifetime.
+The current implemented authentication transport and token/cookie paths are defined in section 23. Do not use the earlier bearer-only/in-memory access-token and SameSite=Strict proposal in this document. The frontend currently uses credentialed requests: access_token is the only credential used for ordinary protected API requests, while ID and refresh tokens are restricted to their dedicated endpoints by cookie path. The backend accepts the access cookie or a Bearer access-token header.
 
-Return the access token for in-memory frontend use. Set the refresh token in an HttpOnly, SameSite=Strict cookie. Store only a hash of the refresh token in the database. Rotate refresh tokens and revoke the current session during logout.
+The current lifetimes are ID token 5 minutes, access token 15 minutes and opaque refresh token 7 days. All cookies are HttpOnly and SameSite=Lax; Secure is environment-configurable. Only the refresh-token hash is stored in PostgreSQL. Refresh rotation and session revocation on logout are implemented.
 
-Use `pwdlib[argon2]` for password hashing. Restrict CORS to the configured frontend origin. Validate the request Origin on refresh and logout.
+Use pwdlib[argon2] for password hashing. Restrict CORS to the configured frontend origin. Refresh/logout Origin protection must follow the current tested implementation and be reviewed before production deployment.
 
 For this assignment, use standard HTTP status codes such as 401, 403, 409 and 422. Do not introduce a custom 419 status.
 
@@ -860,3 +855,71 @@ Example:
 When reopening, blocking or cancelling a ticket, the reason/comment is required.
 
 `DONE` must not be accepted or returned as a status key.
+
+## 23. Implemented authentication API and cookie contract — 17 November 2026
+
+This section supersedes the earlier draft endpoint names in sections 3.2–3.5 where they differ from the verified implementation.
+
+Base path: `/api/v1`.
+
+| Method | Endpoint | Purpose | Credential |
+|---|---|---|---|
+| POST | `/auth/sign` | Sign in and issue ID, access and refresh cookies | Public; rate limited |
+| GET | `/auth/id-token/verify` | One-time ID-token verification and clearing | ID-token cookie |
+| GET | `/auth/verify-token` | Verify current authenticated employee | Access cookie or Bearer access token |
+| POST | `/auth/refresh-token` | Rotate refresh session and renew access/refresh cookies | Refresh-token cookie |
+| POST | `/auth/refresh-token/logout` | Revoke current session and clear cookies, including after access expiry | Refresh-token cookie |
+| POST | `/auth/logout` | Compatibility logout alias | Refresh cookie or valid access cookie |
+
+Sign-in accepts normalized email and password. Authentication responses return the employee identity and role metadata, not token values in the JSON response.
+
+### Cookie settings
+
+| Cookie | Lifetime | Path | HttpOnly | SameSite |
+|---|---:|---|---|---|
+| `id_token` | 5 minutes | `/api/v1/auth/id-token/verify` | Yes | Lax |
+| `access_token` | 15 minutes | `/` | Yes | Lax |
+| `refresh_token` | 7 days | `/api/v1/auth/refresh-token` | Yes | Lax |
+
+The Secure flag follows `COOKIE_SECURE` (false for local HTTP; true for HTTPS deployment). Frontend requests must use credentials. The access token is the only credential used for normal protected API authorization. The ID token is one-time and must not be reused as an API access credential. The refresh token is sent only to refresh and its path-scoped logout endpoint.
+
+The backend authentication dependency accepts either a Bearer access token or the access cookie. The current frontend integration uses the cookie-based flow.
+
+### Refresh and logout behavior
+
+- Access expiry can cause `GET /auth/verify-token` to return 401.
+- The frontend calls `POST /auth/refresh-token`; successful rotation returns 200 and sets new access and refresh cookies.
+- The frontend retries the original protected request once.
+- A successful retry returns the protected response; concurrent refresh attempts are coalesced by the frontend helper.
+- Reuse of a rotated refresh token revokes active sessions for that user.
+- Logout revokes the corresponding session and expires the current and legacy cookie paths.
+
+### User Management API contract — planned, not implemented
+
+The following are proposed contracts for the next feature. They must be implemented with backend authorization and tests; their inclusion here does not imply they already exist. The UI and APIs should use the exact role/team/employee rules in the approved requirements.
+
+| Method | Endpoint | Purpose | Access |
+|---|---|---|---|
+| GET | `/users` | Paginated employee list with search and filters | Admin |
+| POST | `/users/invitations` | Create employee invitation with initial role and team selections | Admin |
+| GET | `/users/{user_id}` | Employee details | Admin; self-access only if explicitly approved |
+| PATCH | `/users/{user_id}` | Update permitted employee details | Admin |
+| PATCH | `/users/{user_id}/role` | Change the employee's single role | Admin |
+| PATCH | `/users/{user_id}/status` | Activate/deactivate employee | Admin |
+| POST | `/auth/invitations/verify` | Validate an invitation without consuming it | Public with invitation token |
+| POST | `/auth/invitations/accept` | Set password and accept invitation | Public with valid invitation token |
+
+Invitation acceptance creates the user and initial team memberships transactionally. Public sign-up remains excluded. The API should return safe invitation errors without exposing whether unrelated email addresses have accounts.
+
+### Team Management API contract — planned
+
+| Method | Endpoint | Purpose | Access |
+|---|---|---|---|
+| GET | `/teams` | Paginated team list | Admin |
+| POST | `/teams` | Create team | Admin |
+| GET | `/teams/{team_id}` | Team details and member summary | Admin |
+| PATCH | `/teams/{team_id}` | Edit/archive team | Admin |
+| POST | `/teams/{team_id}/members` | Add member | Admin |
+| DELETE | `/teams/{team_id}/members/{user_id}` | End membership while preserving history | Admin |
+
+Any additional PM/team visibility permissions require explicit confirmation before implementation.

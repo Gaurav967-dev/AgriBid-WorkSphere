@@ -478,3 +478,35 @@ Use docs/api/api-specification.md as the detailed API contract. The API area in 
 | Extracted validation/scenario IDs | 179 |
 
 **Status note:** This is an initial traceability register. Mapping and verification are still required; no implementation or test pass is implied.
+
+## 9. Verified mapping for Authentication, User Management and Team Membership — 17 November 2026
+
+The following focused mappings are added for the first delivery modules. They improve the initial register but do not replace the required full 213-requirement review. Implementation status must be updated only with code and test evidence.
+
+| Requirement | Use case | Validation/scenario IDs | API area | Current evidence/status |
+|---|---|---|---|---|
+| FR-AUTH-001 Invitation-only account creation | UC-003, UC-004 | AUTH-INV-001 to AUTH-INV-014 | Invitation API | Partially implemented foundation; invitation endpoints pending |
+| FR-AUTH-002 Invitation acceptance | UC-004 | AUTH-INV-007 to AUTH-INV-014; USER-SC-016 to USER-SC-020 | Invitation acceptance API | Pending schema extension, API and tests |
+| FR-AUTH-003 Sign in | UC-001 | AUTH-SC-001 to AUTH-SC-009 | POST /auth/sign | Implemented; backend tests pass |
+| FR-AUTH-004 Sign out | UC-002 | Auth session revoke scenarios | POST /auth/refresh-token/logout | Implemented; backend tests pass |
+| FR-AUTH-006 Session management | UC-001, UC-002 | AUTH-SC-010 to AUTH-SC-014 | verify-token, refresh-token, logout | Implemented; browser refresh sequence verified |
+| FR-AUTH-007 Role authorization | UC-001, UC-007, UC-008 | USER-SC-003 to USER-SC-005, USER-SC-010, USER-SC-023 | Authentication dependencies and future users API | Identity role foundation implemented; employee permission endpoints pending |
+| FR-USER-001 Employee creation | UC-003, UC-004 | USER-SC-001, USER-SC-011 to USER-SC-020 | POST /users/invitations; invitation acceptance | Pending |
+| FR-USER-002 Employee operations | UC-007 | USER-SC-006, USER-SC-010, USER-SC-023 | GET /users, GET /users/{id}, PATCH /users/{id} | Pending |
+| FR-USER-003 Employee validation | UC-003, UC-007 | USER-SC-002 to USER-SC-005, USER-SC-011 to USER-SC-024 | User and invitation schemas/services | Pending |
+| FR-USER-004 Employee operations | UC-007, UC-008 | USER-SC-006, USER-SC-010, USER-SC-023 | Users API | Pending |
+| FR-USER-005 Account deactivation | UC-007 | USER-SC-007 to USER-SC-009, USER-SC-022, USER-SC-025 | PATCH /users/{id}/status | Pending |
+| FR-TEAM-001 Team creation | UC-009 | TEAM-SC-001 to TEAM-SC-003 | POST /teams | Model foundation exists; API pending |
+| FR-TEAM-002 Team operations | UC-009 | TEAM-SC-001 to TEAM-SC-003, TEAM-SC-010 | GET/PATCH /teams | Model foundation exists; API pending |
+| FR-TEAM-003 Team membership | UC-010 | TEAM-SC-004 to TEAM-SC-007 | POST/DELETE /teams/{id}/members | Model and uniqueness constraint exist; API pending |
+| FR-TEAM-004 Historical membership | UC-010 | TEAM-SC-007 to TEAM-SC-010 | Team membership API | Model supports joined_at/removed_at; behavior pending |
+ 
+The authentication evidence refers to the current local implementation. The User and Team items marked pending are not implemented merely because the API design or tests are listed here.
+
+## 10. Traceability governance
+
+- Use `ticket-workflow.md` as the authoritative status-transition source.
+- Treat UC-019 Notifications as excluded, not as an active testable use case.
+- Add a test-case identifier only when an actual automated/manual test is authored.
+- Record exact test names and execution evidence after running tests.
+- Keep the status vocabulary consistent: Planned, In Progress, Implemented, Verified, Blocked, Deferred or Excluded.

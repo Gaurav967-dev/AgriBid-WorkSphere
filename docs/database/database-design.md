@@ -55,10 +55,10 @@ UUID is a technical proposal, not an explicit PDF requirement.
 | id | UUID | PK |
 | role_id | UUID | FK, NOT NULL |
 | full_name | VARCHAR(150) | NOT NULL |
-| username | VARCHAR(100) | UNIQUE, if used |
-| email | VARCHAR(255) | UNIQUE, NOT NULL |
+| username | — | Not present in current SQLAlchemy User model |
+| email | VARCHAR(320) | NOT NULL; unique case-insensitively via lower(email) index |
 | password_hash | VARCHAR(255) | NOT NULL |
-| employee_id | VARCHAR(50) | UNIQUE, nullable |
+| employee_id | VARCHAR(50) | Nullable; current migration does not enforce uniqueness |
 | profile_image_key | VARCHAR(500) | Nullable |
 | is_active | BOOLEAN | NOT NULL |
 | last_login_at | TIMESTAMPTZ | Nullable |
@@ -74,8 +74,8 @@ Every employee has exactly one role.
 | Column | Proposed Type | Constraint |
 |---|---|---|
 | id | UUID | PK |
-| role_key | VARCHAR(50) | UNIQUE, NOT NULL |
-| name | VARCHAR(100) | NOT NULL |
+| code | VARCHAR(30) | UNIQUE, NOT NULL |
+| name | VARCHAR(60) | NOT NULL |
 | description | TEXT | Nullable |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
@@ -90,9 +90,9 @@ Seed roles:
 | Column | Proposed Type | Constraint |
 |---|---|---|
 | id | UUID | PK |
-| permission_key | VARCHAR(150) | UNIQUE, NOT NULL |
-| resource | VARCHAR(100) | NOT NULL |
-| action | VARCHAR(100) | NOT NULL |
+| code | VARCHAR(100) | UNIQUE, NOT NULL |
+| resource | VARCHAR(60) | NOT NULL |
+| action | VARCHAR(60) | NOT NULL |
 | description | TEXT | Nullable |
 
 ### 4.4 role_permissions
@@ -108,20 +108,35 @@ A permission can be associated with multiple roles.
 
 There is deliberately no user_roles table.
 
-### 4.5 invitations
+### 4.5 user_invitations
 
-| Column | Proposed Type | Constraint |
+The currently implemented table is named user_invitations. Its current columns are:
+
+| Column | Type | Constraint |
 |---|---|---|
 | id | UUID | PK |
-| user_id | UUID | FK, NOT NULL |
+| email | VARCHAR(320) | NOT NULL; indexed |
+| role_id | UUID | FK roles, NOT NULL |
+| invited_by_user_id | UUID | FK users, NOT NULL |
 | token_hash | VARCHAR(255) | UNIQUE, NOT NULL |
 | expires_at | TIMESTAMPTZ | NOT NULL |
+| created_at | TIMESTAMPTZ | NOT NULL |
 | accepted_at | TIMESTAMPTZ | Nullable |
 | revoked_at | TIMESTAMPTZ | Nullable |
-| created_by | UUID | FK users |
-| created_at | TIMESTAMPTZ | NOT NULL |
 
-Invitation tokens must be single-use and expiring.
+Required User Management extension before invitation APIs:
+
+| Column / relation | Proposed type | Constraint |
+|---|---|---|
+| full_name | VARCHAR(150) | NOT NULL |
+| employee_id | VARCHAR(50) | Nullable; uniqueness subject to company policy |
+| profile_image_key | VARCHAR(500) | Nullable |
+| accepted_user_id | UUID | FK users, nullable; populated after successful acceptance |
+| user_invitation_teams | Join table | invitation_id + team_id composite PK/FK |
+
+Add a partial unique index on normalized email for invitations where accepted_at IS NULL and revoked_at IS NULL. Revoke an expired pending invitation before creating a replacement.
+
+On acceptance, one transaction must validate invitation and selected teams, create the user with the submitted password hash, create selected team_members rows, set accepted_at and accepted_user_id, and commit. Any failure must roll back all of these changes. Invitation secrets are single-use and only their hashes are stored.
 
 ### 4.6 password_reset_tokens
 
@@ -681,3 +696,47 @@ Tester may return failed testing to `IN_PROGRESS` or `REOPENED` with a comment. 
 Admin and PM can manage `BLOCKED`, `REOPENED` and `CANCELLED` and retain their any-status authority.
 
 `BUG_FIXED` proceeds to `COMPLETED`. `TESTING_DONE` remains distinct from `COMPLETED`.
+
+## 21. Implemented identity schema and invitation extension — 17 November 2026
+
+The current SQLAlchemy models and applied Alembic migrations use these implemented table/column names:
+
+| Entity | Implemented table | Important implementation names |
+|---|---|---|
+| Role | `roles` | `code`, `name` |
+| Permission | `permissions` | `code`, `resource`, `action` |
+| User | `users` | `role_id`, `full_name`, `email`, `password_hash`, `is_active` |
+| Role permissions | `role_permissions` | `role_id`, `permission_id` |
+| Team | `teams` | `name`, `lead_user_id`, `status` |
+| Team membership | `team_members` | `team_id`, `user_id`, `joined_at`, `removed_at` |
+| Refresh session | `auth_sessions` | `token_hash`, `expires_at`, `revoked_at`, `replaced_by_session_id` |
+| Invitation | `user_invitations` | `email`, `role_id`, `invited_by_user_id`, `token_hash`, `expires_at`, `accepted_at`, `revoked_at` |
+| Password reset | `password_reset_tokens` | `user_id`, `token_hash`, `expires_at`, `used_at` |
+
+This table records implemented names and supersedes the earlier illustrative names `role_key`, `permission_key`, `session_token_hash` and `invitations` where they differ. The existing implementation has a one-role-per-user foreign key and a partial unique index preventing duplicate active team memberships.
+
+### Required pending invitation schema enhancement
+
+Before implementing User Management invitation APIs, extend `user_invitations` to preserve pending employee data:
+
+- `full_name` — required, trimmed.
+- `employee_id` — optional; uniqueness must follow the agreed company employee-ID policy.
+- `profile_image_key` — optional storage reference when an image is supplied.
+
+Create a partial unique index on normalized invitation email for non-accepted, non-revoked invitations. Expired invitations should be explicitly revoked before a replacement is created; this avoids ambiguous simultaneous pending invitations. Keep the user email unique case-insensitively.
+- Existing normalized `email`, `role_id`, inviter, token hash, expiry and lifecycle timestamps.
+- Add `user_invitation_teams` with invitation ID and team ID, using a composite unique key and foreign keys.
+
+Do not create a placeholder user or store a placeholder password at invitation creation. On acceptance, use one transaction to validate invitation and teams, create the user with the submitted Argon2 password hash, create the selected `team_members` rows, and mark the invitation accepted. Roll back the whole operation on failure. Revoke/expire invitations without deleting audit-relevant history.
+
+The current SQLAlchemy model and database migration do not yet include these pending profile/team fields. This is planned work, not implemented functionality.
+
+### Clarified invitation lifecycle
+
+1. Admin submits name, company-style email, one role, optional employee ID and zero or more team IDs.
+2. Backend validates Admin permission, email uniqueness against users and pending invitations, role existence, active team IDs and duplicate invitation rules.
+3. Generate a cryptographically random invitation secret; persist only its hash and expiry.
+4. Simulate email delivery using development data. Do not claim a real email was sent.
+5. Invited employee validates the token and sets/confirms a password.
+6. In one transaction create the user, team memberships and accepted invitation state.
+7. The token cannot be reused after acceptance, revocation or expiry.

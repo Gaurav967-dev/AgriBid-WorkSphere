@@ -1,0 +1,42 @@
+﻿# Environment variables and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test, coverage, and quality-tool artifacts
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyright/
+.coverage
+.coverage.*
+htmlcov/
+coverage/
+test-results/
+
+# Build and packaging artifacts
+build/
+dist/
+
+# Local uploads and temporary data
+storage/uploads/
+storage/temp/
+
+# Logs and generated files
+*.log
+*.tsbuildinfo
+
+# Local auth debugging backups
+.auth-cookie-final-backup-*/

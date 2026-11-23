@@ -418,22 +418,13 @@ Invalid credentials must not disclose unnecessary account information.
 
 Passwords must be securely hashed.
 
-The exact algorithm and work parameters must be approved
-during security design.
+The implementation uses pwdlib with Argon2 via pwdlib[argon2]. Passwords are never stored in plaintext; only the password hash is persisted.
 
 Passwords must never be stored as plaintext.
 
 ### 5.4 Session Design
 
-Session transport and lifetime are pending security approval.
-
-The selected design must support:
-- Expiry.
-- Revocation.
-- Logout.
-- Protected endpoints.
-- Inactive-account rejection.
-- Safe renewal, if applicable.
+Session transport and lifetime are implemented locally: 5-minute ID token, 15-minute access JWT, and 7-day opaque refresh token. Each is an HttpOnly SameSite=Lax cookie with paths /api/v1/auth/id-token/verify, /, and /api/v1/auth/refresh-token respectively. Secure is controlled by COOKIE_SECURE (false for local HTTP, true for HTTPS). Normal protected frontend requests send access_token via the browser cookie; refresh_token is sent only to the scoped refresh/logout endpoints, while id_token is for one-time identity verification. The backend accepts an access cookie or Bearer access header. Refresh tokens are hashed in PostgreSQL, rotated on refresh and revoked on logout. The implementation is for local assignment testing and must be security-reviewed before production deployment.
 
 ### 5.5 Authorization
 
@@ -801,9 +792,9 @@ three-week schedule and available working hours.
 |---|---|---|
 | TD-001 | Database ORM | SQLAlchemy proposed |
 | TD-002 | Migration tool | Alembic proposed |
-| TD-003 | Authentication session transport | Pending security design |
-| TD-004 | Session lifetime and renewal | Pending security design |
-| TD-005 | Password hashing configuration | Pending security design |
+| TD-003 | Authentication session transport | Implemented locally; re-review before production |
+| TD-004 | Session lifetime and renewal | ID 5m / access 15m / refresh 7d; implemented |
+| TD-005 | Password hashing configuration | pwdlib/Argon2; implemented |
 | TD-006 | File storage provider | Pending |
 | TD-007 | Exact five-document count scope | Pending |
 | TD-008 | BUG_FIXED-to-COMPLETED actor | Pending |
@@ -852,3 +843,25 @@ Tester may return failed testing to `IN_PROGRESS` or `REOPENED` with a comment. 
 Admin and PM can manage `BLOCKED`, `REOPENED` and `CANCELLED` and retain their any-status authority.
 
 `BUG_FIXED` proceeds to `COMPLETED`. `TESTING_DONE` remains distinct from `COMPLETED`.
+
+## 18. Implemented authentication and invitation design update — 17 November 2026
+
+This section supersedes the earlier statements that session transport and lifetime are undecided.
+
+### Implemented authentication
+
+The current code uses a 5-minute ID token, 15-minute access JWT and 7-day opaque refresh token. All three are HttpOnly cookies with SameSite=Lax; Secure is environment-configurable. Cookie paths are respectively `/api/v1/auth/id-token/verify`, `/`, and `/api/v1/auth/refresh-token`.
+
+Sign-in issues all three. ID-token verification is one-time and clears the ID cookie. Protected requests use the access token; backend dependency accepts the access cookie or a Bearer access header. Refresh rotates the opaque token, stores only its hash, revokes the previous session, and returns new access/refresh cookies. Logout revokes the session and clears active and legacy cookie paths.
+
+The frontend uses credentialed cookie requests, coalesces concurrent verification/refresh work and retries a protected request once after refresh. The browser test evidence recorded for the current implementation is: access verification 401 after expiry, refresh 200, then verification retry 200.
+
+### User invitation design to implement next
+
+Extend the current invitation entity with pending employee full name and optional employee ID. Use a normalized invitation-team association for initial team choices. Invitation creation must not create a usable user with a fake password. Invitation acceptance must validate the token and selected teams, hash the submitted password, create the user and memberships, and mark the invitation accepted in one database transaction.
+
+Add the Alembic migration and tests before implementing invitation endpoints. Public self-registration remains prohibited.
+
+### Backend module naming
+
+The current backend repository uses `app/api/v1/endpoints`, `app/api/v1/dependencies`, `app/core`, `app/models`, `app/schemas`, `app/services`, `app/repositories`, `app/integrations`, `migrations`, `scripts` and `tests`. The earlier proposed `app/modules/*` tree is conceptual and should not be represented as the current physical folder layout.

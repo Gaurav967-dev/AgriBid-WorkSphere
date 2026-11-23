@@ -2,6 +2,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { signIn, signOut, verifyIdToken } from "@/features/auth/api/auth-api";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -141,6 +143,8 @@ function BrandLogo() {
 export function SignInForm() {
     const [showPassword, setShowPassword] = useState(false);
     const [notice, setNotice] = useState("");
+    const [noticeIsError, setNoticeIsError] = useState(false);
+    const router = useRouter();
 
     const {
         register,
@@ -155,10 +159,31 @@ export function SignInForm() {
         },
     });
 
-    function onSubmit() {
-        setNotice(
-            "Your details are valid. Backend authentication will be connected shortly."
-        );
+    async function onSubmit(values: SignInValues) {
+        setNotice("");
+        setNoticeIsError(false);
+
+        try {
+            await signIn({
+                email: values.email,
+                password: values.password,
+            });
+            try {
+                await verifyIdToken();
+            } catch (verificationError) {
+                await signOut();
+                throw verificationError;
+            }
+            router.replace("/dashboard");
+            router.refresh();
+        } catch (error) {
+            setNoticeIsError(true);
+            setNotice(
+                error instanceof Error
+                    ? error.message
+                    : "Unable to sign in. Please try again."
+            );
+        }
     }
 
     return (
@@ -288,14 +313,14 @@ export function SignInForm() {
                         disabled={isSubmitting}
                         className="mt-[5px] h-[37px] w-full rounded-[10px] bg-gradient-to-r from-[#5830D8] to-[#6030CE] text-[12px] font-semibold text-white shadow-none transition hover:from-[#4925C5] hover:to-[#5125B9] disabled:opacity-60"
                     >
-                        Sign In
+                        {isSubmitting ? "Signing in..." : "Sign In"}
                     </Button>
 
                     {notice && (
                         <p
                             role="status"
                             aria-live="polite"
-                            className="rounded-md bg-violet-50 p-2 text-center text-[10px] leading-4 text-violet-800"
+                            className={`rounded-md p-2 text-center text-[10px] leading-4 ${noticeIsError ? "bg-red-50 text-red-700" : "bg-violet-50 text-violet-800"}`}
                         >
                             {notice}
                         </p>

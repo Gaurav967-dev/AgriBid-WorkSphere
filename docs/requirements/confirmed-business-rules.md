@@ -70,24 +70,18 @@ BR-005: Project Manager Permissions
 BR-006: Developer Permissions
 
 - Developer can move a ticket from TODO to IN_PROGRESS.
-- Developer can move a ticket to IN_REVIEW.
-- Other status transitions are not permitted until explicitly approved.
+- Developer moves TODO -> IN_PROGRESS, then IN_PROGRESS -> IN_REVIEW.
+- An assigned Developer may move REOPENED -> IN_PROGRESS.
+- Other status transitions are not permitted unless defined in ../workflows/ticket-workflow.md.
 - Developer must not access unrelated project tickets.
-
-Open clarification:
-Confirm whether the IN_REVIEW transition must originate from
-IN_PROGRESS or whether another source status is permitted.
 
 BR-007: Tester Permissions
 
 - Tester can move tickets from TESTING to TESTING_DONE.
-- Tester can move tickets from TESTING to BUG_FIXED.
-- Other status transitions are not permitted until explicitly approved.
+- Tester can move tickets from TESTING to BUG_FIXED or REOPENED.
+- Failed testing may return to IN_PROGRESS or REOPENED with a comment.
+- TESTING_DONE and COMPLETED are separate statuses.
 - Testing evidence and comments must be associated with the ticket.
-
-Open clarification:
-Confirm whether TESTING_DONE replaces COMPLETED or whether both
-statuses are separate.
 
 ## 5. Ticket Status Catalogue
 
@@ -110,7 +104,7 @@ Additional statuses communicated by senior:
 
 All status values must be validated by the backend.
 
-The final workflow transition matrix is pending confirmation.
+The authoritative transition matrix is maintained in ../workflows/ticket-workflow.md.
 
 ## 6. Attachment Rules
 
@@ -298,3 +292,19 @@ Tester may return failed testing to `IN_PROGRESS` or `REOPENED` with a comment. 
 Admin and PM can manage `BLOCKED`, `REOPENED` and `CANCELLED` and retain their any-status authority.
 
 `BUG_FIXED` proceeds to `COMPLETED`. `TESTING_DONE` remains distinct from `COMPLETED`.
+
+## Current authoritative clarifications — 17 November 2026
+
+The following clarifications supersede the pending draft statements above where they conflict:
+
+- `TESTING_DONE` and `COMPLETED` are separate statuses.
+- `BUG_FIXED` proceeds to `COMPLETED`.
+- Developer normal workflow is `TODO` → `IN_PROGRESS` → `IN_REVIEW`; do not allow direct `TODO` → `IN_REVIEW`.
+- Tester may return failed work from `TESTING` to `IN_PROGRESS` or `REOPENED` with a comment. Tester may mark `REOPENED`.
+- An assigned Developer can move `REOPENED` → `IN_PROGRESS`.
+- Admin and PM retain any-status authority within their authorized scope, including managing `BLOCKED`, `REOPENED` and `CANCELLED`.
+- 5 MB applies to each individual file. The scope of the maximum five-document count remains to be confirmed.
+- Notifications and Automate Pro are excluded.
+- The GitHub toolbar button opens the developer's personal GitHub account/repository; application GitHub activity remains mock data.
+
+For the implemented authentication cookie/token contract, see `../architecture/technology-decisions.md` and `../api/api-specification.md`. For invitation pending-profile and selected-team persistence, see `../database/database-design.md`; this requires a migration and is not yet implemented.
