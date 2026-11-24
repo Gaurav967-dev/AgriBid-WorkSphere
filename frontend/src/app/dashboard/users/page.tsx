@@ -1,25 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     AlertCircle,
-    CheckCircle2,
     ChevronLeft,
     ChevronRight,
-    Clock3,
-
     Plus,
     RefreshCw,
     Search,
     ShieldCheck,
     Users,
-    XCircle,
     X,
     Menu,
     PanelLeft,
+    Filter,
 } from "lucide-react";
 
 import {
@@ -29,34 +26,29 @@ import {
 } from "@/features/auth/api/auth-api";
 
 import {
-    getActiveUsers,
-    getInvitations,
+    getUserManagementRecords,
     revokeInvitation,
-    type ActiveUser,
-    type EmployeeStatusFilter,
-    type Invitation,
-    type InvitationStatus,
+    type ManagementAccountStatus,
+    type UserManagementRecord,
+    type UserManagementSortField,
+    type UserRole,
 } from "@/features/users/api/users-api";
+import { getTeams } from "@/features/teams/api/teams-api";
 
 import { InvitationDialog } from "@/features/users/components/invitation-dialog";
 import { WorkspaceActions } from "@/components/workspace-actions";
 import { WorkspaceSidebar } from "@/components/workspace-sidebar";
 import { useWorkspaceSidebarState } from "@/components/workspace-sidebar-state";
 
-const PAGE_SIZE = 10;
-const ACTIVE_USER_PAGE_SIZE = 12;
-const EMPTY_INVITATIONS: Invitation[] = [];
-const EMPTY_ACTIVE_USERS: ActiveUser[] = [];
+const MANAGEMENT_PAGE_SIZE = 12;
 
-type StatusFilter = "ALL" | InvitationStatus;
+type ManagementStatusFilter = "ALL" | ManagementAccountStatus;
+type ManagementRoleFilter = "ALL" | UserRole;
 
-function formatDate(value: string): string {
+function formatDate(value?: string | null): string {
+    if (!value) return "—";
     const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return "—";
-    }
-
+    if (Number.isNaN(date.getTime())) return "—";
     return new Intl.DateTimeFormat("en-IN", {
         day: "2-digit",
         month: "short",
@@ -74,36 +66,26 @@ function relativeUpdate(value?: string | null): string {
     return `${days} days ago`;
 }
 
-function StatusBadge({ status }: { status: InvitationStatus }) {
-    const styles: Record<InvitationStatus, string> = {
+function statusLabel(status: ManagementAccountStatus): string {
+    const labels: Record<ManagementAccountStatus, string> = {
+        ACTIVE: "Active",
+        INACTIVE: "Inactive",
+        PENDING: "Invitation pending",
+        REVOKED: "Invitation revoked",
+        EXPIRED: "Invitation expired",
+    };
+    return labels[status];
+}
+
+function statusClasses(status: ManagementAccountStatus): string {
+    const styles: Record<ManagementAccountStatus, string> = {
+        ACTIVE: "border-emerald-200 bg-emerald-50 text-emerald-700",
+        INACTIVE: "border-slate-200 bg-slate-100 text-slate-600",
         PENDING: "border-amber-200 bg-amber-50 text-amber-700",
-        ACCEPTED: "border-emerald-200 bg-emerald-50 text-emerald-700",
         REVOKED: "border-slate-200 bg-slate-100 text-slate-600",
         EXPIRED: "border-rose-200 bg-rose-50 text-rose-700",
     };
-
-    const icons = {
-        PENDING: <Clock3 className="size-3.5" />,
-        ACCEPTED: <CheckCircle2 className="size-3.5" />,
-        REVOKED: <XCircle className="size-3.5" />,
-        EXPIRED: <AlertCircle className="size-3.5" />,
-    };
-
-    const labels: Record<InvitationStatus, string> = {
-        PENDING: "Pending",
-        ACCEPTED: "Accepted",
-        REVOKED: "Revoked",
-        EXPIRED: "Expired",
-    };
-
-    return (
-        <span
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${styles[status]}`}
-        >
-            {icons[status]}
-            {labels[status]}
-        </span>
-    );
+    return styles[status];
 }
 
 function RoleBadge({ role }: { role: string }) {
@@ -115,7 +97,7 @@ function RoleBadge({ role }: { role: string }) {
     };
 
     return (
-        <span className="inline-flex rounded-md bg-violet-50 px-2 py-1 text-xs font-medium text-violet-700">
+        <span className="inline-flex rounded-md bg-violet-50 px-1.5 py-0.5 text-[11px] font-medium text-violet-700">
             {labels[role] ?? role}
         </span>
     );
@@ -132,12 +114,14 @@ export default function UsersPage() {
 
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState("");
-
-    const [employeePage, setEmployeePage] = useState(1);
-    const [employeeSearch, setEmployeeSearch] = useState("");
-    const [employeeStatusFilter, setEmployeeStatusFilter] =
-        useState<EmployeeStatusFilter>("ACTIVE");
-    const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+    const [statusFilter, setStatusFilter] =
+        useState<ManagementStatusFilter>("ALL");
+    const [roleFilter, setRoleFilter] =
+        useState<ManagementRoleFilter>("ALL");
+    const [teamFilter, setTeamFilter] = useState("");
+    const [sortBy, setSortBy] =
+        useState<UserManagementSortField>("created_at");
+    const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
     const [isInvitationDialogOpen, setIsInvitationDialogOpen] =
         useState(false);
     const [revokingId, setRevokingId] = useState<string | null>(null);
@@ -165,75 +149,69 @@ export default function UsersPage() {
 
     const isAdmin = user?.role_code === "ADMIN";
 
-    const invitationsQuery = useQuery({
-        queryKey: ["users", "invitations", page, PAGE_SIZE],
-        queryFn: () => getInvitations(page, PAGE_SIZE),
+    const managementQuery = useQuery({
+        queryKey: [
+            "users",
+            "management",
+            page,
+            MANAGEMENT_PAGE_SIZE,
+            search.trim(),
+            statusFilter,
+            roleFilter,
+            teamFilter,
+            sortBy,
+            sortOrder,
+        ],
+        queryFn: () =>
+            getUserManagementRecords({
+                page,
+                pageSize: MANAGEMENT_PAGE_SIZE,
+                search,
+                accountStatus: statusFilter,
+                roleCode: roleFilter,
+                teamId: teamFilter,
+                sortBy,
+                sortOrder,
+            }),
         enabled: !isCheckingAuth && isAdmin,
     });
 
-    const activeUsersQuery = useQuery({
-        queryKey: [
-            "users",
-            "active",
-            employeePage,
-            ACTIVE_USER_PAGE_SIZE,
-            employeeSearch.trim(),
-            employeeStatusFilter,
-        ],
-        queryFn: () =>
-            getActiveUsers(
-                employeePage,
-                ACTIVE_USER_PAGE_SIZE,
-                employeeSearch,
-                employeeStatusFilter,
-            ),
+    const teamsQuery = useQuery({
+        queryKey: ["teams", "users-filter-options"],
+        queryFn: () => getTeams(1, 100, "", "ACTIVE"),
         enabled: !isCheckingAuth && isAdmin,
+        staleTime: 60_000,
     });
+
     const revokeMutation = useMutation({
         mutationFn: revokeInvitation,
         onSuccess: async () => {
             await queryClient.invalidateQueries({
-                queryKey: ["users", "invitations"],
+                queryKey: ["users", "management"],
             });
         },
     });
 
-    const invitations =
-        invitationsQuery.data?.items ?? EMPTY_INVITATIONS;
-    const total = invitationsQuery.data?.total ?? 0;
-    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-    const filteredInvitations = useMemo(() => {
-        const searchValue = search.trim().toLowerCase();
-
-        return invitations.filter((invitation) => {
-            const matchesSearch =
-                !searchValue ||
-                invitation.full_name.toLowerCase().includes(searchValue) ||
-                invitation.email.toLowerCase().includes(searchValue) ||
-                (invitation.employee_id ?? "")
-                    .toLowerCase()
-                    .includes(searchValue);
-
-            const matchesStatus =
-                statusFilter === "ALL" ||
-                invitation.status === statusFilter;
-
-            return matchesSearch && matchesStatus;
-        });
-    }, [invitations, search, statusFilter]);
-
-    const activeUsers =
-        activeUsersQuery.data?.items ?? EMPTY_ACTIVE_USERS;
-    const activeUserTotal = activeUsersQuery.data?.total ?? 0;
-    const totalActiveUserPages = Math.max(
-        1,
-        activeUsersQuery.data?.total_pages ?? 1,
+    const managementRows = managementQuery.data?.items ?? [];
+    const total = managementQuery.data?.total ?? 0;
+    const totalPages = Math.max(1, managementQuery.data?.total_pages ?? 1);
+    const latestInvitationUpdate = managementRows.reduce<string | null>(
+        (latest, row) =>
+            !latest || new Date(row.created_at).getTime() > new Date(latest).getTime()
+                ? row.created_at
+                : latest,
+        null,
     );
-    const latestInvitationUpdate = invitations
-        .map((item) => item.created_at)
-        .filter(Boolean)
-        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
+
+    function toggleSort(field: UserManagementSortField) {
+        if (sortBy === field) {
+            setSortOrder((current) => (current === "asc" ? "desc" : "asc"));
+        } else {
+            setSortBy(field);
+            setSortOrder("asc");
+        }
+        setPage(1);
+    }
 
     async function handleSignOut() {
         setIsSigningOut(true);
@@ -248,19 +226,16 @@ export default function UsersPage() {
         }
     }
 
-    function handleRevoke(invitation: Invitation) {
+    function handleRevoke(record: UserManagementRecord) {
+        if (!record.invitation_id) return;
         const confirmed = window.confirm(
-            `Revoke the invitation for ${invitation.full_name}? The invitation link will no longer be usable.`,
+            `Revoke the invitation for ${record.full_name}? The invitation link will no longer be usable.`,
         );
-
         if (!confirmed) return;
 
-        setRevokingId(invitation.id);
-
-        revokeMutation.mutate(invitation.id, {
-            onSettled: () => {
-                setRevokingId(null);
-            },
+        setRevokingId(record.invitation_id);
+        revokeMutation.mutate(record.invitation_id, {
+            onSettled: () => setRevokingId(null),
         });
     }
 
@@ -298,15 +273,15 @@ export default function UsersPage() {
     }
 
     return (
-        <div className="workspace-shell flex min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+        <div className="workspace-shell flex !h-dvh !min-h-0 !overflow-hidden bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
             <WorkspaceSidebar
                 user={user}
                 collapsed={collapsed}
                 mobileOpen={isMobileNavOpen}
                 onMobileClose={() => setIsMobileNavOpen(false)}
             />
-            <div className="flex min-w-0 flex-1 flex-col">
-                <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900 sm:px-6">
+            <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900 sm:px-6">
                     <div className="flex h-full w-full min-w-0 items-center justify-between gap-3">
                         <div className="flex min-w-0 items-center gap-3">
                             <button
@@ -349,14 +324,14 @@ export default function UsersPage() {
                 </header>
 
 
-                <main className="w-full max-w-none px-3 pb-3 pt-1 sm:px-4">
-                    <div className="mb-3">
+                <main className="flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden px-3 pb-3 pt-0 sm:px-4">
+                    <div className="mb-1 shrink-0">
                         <div className="mt-0 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
                             <div>
                                 <h1 className="mt-0 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
                                     User Management
                                 </h1>
-                                <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-500">
+                                <p className="mt-0.5 max-w-2xl text-xs leading-4 text-slate-500">
                                     Invite employees, manage pending invitations,
                                     and track account onboarding.
                                 </p>
@@ -373,587 +348,311 @@ export default function UsersPage() {
                         </div>
                     </div>
 
-                    <section className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                        <div className="flex flex-col gap-2 border-b border-slate-100 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-3">
-                            <div>
-                                <h2 className="text-base font-bold text-slate-900">
-                                    Employee accounts
+                    <section className="mt-0 flex min-h-0 flex-1 flex-col overflow-visible rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                        <div className="flex shrink-0 flex-col gap-2 border-b border-slate-100 px-3 py-2 dark:border-slate-800 sm:px-4 xl:flex-row xl:items-start xl:justify-between">
+                            <div className="min-w-0 xl:w-[230px] xl:shrink-0">
+                                <h2 className="text-base font-bold leading-tight text-slate-900 dark:text-slate-100">
+                                    Employee directory
                                 </h2>
-                                <p className="mt-1 text-xs text-slate-500">
-                                    Search employees, review their details, and manage account status.
+                                <p className="mt-0.5 text-xs leading-4 text-slate-500 dark:text-slate-400">
+                                    Employee accounts and outstanding invitations in one place.
                                 </p>
                             </div>
 
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                                <div className="relative min-w-0 sm:w-80">
-                                    <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
-                                    <input
-                                        type="search"
-                                        value={employeeSearch}
-                                        maxLength={100}
-                                        onChange={(event) => {
-                                            setEmployeeSearch(event.target.value);
-                                            setEmployeePage(1);
-                                        }}
-                                        placeholder="Search name, email or employee ID"
-                                        aria-label="Search employees"
-                                        className="h-10 w-full rounded-lg border border-slate-200 bg-white pr-3 pl-9 text-sm outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-3 focus:ring-violet-100"
-                                    />
+                            <div className="flex min-w-0 flex-1 flex-col gap-2">
+                                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+                                    <div className="relative min-w-0 flex-1 sm:max-w-[360px]">
+                                        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+                                        <input
+                                            type="search"
+                                            value={search}
+                                            maxLength={100}
+                                            onChange={(event) => {
+                                                setSearch(event.target.value);
+                                                setPage(1);
+                                            }}
+                                            placeholder="Search name, email or employee ID"
+                                            aria-label="Search user management records"
+                                            className="h-9 w-full rounded-lg border border-slate-200 bg-white pr-3 pl-9 text-sm outline-none placeholder:text-slate-400 focus:border-violet-500 focus:ring-3 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center justify-end gap-2 sm:ml-auto">
+                                        <details className="relative">
+                                            <summary
+                                                aria-label="Open user filters"
+                                                className="inline-flex h-9 cursor-pointer list-none items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800 [&::-webkit-details-marker]:hidden"
+                                            >
+                                                <Filter className="size-3.5" />
+                                                Filter
+                                                {(() => {
+                                                    const activeCount = [
+                                                        statusFilter !== "ALL",
+                                                        roleFilter !== "ALL",
+                                                        Boolean(teamFilter),
+                                                    ].filter(Boolean).length;
+                                                    return activeCount > 0 ? (
+                                                        <span className="inline-flex size-5 items-center justify-center rounded-full bg-violet-100 text-[10px] font-bold text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+                                                            {activeCount}
+                                                        </span>
+                                                    ) : null;
+                                                })()}
+                                            </summary>
+
+                                            <div
+                                                role="group"
+                                                aria-label="User directory filters"
+                                                className="absolute right-0 top-full z-50 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white p-3 shadow-xl dark:border-slate-700 dark:bg-slate-900 max-h-[min(70vh,420px)] overflow-y-auto"
+                                            >
+                                                <div className="mb-3 flex items-center justify-between">
+                                                    <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                                        Filter employees
+                                                    </h3>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setStatusFilter("ALL");
+                                                            setRoleFilter("ALL");
+                                                            setTeamFilter("");
+                                                            setPage(1);
+                                                        }}
+                                                        className="text-xs font-semibold text-violet-700 hover:text-violet-800 dark:text-violet-300"
+                                                    >
+                                                        Clear all
+                                                    </button>
+                                                </div>
+
+                                                <div className="space-y-3">
+                                                    <label className="block">
+                                                        <span className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">
+                                                            Account status
+                                                        </span>
+                                                        <select
+                                                            value={statusFilter}
+                                                            onChange={(event) => {
+                                                                setStatusFilter(event.target.value as ManagementStatusFilter);
+                                                                setPage(1);
+                                                            }}
+                                                            aria-label="Filter by account status"
+                                                            className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-violet-500 focus:ring-3 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                                                        >
+                                                            <option value="ALL">All statuses</option>
+                                                            <option value="ACTIVE">Active</option>
+                                                            <option value="INACTIVE">Inactive</option>
+                                                            <option value="PENDING">Invitation pending</option>
+                                                            <option value="REVOKED">Invitation revoked</option>
+                                                            <option value="EXPIRED">Invitation expired</option>
+                                                        </select>
+                                                    </label>
+
+                                                    <label className="block">
+                                                        <span className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">
+                                                            Role
+                                                        </span>
+                                                        <select
+                                                            value={roleFilter}
+                                                            onChange={(event) => {
+                                                                setRoleFilter(event.target.value as ManagementRoleFilter);
+                                                                setPage(1);
+                                                            }}
+                                                            aria-label="Filter by role"
+                                                            className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-violet-500 focus:ring-3 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                                                        >
+                                                            <option value="ALL">All roles</option>
+                                                            <option value="ADMIN">Admin</option>
+                                                            <option value="PM">Project Manager</option>
+                                                            <option value="DEVELOPER">Developer</option>
+                                                            <option value="TESTER">Tester</option>
+                                                        </select>
+                                                    </label>
+
+                                                    <label className="block">
+                                                        <span className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">
+                                                            Team
+                                                        </span>
+                                                        <select
+                                                            value={teamFilter}
+                                                            onChange={(event) => {
+                                                                setTeamFilter(event.target.value);
+                                                                setPage(1);
+                                                            }}
+                                                            aria-label="Filter by team"
+                                                            className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-violet-500 focus:ring-3 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                                                        >
+                                                            <option value="">All teams</option>
+                                                            {(teamsQuery.data?.items ?? []).map((team) => (
+                                                                <option key={team.id} value={team.id}>{team.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </details>
+
+                                        <label className="inline-flex items-center gap-2 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
+                                            Sort by
+                                            <select
+                                                value={sortBy}
+                                                onChange={(event) => {
+                                                    setSortBy(event.target.value as UserManagementSortField);
+                                                    setPage(1);
+                                                }}
+                                                aria-label="Sort user records by"
+                                                className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                                            >
+                                                <option value="created_at">Created date</option>
+                                                <option value="full_name">Full name</option>
+                                                <option value="email">Email</option>
+                                                <option value="employee_id">Employee ID</option>
+                                                <option value="role">Role</option>
+                                                <option value="teams">Team</option>
+                                                <option value="status">Account status</option>
+                                                <option value="last_login_at">Last login</option>
+                                            </select>
+                                        </label>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSortOrder((current) => current === "asc" ? "desc" : "asc");
+                                                setPage(1);
+                                            }}
+                                            aria-label={`Sort ${sortOrder === "asc" ? "descending" : "ascending"}`}
+                                            className="h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                                        >
+                                            {sortOrder === "asc" ? "Ascending" : "Descending"}
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => void managementQuery.refetch()}
+                                            disabled={managementQuery.isFetching}
+                                            aria-label="Refresh user management records"
+                                            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                                        >
+                                            <RefreshCw className={`size-3.5 ${managementQuery.isFetching ? "animate-spin" : ""}`} />
+                                            Refresh
+                                        </button>
+                                    </div>
                                 </div>
-
-                                <select
-                                    value={employeeStatusFilter}
-                                    onChange={(event) => {
-                                        setEmployeeStatusFilter(
-                                            event.target.value as EmployeeStatusFilter,
-                                        );
-                                        setEmployeePage(1);
-                                    }}
-                                    aria-label="Filter employees by account status"
-                                    className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-violet-500 focus:ring-3 focus:ring-violet-100"
-                                >
-                                    <option value="ACTIVE">Active</option>
-                                    <option value="INACTIVE">Inactive</option>
-                                    <option value="ALL">All employees</option>
-                                </select>
-
-                                <button
-                                    type="button"
-                                    onClick={() => void activeUsersQuery.refetch()}
-                                    disabled={activeUsersQuery.isFetching}
-                                    aria-label="Refresh employees"
-                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-                                >
-                                    <RefreshCw
-                                        className={`size-4 ${
-                                            activeUsersQuery.isFetching
-                                                ? "animate-spin"
-                                                : ""
-                                        }`}
-                                    />
-                                    <span>Refresh</span>
-                                </button>
                             </div>
                         </div>
-
-                        {activeUsersQuery.isPending ? (
-                            <div
-                                className="flex min-h-48 items-center justify-center gap-3 text-sm text-slate-500"
-                                role="status"
-                            >
-                                <RefreshCw className="size-4 animate-spin" />
-                                Loading employees...
+{revokeMutation.error && (
+                            <div role="alert" className="mx-4 mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                                {revokeMutation.error instanceof Error ? revokeMutation.error.message : "Unable to revoke the invitation."}
                             </div>
-                        ) : activeUsersQuery.isError ? (
-                            <div className="flex min-h-48 flex-col items-center justify-center px-6 text-center">
+                        )}
+
+                        {managementQuery.isPending ? (
+                            <div className="flex min-h-48 flex-1 items-center justify-center gap-3 text-sm text-slate-500" role="status">
+                                <RefreshCw className="size-4 animate-spin" /> Loading user records...
+                            </div>
+                        ) : managementQuery.isError ? (
+                            <div className="flex min-h-48 flex-1 flex-col items-center justify-center px-6 text-center">
                                 <AlertCircle className="size-9 text-rose-500" />
-                                <h3 className="mt-3 text-sm font-semibold text-slate-900">
-                                    Unable to load employees
-                                </h3>
-                                <p className="mt-1 max-w-md text-sm text-slate-500">
-                                    {activeUsersQuery.error instanceof Error
-                                        ? activeUsersQuery.error.message
-                                        : "Something went wrong while retrieving employees."}
-                                </p>
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        void activeUsersQuery.refetch()
-                                    }
-                                    className="mt-4 rounded-lg bg-violet-700 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-800"
-                                >
-                                    Try again
+                                <h3 className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-100">Unable to load user records</h3>
+                                <p className="mt-1 max-w-md text-sm text-slate-500">{managementQuery.error instanceof Error ? managementQuery.error.message : "Something went wrong while retrieving users."}</p>
+                                <button type="button" onClick={() => void managementQuery.refetch()} className="mt-4 rounded-lg bg-violet-700 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-800">Try again</button>
+                            </div>
+                        ) : managementRows.length === 0 ? (
+                            <div className="flex min-h-48 flex-1 flex-col items-center justify-center px-6 text-center">
+                                <Users className="size-9 text-slate-300" />
+                                <h3 className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-100">No matching records</h3>
+                                <p className="mt-1 text-sm text-slate-500">Try changing your search or filters, or invite a new employee.</p>
+                                <button type="button" onClick={() => setIsInvitationDialogOpen(true)} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800">
+                                    <Plus className="size-4" /> Invite employee
                                 </button>
                             </div>
-                        ) : activeUsers.length === 0 ? (
-                            <div className="flex min-h-48 flex-col items-center justify-center px-6 text-center">
-                                <Users className="size-9 text-slate-300" />
-                                <h3 className="mt-3 text-sm font-semibold text-slate-900">
-                                    No employees found
-                                </h3>
-                                <p className="mt-1 text-sm text-slate-500">
-                                    {employeeSearch.trim()
-                                        ? "Try another name, email or employee ID."
-                                        : "Accepted employee invitations will appear here."}
-                                </p>
-                            </div>
                         ) : (
-                            <>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full min-w-[900px] border-collapse text-left">
-                                        <thead>
-                                            <tr className="border-b border-slate-100 bg-slate-50/80">
-                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                                    Employee
-                                                </th>
-                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                                    Employee ID
-                                                </th>
-                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                                    Role
-                                                </th>
-                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                                    Account status
-                                                </th>
-                                                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                                    Actions
-                                                </th>
-                                            </tr>
-                                        </thead>
-
-                                        <tbody className="divide-y divide-slate-100">
-                                            {activeUsers.map((employee) => (
-                                                <tr
-                                                    key={employee.id}
-                                                    className="transition hover:bg-slate-50/70"
-                                                >
-                                                    <td className="px-4 py-3">
-                                                        <div className="min-w-0">
-                                                            <p className="truncate text-sm font-semibold text-slate-900">
-                                                                {employee.full_name}
-                                                            </p>
-                                                            <p className="mt-1 truncate text-xs text-slate-500">
-                                                                {employee.email}
-                                                            </p>
+                            <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
+                                <table className="w-full min-w-[1250px] border-collapse text-left">
+                                    <thead>
+                                        <tr className="border-b border-slate-100 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950/60">
+                                            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 sticky top-0 z-20 bg-slate-50 dark:bg-slate-950">Profile / Employee</th>
+                                            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 sticky top-0 z-20 bg-slate-50 dark:bg-slate-950">
+                                                <button type="button" onClick={() => toggleSort("employee_id")} className="hover:text-violet-700">Employee ID ↕</button>
+                                            </th>
+                                            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 sticky top-0 z-20 bg-slate-50 dark:bg-slate-950">
+                                                <button type="button" onClick={() => toggleSort("role")} className="hover:text-violet-700">Role ↕</button>
+                                            </th>
+                                            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 sticky top-0 z-20 bg-slate-50 dark:bg-slate-950">
+                                                <button type="button" onClick={() => toggleSort("teams")} className="hover:text-violet-700">Team(s) ↕</button>
+                                            </th>
+                                            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 sticky top-0 z-20 bg-slate-50 dark:bg-slate-950">
+                                                <button type="button" onClick={() => toggleSort("status")} className="hover:text-violet-700">Account status ↕</button>
+                                            </th>
+                                            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 sticky top-0 z-20 bg-slate-50 dark:bg-slate-950">
+                                                <button type="button" onClick={() => toggleSort("created_at")} className="hover:text-violet-700">Created date ↕</button>
+                                            </th>
+                                            <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 sticky top-0 z-20 bg-slate-50 dark:bg-slate-950">
+                                                <button type="button" onClick={() => toggleSort("last_login_at")} className="hover:text-violet-700">Last login ↕</button>
+                                            </th>
+                                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 sticky top-0 z-20 bg-slate-50 dark:bg-slate-950">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                        {managementRows.map((record) => {
+                                            const initials = record.full_name.trim().split(/\s+/).slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join("");
+                                            return (
+                                                <tr key={`${record.record_type}-${record.id}`} className="transition hover:bg-slate-50/70 dark:hover:bg-slate-800/50">
+                                                    <td className="px-3 py-1.5">
+                                                        <div className="flex min-w-0 items-center gap-3">
+                                                            <div title={record.profile_image_key ? "Profile image is stored" : "No profile image stored"} className={`flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${record.profile_image_key ? "bg-violet-100 text-violet-800 ring-2 ring-violet-300" : "bg-slate-100 text-slate-600"}`}>
+                                                                {initials || "U"}
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <p className="max-w-64 truncate text-[13px] leading-4 font-semibold text-slate-900 dark:text-slate-100">{record.full_name}</p>
+                                                                <p className="max-w-64 truncate text-[11px] leading-4 text-slate-500 dark:text-slate-400">{record.email}</p>
+                                                            </div>
                                                         </div>
                                                     </td>
-
-                                                    <td className="px-4 py-3 text-sm text-slate-600">
-                                                        {employee.employee_id || "—"}
+                                                    <td className="px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300">{record.employee_id || "—"}</td>
+                                                    <td className="px-3 py-1.5"><RoleBadge role={record.role_code} /></td>
+                                                    <td className="px-3 py-1.5">
+                                                        {record.teams.length ? (
+                                                            <div className="flex max-w-56 flex-wrap gap-1">
+                                                                {record.teams.slice(0, 2).map((team) => <span key={team.id} className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[11px] text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">{team.name}</span>)}
+                                                                {record.teams.length > 2 && <span className="px-1 py-0.5 text-[11px] text-slate-500">+{record.teams.length - 2} more</span>}
+                                                            </div>
+                                                        ) : <span className="text-[11px] text-slate-400">—</span>}
                                                     </td>
-
-                                                    <td className="px-4 py-3">
-                                                        <RoleBadge
-                                                            role={employee.role_code}
-                                                        />
+                                                    <td className="px-3 py-1.5">
+                                                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusClasses(record.account_status)}`}>{statusLabel(record.account_status)}</span>
                                                     </td>
-
-                                                    <td className="px-4 py-3">
-                                                        <span
-                                                            className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${
-                                                                employee.is_active
-                                                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                                                    : "border-slate-200 bg-slate-100 text-slate-600"
-                                                            }`}
-                                                        >
-                                                            {employee.is_active
-                                                                ? "Active"
-                                                                : "Inactive"}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-right">
-                                                        <Link
-                                                            href={`/dashboard/users/${employee.id}`}
-                                                            className="inline-flex items-center rounded-lg border border-violet-200 px-3 py-1.5 text-xs font-semibold text-violet-700 transition hover:bg-violet-50"
-                                                        >
-                                                            View details
-                                                        </Link>
+                                                    <td className="px-3 py-1.5 text-[11px] text-slate-600 dark:text-slate-300">{formatDate(record.created_at)}</td>
+                                                    <td className="px-3 py-1.5 text-[11px] text-slate-600 dark:text-slate-300">{formatDate(record.last_login_at)}</td>
+                                                    <td className="px-3 py-1.5 text-right">
+                                                        {record.record_type === "EMPLOYEE" && record.user_id ? (
+                                                            <Link href={`/dashboard/users/${record.user_id}`} className="inline-flex items-center rounded-lg border border-violet-200 px-2.5 py-1 text-[11px] font-semibold text-violet-700 transition hover:bg-violet-50">View details</Link>
+                                                        ) : record.account_status === "PENDING" ? (
+                                                            <button type="button" onClick={() => handleRevoke(record)} disabled={revokingId === record.invitation_id} className="rounded-lg border border-rose-200 px-2.5 py-1 text-[11px] font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-50">{revokingId === record.invitation_id ? "Revoking..." : "Revoke"}</button>
+                                                        ) : <span className="text-[11px] text-slate-400">—</span>}
                                                     </td>
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                                    <p className="text-xs text-slate-500">
-                                        Showing{" "}
-                                        {(employeePage - 1) *
-                                            ACTIVE_USER_PAGE_SIZE +
-                                            1}
-                                        –
-                                        {Math.min(
-                                            (employeePage - 1) *
-                                                ACTIVE_USER_PAGE_SIZE +
-                                                activeUsers.length,
-                                            activeUserTotal,
-                                        )}{" "}
-                                        of {activeUserTotal} employees
-                                    </p>
-
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setEmployeePage((current) =>
-                                                    Math.max(1, current - 1),
-                                                )
-                                            }
-                                            disabled={
-                                                employeePage <= 1 ||
-                                                activeUsersQuery.isFetching
-                                            }
-                                            className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                                        >
-                                            <ChevronLeft className="size-4" />
-                                            Previous
-                                        </button>
-
-                                        <span className="px-2 text-xs font-medium text-slate-500">
-                                            Page {employeePage} of{" "}
-                                            {totalActiveUserPages}
-                                        </span>
-
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setEmployeePage((current) =>
-                                                    Math.min(
-                                                        totalActiveUserPages,
-                                                        current + 1,
-                                                    ),
-                                                )
-                                            }
-                                            disabled={
-                                                employeePage >=
-                                                    totalActiveUserPages ||
-                                                activeUsersQuery.isFetching
-                                            }
-                                            className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                                        >
-                                            Next
-                                            <ChevronRight className="size-4" />
-                                        </button>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-                    </section>
-                    <section className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                        <div className="flex flex-col gap-3 border-b border-slate-100 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                            <div className="min-w-0 shrink-0">
-                                <h2 className="text-base font-bold text-slate-900">
-                                    Employee invitations
-                                </h2>
-                                <p className="mt-1 text-xs text-slate-500">
-                                    Review and manage invitations sent to employees.
-                                </p>
-                                <p className="mt-0.5 text-[11px] text-slate-400">
-                                    Search and status filters apply to the currently loaded page.
-                                </p>
-                            </div>
-
-                            <div className="flex min-w-0 flex-col gap-2 sm:flex-1 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
-                                <div className="relative min-w-0 sm:w-72 sm:flex-1 sm:max-w-[360px]">
-                                    <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
-                                    <input
-                                        type="search"
-                                        value={search}
-                                        onChange={(event) =>
-                                            setSearch(event.target.value)
-                                        }
-                                        placeholder="Search invitations by name, email or ID"
-                                        aria-label="Search invitations on this page"
-                                        className="h-10 w-full rounded-lg border border-slate-200 bg-white pr-3 pl-9 text-sm outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-3 focus:ring-violet-100"
-                                    />
-                                </div>
-
-                                <select
-                                    value={statusFilter}
-                                    onChange={(event) =>
-                                        setStatusFilter(
-                                            event.target.value as StatusFilter,
-                                        )
-                                    }
-                                    aria-label="Filter invitations by status"
-                                    className="h-10 w-full shrink-0 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-violet-500 focus:ring-3 focus:ring-violet-100 sm:w-36"
-                                >
-                                    <option value="ALL">All statuses</option>
-                                    <option value="PENDING">Pending</option>
-                                    <option value="ACCEPTED">Accepted</option>
-                                    <option value="REVOKED">Revoked</option>
-                                    <option value="EXPIRED">Expired</option>
-                                </select>
-
-                                <button
-                                    type="button"
-                                    onClick={() => void invitationsQuery.refetch()}
-                                    disabled={invitationsQuery.isFetching}
-                                    aria-label="Refresh invitations"
-                                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-                                >
-                                    <RefreshCw
-                                        className={`size-4 ${invitationsQuery.isFetching ? "animate-spin" : ""}`}
-                                    />
-                                    <span>Refresh</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        {revokeMutation.error && (
-                            <div
-                                role="alert"
-                                className="mx-5 mt-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 sm:mx-6"
-                            >
-                                {revokeMutation.error instanceof Error
-                                    ? revokeMutation.error.message
-                                    : "Unable to revoke the invitation."}
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
                             </div>
                         )}
 
-                        {invitationsQuery.isPending ? (
-                            <div
-                                className="flex min-h-64 items-center justify-center gap-3 text-sm text-slate-500"
-                                role="status"
-                            >
-                                <RefreshCw className="size-4 animate-spin" />
-                                Loading invitations...
-                            </div>
-                        ) : invitationsQuery.isError ? (
-                            <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
-                                <AlertCircle className="size-9 text-rose-500" />
-                                <h3 className="mt-3 text-sm font-semibold text-slate-900">
-                                    Unable to load invitations
-                                </h3>
-                                <p className="mt-1 max-w-md text-sm text-slate-500">
-                                    {invitationsQuery.error instanceof Error
-                                        ? invitationsQuery.error.message
-                                        : "Something went wrong while retrieving invitations."}
-                                </p>
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        void invitationsQuery.refetch()
-                                    }
-                                    className="mt-4 rounded-lg bg-violet-700 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-800"
-                                >
-                                    Try again
-                                </button>
-                            </div>
-                        ) : filteredInvitations.length === 0 ? (
-                            <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
-                                <div className="flex size-12 items-center justify-center rounded-xl bg-violet-50 text-violet-700">
-                                    <Users className="size-6" />
-                                </div>
-                                <h3 className="mt-4 text-sm font-semibold text-slate-900">
-                                    {invitations.length === 0
-                                        ? "No invitations yet"
-                                        : "No matching invitations"}
-                                </h3>
-                                <p className="mt-1 max-w-md text-sm text-slate-500">
-                                    {invitations.length === 0
-                                        ? "Create an invitation to start onboarding an employee."
-                                        : "Try changing your search term or status filter."}
-                                </p>
-                                {invitations.length === 0 && (
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            setIsInvitationDialogOpen(true)
-                                        }
-                                        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800"
-                                    >
-                                        <Plus className="size-4" />
-                                        Invite employee
+                        {!managementQuery.isPending && !managementQuery.isError && total > 0 && (
+                            <div className="mt-auto flex shrink-0 flex-col gap-3 border-t border-slate-100 px-4 py-3 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                                <p className="text-xs text-slate-500">Showing {(page - 1) * MANAGEMENT_PAGE_SIZE + 1}–{Math.min(page * MANAGEMENT_PAGE_SIZE, total)} of {total} records</p>
+                                <div className="flex items-center gap-2">
+                                    <button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1 || managementQuery.isFetching} className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                                        <ChevronLeft className="size-4" /> Previous
                                     </button>
-                                )}
+                                    <span className="px-2 text-xs font-medium text-slate-500">Page {page} of {totalPages}</span>
+                                    <button type="button" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page >= totalPages || managementQuery.isFetching} className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                                        Next <ChevronRight className="size-4" />
+                                    </button>
+                                </div>
                             </div>
-                        ) : (
-                            <>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full min-w-[1050px] border-collapse text-left">
-                                        <thead>
-                                            <tr className="border-b border-slate-100 bg-slate-50/80">
-                                                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                                    Employee
-                                                </th>
-                                                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                                    Role
-                                                </th>
-                                                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                                    Teams
-                                                </th>
-                                                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                                    Status
-                                                </th>
-                                                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                                    Invited
-                                                </th>
-                                                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                                    Expires
-                                                </th>
-                                                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                                    Actions
-                                                </th>
-                                            </tr>
-                                        </thead>
-
-                                        <tbody className="divide-y divide-slate-100">
-                                            {filteredInvitations.map(
-                                                (invitation) => (
-                                                    <tr
-                                                        key={invitation.id}
-                                                        className="transition hover:bg-slate-50/70"
-                                                    >
-                                                        <td className="px-4 py-3">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-800">
-                                                                    {invitation.full_name
-                                                                        .trim()
-                                                                        .split(/\s+/)
-                                                                        .slice(0, 2)
-                                                                        .map((part) =>
-                                                                            part
-                                                                                .charAt(0)
-                                                                                .toUpperCase(),
-                                                                        )
-                                                                        .join("")}
-                                                                </div>
-                                                                <div className="min-w-0">
-                                                                    <p className="max-w-56 truncate text-sm font-semibold text-slate-800">
-                                                                        {invitation.full_name}
-                                                                    </p>
-                                                                    <p className="max-w-56 truncate text-xs text-slate-500">
-                                                                        {invitation.email}
-                                                                    </p>
-                                                                    {invitation.employee_id && (
-                                                                        <p className="mt-0.5 text-[11px] text-slate-400">
-                                                                            ID:{" "}
-                                                                            {invitation.employee_id}
-                                                                        </p>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </td>
-
-                                                        <td className="px-4 py-3">
-                                                            <RoleBadge
-                                                                role={invitation.role_code}
-                                                            />
-                                                        </td>
-
-                                                        <td className="px-4 py-3">
-                                                            {invitation.teams.length ? (
-                                                                <div className="flex max-w-48 flex-wrap gap-1">
-                                                                    {invitation.teams.map(
-                                                                        (team) => (
-                                                                            <span
-                                                                                key={team.id}
-                                                                                className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600"
-                                                                            >
-                                                                                {team.name}
-                                                                            </span>
-                                                                        ),
-                                                                    )}
-                                                                </div>
-                                                            ) : (
-                                                                <span className="text-xs text-slate-400">
-                                                                    No team assigned
-                                                                </span>
-                                                            )}
-                                                        </td>
-
-                                                        <td className="px-4 py-3">
-                                                            <StatusBadge
-                                                                status={invitation.status}
-                                                            />
-                                                        </td>
-
-                                                        <td className="px-4 py-3 text-xs text-slate-600">
-                                                            {formatDate(
-                                                                invitation.created_at,
-                                                            )}
-                                                        </td>
-
-                                                        <td className="px-4 py-3 text-xs text-slate-600">
-                                                            {formatDate(
-                                                                invitation.expires_at,
-                                                            )}
-                                                        </td>
-
-                                                        <td className="px-4 py-3 text-right">
-                                                            {invitation.status ===
-                                                                "PENDING" ? (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() =>
-                                                                        handleRevoke(
-                                                                            invitation,
-                                                                        )
-                                                                    }
-                                                                    disabled={
-                                                                        revokingId ===
-                                                                        invitation.id
-                                                                    }
-                                                                    className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-50"
-                                                                >
-                                                                    {revokingId ===
-                                                                        invitation.id
-                                                                        ? "Revoking..."
-                                                                        : "Revoke"}
-                                                                </button>
-                                                            ) : (
-                                                                <span className="pr-3 text-xs text-slate-300">
-                                                                    —
-                                                                </span>
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                ),
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                                    <p className="text-xs text-slate-500">
-                                        Showing{" "}
-                                        {total === 0
-                                            ? 0
-                                            : (page - 1) * PAGE_SIZE + 1}{" "}
-                                        to{" "}
-                                        {Math.min(page * PAGE_SIZE, total)} of{" "}
-                                        {total} invitations
-                                    </p>
-
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setPage((current) =>
-                                                    Math.max(1, current - 1),
-                                                )
-                                            }
-                                            disabled={
-                                                page <= 1 ||
-                                                invitationsQuery.isFetching
-                                            }
-                                            className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                                        >
-                                            <ChevronLeft className="size-4" />
-                                            Previous
-                                        </button>
-
-                                        <span className="px-2 text-xs font-medium text-slate-600">
-                                            Page {page} of {totalPages}
-                                        </span>
-
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setPage((current) =>
-                                                    Math.min(
-                                                        totalPages,
-                                                        current + 1,
-                                                    ),
-                                                )
-                                            }
-                                            disabled={
-                                                page >= totalPages ||
-                                                invitationsQuery.isFetching
-                                            }
-                                            className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                                        >
-                                            Next
-                                            <ChevronRight className="size-4" />
-                                        </button>
-                                    </div>
-                                </div>
-                            </>
                         )}
                     </section>
 
-                    <p className="mt-4 text-center text-xs text-slate-400">
+                    <p className="mt-auto shrink-0 pt-4 pb-1 text-center text-xs text-slate-400">
                         AgriBid WorkSphere · Internal employee workspace
                     </p>
                 </main>

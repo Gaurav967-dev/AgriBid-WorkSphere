@@ -174,9 +174,9 @@
 
 
 @media (min-width: 1024px) {
-    .workspace-shell > div > section.flex-1,
-    .workspace-shell > div > main {
-        padding-top: 0.75rem;
+        /* Keep page content directly below the fixed workspace header. */
+    .workspace-shell > div > section.flex-1 {
+        padding-top: 0 !important;
     }
 
     .workspace-shell form label {

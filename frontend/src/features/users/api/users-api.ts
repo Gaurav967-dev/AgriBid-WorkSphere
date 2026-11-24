@@ -314,3 +314,85 @@ export async function updateUserStatus(
     await ensureSuccess(response, "Unable to update employee status.");
     return readPayload<UserDetails>(response);
 }
+
+
+export type ManagementAccountStatus =
+    | "ACTIVE"
+    | "INACTIVE"
+    | "PENDING"
+    | "REVOKED"
+    | "EXPIRED";
+
+export type UserManagementSortField =
+    | "full_name"
+    | "email"
+    | "employee_id"
+    | "role"
+    | "teams"
+    | "status"
+    | "created_at"
+    | "last_login_at";
+
+export type UserManagementRecord = {
+    id: string;
+    record_type: "EMPLOYEE" | "INVITATION";
+    user_id: string | null;
+    invitation_id: string | null;
+    full_name: string;
+    email: string;
+    profile_image_key: string | null;
+    employee_id: string | null;
+    role_code: UserRole;
+    role_name: string;
+    teams: UserTeamSummary[];
+    account_status: ManagementAccountStatus;
+    created_at: string;
+    last_login_at: string | null;
+    expires_at: string | null;
+};
+
+export type UserManagementListResponse = {
+    items: UserManagementRecord[];
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+};
+
+export type UserManagementQuery = {
+    page: number;
+    pageSize: number;
+    search?: string;
+    accountStatus?: ManagementAccountStatus | "ALL";
+    roleCode?: UserRole | "ALL";
+    teamId?: string;
+    sortBy: UserManagementSortField;
+    sortOrder: "asc" | "desc";
+};
+
+export async function getUserManagementRecords(
+    input: UserManagementQuery,
+): Promise<UserManagementListResponse> {
+    const query = new URLSearchParams({
+        page: String(input.page),
+        page_size: String(input.pageSize),
+        account_status: input.accountStatus ?? "ALL",
+        sort_by: input.sortBy,
+        sort_order: input.sortOrder,
+    });
+
+    const searchTerm = input.search?.trim();
+    if (searchTerm) query.set("search", searchTerm);
+    if (input.roleCode && input.roleCode !== "ALL") {
+        query.set("role_code", input.roleCode);
+    }
+    if (input.teamId) query.set("team_id", input.teamId);
+
+    const response = await authenticatedFetch(
+        `/users/management?${query.toString()}`,
+        { method: "GET" },
+    );
+
+    await ensureSuccess(response, "Unable to load user-management records.");
+    return readPayload<UserManagementListResponse>(response);
+}

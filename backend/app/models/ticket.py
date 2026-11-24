@@ -45,8 +45,7 @@ class Ticket(Base):
             name="ck_tickets_nonnegative_effort",
         ),
         CheckConstraint(
-            "type IN ('EPIC', 'STORY', 'TASK', 'SUBTASK', 'BUG', "
-            "'IMPROVEMENT', 'TECHNICAL_DEBT')",
+            "type IN ('EPIC', 'STORY', 'TASK', 'SUBTASK', 'BUG', 'IMPROVEMENT', 'TECHNICAL_DEBT')",
             name="ck_tickets_type",
         ),
         CheckConstraint(
@@ -55,7 +54,7 @@ class Ticket(Base):
         ),
         CheckConstraint(
             "status IN ('BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', "
-            "'TESTING', 'TESTING_DONE', 'BUG_FIXED', 'DONE', 'COMPLETED', "
+            "'TESTING', 'TESTING_DONE', 'BUG_FIXED', 'COMPLETED', "
             "'BLOCKED', 'REOPENED', 'CANCELLED')",
             name="ck_tickets_status",
         ),
@@ -170,6 +169,11 @@ class Ticket(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    completed_by_user_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
@@ -191,6 +195,10 @@ class Ticket(Base):
     tester: Mapped[User | None] = relationship(
         "User",
         foreign_keys=[tester_id],
+    )
+    completed_by: Mapped[User | None] = relationship(
+        "User",
+        foreign_keys=[completed_by_user_id],
     )
 
     parent: Mapped[Ticket | None] = relationship(

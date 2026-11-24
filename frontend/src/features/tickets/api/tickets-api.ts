@@ -19,7 +19,6 @@ export type TicketStatus =
     | "TESTING"
     | "TESTING_DONE"
     | "BUG_FIXED"
-    | "DONE"
     | "COMPLETED"
     | "BLOCKED"
     | "REOPENED"
