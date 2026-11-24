@@ -263,3 +263,62 @@ class TicketDeleteResponse(BaseModel):
     message: str
     ticket_id: UUID
     deleted_at: datetime
+
+
+class TicketCommentCreateRequest(BaseModel):
+    body: str = Field(min_length=1, max_length=5000)
+    parent_comment_id: UUID | None = None
+    mentioned_user_ids: list[UUID] = Field(default_factory=list, max_length=20)
+
+    @field_validator("body")
+    @classmethod
+    def normalize_body(cls, value: str) -> str:
+        body = value.strip()
+        if not body:
+            raise ValueError("Comment text is required.")
+        return body
+
+    @field_validator("mentioned_user_ids")
+    @classmethod
+    def unique_mentions(cls, value: list[UUID]) -> list[UUID]:
+        if len(value) != len(set(value)):
+            raise ValueError("A user can only be mentioned once in a comment.")
+        return value
+
+
+class TicketCommentUpdateRequest(BaseModel):
+    body: str = Field(min_length=1, max_length=5000)
+    mentioned_user_ids: list[UUID] | None = Field(default=None, max_length=20)
+
+    @field_validator("body")
+    @classmethod
+    def normalize_body(cls, value: str) -> str:
+        body = value.strip()
+        if not body:
+            raise ValueError("Comment text is required.")
+        return body
+
+    @field_validator("mentioned_user_ids")
+    @classmethod
+    def unique_mentions(cls, value: list[UUID] | None) -> list[UUID] | None:
+        if value is not None and len(value) != len(set(value)):
+            raise ValueError("A user can only be mentioned once in a comment.")
+        return value
+
+
+class TicketCommentResponse(BaseModel):
+    id: UUID
+    ticket_id: UUID
+    parent_comment_id: UUID | None
+    author: TicketUserSummaryResponse
+    body: str | None
+    mentioned_users: list[TicketUserSummaryResponse] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+    edited_at: datetime | None
+    deleted_at: datetime | None
+    is_deleted: bool
+
+
+class TicketCommentListResponse(BaseModel):
+    items: list[TicketCommentResponse]

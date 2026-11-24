@@ -396,7 +396,7 @@ export default function TicketsPage() {
                 </header>
 
                 <section className="flex-1 px-3 pb-3 pt-1 sm:px-3 sm:pb-3 sm:pt-1 lg:px-4 lg:pb-4 lg:pt-1">
-                    <div className="mx-auto max-w-7xl">
+                    <div className="w-full max-w-none">
                         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                             <div>
                                 <h1 className="mt-0 text-2xl font-bold tracking-tight">

@@ -58,6 +58,8 @@ import {
     type ProjectUser,
 } from "@/features/projects/api/projects-api";
 
+import { TicketCommentsPanel } from "@/features/tickets/components/ticket-comments-panel";
+
 import { WorkspaceActions } from "@/components/workspace-actions";
 import { WorkspaceSidebar } from "@/components/workspace-sidebar";
 import { useWorkspaceSidebarState } from "@/components/workspace-sidebar-state";
@@ -217,8 +219,8 @@ function Card({
     children: React.ReactNode;
 }) {
     return (
-        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3 dark:border-slate-800">
+        <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-3.5">
+            <div className="mb-3 flex items-center gap-2 border-b border-slate-100 pb-2 dark:border-slate-800">
                 <span className="text-violet-600 dark:text-violet-300">
                     {icon}
                 </span>
@@ -243,7 +245,7 @@ function DetailField({
             <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                 {label}
             </p>
-            <div className="mt-1.5 text-sm text-slate-700 dark:text-slate-200">
+            <div className="mt-1 text-sm text-slate-700 dark:text-slate-200">
                 {children}
             </div>
         </div>
@@ -258,8 +260,8 @@ function PersonRow({
     person: { full_name: string; email: string } | null;
 }) {
     return (
-        <div className="flex items-center gap-3 py-2.5">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-800 dark:bg-violet-950 dark:text-violet-200">
+        <div className="flex items-center gap-2.5 py-2">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-800 dark:bg-violet-950 dark:text-violet-200">
                 {person?.full_name.trim().charAt(0).toUpperCase() ?? "—"}
             </div>
 
@@ -707,7 +709,7 @@ export default function TicketDetailsPage() {
                 </header>
 
                 <section className="flex-1 px-3 pb-3 pt-1 sm:px-3 sm:pb-3 sm:pt-1 lg:px-4 lg:pb-4 lg:pt-1">
-                    <div className="mx-auto max-w-7xl">
+                    <div className="w-full max-w-none">
                         <Link
                             href="/dashboard/tickets"
                             className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-violet-700 dark:text-slate-400 dark:hover:text-violet-300"
@@ -716,7 +718,7 @@ export default function TicketDetailsPage() {
                             Back to tickets
                         </Link>
 
-                        <div className="mt-5 flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
+                        <div className="mt-2.5 flex flex-col justify-between gap-2.5 lg:flex-row lg:items-start">
                             <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
                                     <span className="rounded-md bg-violet-50 px-2.5 py-1 font-mono text-xs font-semibold text-violet-700 dark:bg-violet-950 dark:text-violet-300">
@@ -726,11 +728,11 @@ export default function TicketDetailsPage() {
                                     <PriorityBadge priority={ticket.priority} />
                                 </div>
 
-                                <h1 className="mt-3 break-words text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+                                <h1 className="mt-1.5 break-words text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
                                     {ticket.title}
                                 </h1>
 
-                                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                                     {ticket.project.key} · {ticket.project.name}
                                     {" · "}
                                     {TYPE_LABELS[ticket.type]}
@@ -1100,20 +1102,20 @@ export default function TicketDetailsPage() {
                             </Card>
                         )}
 
-                        <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-                            <div className="min-w-0 space-y-3">
+                        <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
+                            <div className="min-w-0 space-y-2.5">
                                 <Card
                                     title="Description"
                                     icon={<FileText className="size-4" />}
                                 >
-                                    <p className="whitespace-pre-wrap text-sm leading-7 text-slate-600 dark:text-slate-300">
+                                    <p className="whitespace-pre-wrap text-sm leading-6 text-slate-600 dark:text-slate-300">
                                         {ticket.description ||
                                             "No description has been provided."}
                                     </p>
 
                                     {ticket.labels.length > 0 && (
-                                        <div className="mt-5 border-t border-slate-100 pt-4 dark:border-slate-800">
-                                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                                        <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                                            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                                                 Labels
                                             </p>
                                             <div className="flex flex-wrap gap-2">
@@ -1139,19 +1141,19 @@ export default function TicketDetailsPage() {
                                             No activity has been recorded yet.
                                         </p>
                                     ) : (
-                                        <div className="relative space-y-3">
+                                        <div className="relative space-y-2">
                                             {[...ticket.activities]
                                                 .reverse()
                                                 .map((activity) => (
                                                     <div
                                                         key={activity.id}
-                                                        className="relative flex gap-3"
+                                                        className="relative flex gap-2.5"
                                                     >
-                                                        <div className="relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border border-violet-100 bg-violet-50 text-violet-700 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-300">
+                                                        <div className="relative z-10 flex size-7 shrink-0 items-center justify-center rounded-full border border-violet-100 bg-violet-50 text-violet-700 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-300">
                                                             <Activity className="size-3.5" />
                                                         </div>
 
-                                                        <div className="min-w-0 flex-1 border-b border-slate-100 pb-4 last:border-0 dark:border-slate-800">
+                                                        <div className="min-w-0 flex-1 border-b border-slate-100 pb-3 last:border-0 dark:border-slate-800">
                                                             <div className="flex flex-wrap items-center justify-between gap-2">
                                                                 <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                                                                     {getActivityLabel(
@@ -1170,7 +1172,7 @@ export default function TicketDetailsPage() {
 
                                                             {activity.old_value !== null ||
                                                                 activity.new_value !== null ? (
-                                                                <div className="mt-2 rounded-lg bg-slate-50 p-3 text-xs dark:bg-slate-800/70">
+                                                                <div className="mt-1.5 rounded-lg bg-slate-50 p-2.5 text-xs dark:bg-slate-800/70">
                                                                     {activity.old_value !== null && (
                                                                         <p className="break-words text-slate-500">
                                                                             Previous: {displayValue(activity.old_value)}
@@ -1200,15 +1202,12 @@ export default function TicketDetailsPage() {
                                     title="Comments and collaboration"
                                     icon={<Users className="size-4" />}
                                 >
-                                    <div className="rounded-lg border border-dashed border-slate-200 p-4 text-center dark:border-slate-700">
-                                        <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                            Comments API not available yet
-                                        </p>
-                                        <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                                            Comment creation, editing, replies and mentions
-                                            require the Comments & Collaboration backend module.
-                                        </p>
-                                    </div>
+                                    <TicketCommentsPanel
+                                        ticketId={ticketId}
+                                        projectUsers={projectUsers}
+                                        currentUser={user}
+                                        canModerate={canManage}
+                                    />
                                 </Card>
 
                                 <Card
@@ -1216,7 +1215,7 @@ export default function TicketDetailsPage() {
                                     icon={<Link2 className="size-4" />}
                                 >
                                     <div className="space-y-3">
-                                        <div className="rounded-lg border border-dashed border-slate-200 p-4 text-center dark:border-slate-700">
+                                        <div className="rounded-lg border border-dashed border-slate-200 p-3 text-center dark:border-slate-700">
                                             <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
                                                 File attachments are not connected yet
                                             </p>
@@ -1226,7 +1225,7 @@ export default function TicketDetailsPage() {
                                             </p>
                                         </div>
 
-                                        <div className="rounded-lg border border-dashed border-slate-200 p-4 text-center dark:border-slate-700">
+                                        <div className="rounded-lg border border-dashed border-slate-200 p-3 text-center dark:border-slate-700">
                                             <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
                                                 GitHub integration is not connected yet
                                             </p>
@@ -1239,21 +1238,21 @@ export default function TicketDetailsPage() {
                                 </Card>
                             </div>
 
-                            <aside className="min-w-0 space-y-3">
+                            <aside className="min-w-0 space-y-2.5">
                                 <Card
                                     title="Workflow"
                                     icon={<Activity className="size-4" />}
                                 >
-                                    <div className="space-y-3">
+                                    <div className="space-y-2.5">
                                         <div>
-                                            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                                            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                                                 Current status
                                             </p>
                                             <StatusBadge status={ticket.status} />
                                         </div>
 
                                         {availableTransitions.length > 0 ? (
-                                            <div className="border-t border-slate-100 pt-3 dark:border-slate-800">
+                                            <div className="border-t border-slate-100 pt-2.5 dark:border-slate-800">
                                                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                                                     Move ticket to
                                                 </label>
@@ -1284,7 +1283,7 @@ export default function TicketDetailsPage() {
                                                         setStatusReason(event.target.value)
                                                     }
                                                     placeholder="Reason or transition note (optional)"
-                                                    className="mt-2 min-h-20 w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs dark:border-slate-700 dark:bg-slate-950"
+                                                    className="mt-1.5 min-h-16 w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs dark:border-slate-700 dark:bg-slate-950"
                                                 />
 
                                                 <button
@@ -1302,7 +1301,7 @@ export default function TicketDetailsPage() {
                                                                 statusReason.trim() || undefined,
                                                         });
                                                     }}
-                                                    className="mt-2 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-violet-700 px-3 text-xs font-semibold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                                    className="mt-1.5 inline-flex h-8 w-full items-center justify-center gap-2 rounded-lg bg-violet-700 px-3 text-xs font-semibold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
                                                 >
                                                     {statusMutation.isPending ? (
                                                         <RefreshCw className="size-3.5 animate-spin" />
@@ -1351,7 +1350,7 @@ export default function TicketDetailsPage() {
                                     title="Ticket information"
                                     icon={<Clipboard className="size-4" />}
                                 >
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-2 gap-3">
                                         <DetailField label="Ticket type">
                                             {TYPE_LABELS[ticket.type]}
                                         </DetailField>
@@ -1418,7 +1417,7 @@ export default function TicketDetailsPage() {
                                         ) : parentQuery.data ? (
                                             <Link
                                                 href={`/dashboard/tickets/${parentQuery.data.id}`}
-                                                className="block rounded-lg border border-slate-200 p-3 hover:border-violet-300 dark:border-slate-700 dark:hover:border-violet-700"
+                                                className="block rounded-lg border border-slate-200 p-2.5 hover:border-violet-300 dark:border-slate-700 dark:hover:border-violet-700"
                                             >
                                                 <p className="text-[10px] font-semibold text-violet-700 dark:text-violet-300">
                                                     Parent ticket
@@ -1441,8 +1440,8 @@ export default function TicketDetailsPage() {
                                         </p>
                                     )}
 
-                                    <div className="mt-4 border-t border-slate-100 pt-3 dark:border-slate-800">
-                                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                                    <div className="mt-3 border-t border-slate-100 pt-2.5 dark:border-slate-800">
+                                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                                             Child tickets ({children.length})
                                         </p>
 
@@ -1464,7 +1463,7 @@ export default function TicketDetailsPage() {
                                                     <Link
                                                         key={child.id}
                                                         href={`/dashboard/tickets/${child.id}`}
-                                                        className="block rounded-lg border border-slate-200 p-3 hover:border-violet-300 dark:border-slate-700 dark:hover:border-violet-700"
+                                                        className="block rounded-lg border border-slate-200 p-2.5 hover:border-violet-300 dark:border-slate-700 dark:hover:border-violet-700"
                                                     >
                                                         <p className="text-[10px] font-semibold text-violet-700 dark:text-violet-300">
                                                             {child.ticket_key}
@@ -1486,7 +1485,7 @@ export default function TicketDetailsPage() {
                                     title="Record information"
                                     icon={<Clock className="size-4" />}
                                 >
-                                    <div className="space-y-3">
+                                    <div className="space-y-2.5">
                                         <DetailField label="Created date">
                                             {formatDateTime(ticket.created_at)}
                                         </DetailField>

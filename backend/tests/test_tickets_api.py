@@ -517,3 +517,102 @@ def test_legacy_done_status_is_rejected(ticket_environment):
 
     response = change_status(client, ticket["id"], "DONE")
     assert response.status_code == 422
+
+
+def test_project_member_can_create_comment_and_mention_project_member(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+    ticket = create_ticket(client, ids)
+    sign_in_as(client, "DEVELOPER")
+
+    response = client.post(
+        f"/api/v1/tickets/{ticket['id']}/comments",
+        json={"body": "Please review this change.", "mentioned_user_ids": [str(ids["tester"])]},
+    )
+    assert response.status_code == 201, response.text
+    result = response.json()
+    assert result["body"] == "Please review this change."
+    assert result["author"]["id"] == str(ids["developer"])
+    assert [item["id"] for item in result["mentioned_users"]] == [str(ids["tester"])]
+    assert result["is_deleted"] is False
+
+    ticket_response = client.get(f"/api/v1/tickets/{ticket['id']}")
+    assert ticket_response.status_code == 200
+    assert any(item["action"] == "COMMENT_ADDED" for item in ticket_response.json()["activities"])
+
+
+def test_comment_replies_and_edit_ownership(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+    ticket = create_ticket(client, ids)
+    parent = client.post(
+        f"/api/v1/tickets/{ticket['id']}/comments", json={"body": "Parent comment"}
+    )
+    assert parent.status_code == 201, parent.text
+    parent_data = parent.json()
+
+    reply = client.post(
+        f"/api/v1/tickets/{ticket['id']}/comments",
+        json={"body": "A reply", "parent_comment_id": parent_data["id"]},
+    )
+    assert reply.status_code == 201, reply.text
+    assert reply.json()["parent_comment_id"] == parent_data["id"]
+
+    sign_in_as(client, "DEVELOPER")
+    forbidden = client.patch(
+        f"/api/v1/tickets/{ticket['id']}/comments/{parent_data['id']}",
+        json={"body": "Edited by another user"},
+    )
+    assert forbidden.status_code == 403
+
+    sign_in_as(client, "ADMIN")
+    edited = client.patch(
+        f"/api/v1/tickets/{ticket['id']}/comments/{parent_data['id']}",
+        json={"body": "Edited by author"},
+    )
+    assert edited.status_code == 200, edited.text
+    assert edited.json()["body"] == "Edited by author"
+    assert edited.json()["edited_at"] is not None
+
+
+def test_comment_delete_is_soft_and_keeps_thread_record(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+    ticket = create_ticket(client, ids)
+    created = client.post(
+        f"/api/v1/tickets/{ticket['id']}/comments", json={"body": "Keep this thread position"}
+    )
+    assert created.status_code == 201, created.text
+
+    deleted = client.delete(f"/api/v1/tickets/{ticket['id']}/comments/{created.json()['id']}")
+    assert deleted.status_code == 200, deleted.text
+    assert deleted.json()["is_deleted"] is True
+    assert deleted.json()["body"] is None
+
+    listed = client.get(f"/api/v1/tickets/{ticket['id']}/comments")
+    assert listed.status_code == 200
+    assert listed.json()["items"][0]["is_deleted"] is True
+
+
+def test_comment_mentions_must_be_project_authorized(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+    ticket = create_ticket(client, ids)
+    response = client.post(
+        f"/api/v1/tickets/{ticket['id']}/comments",
+        json={"body": "Mention an outsider", "mentioned_user_ids": [str(ids["outsider"])]},
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Mentioned users must have access to this project."
+
+
+def test_outsider_cannot_read_or_comment_on_ticket(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+    ticket = create_ticket(client, ids)
+    sign_in_as(client, "OUTSIDER")
+
+    listed = client.get(f"/api/v1/tickets/{ticket['id']}/comments")
+    created = client.post(f"/api/v1/tickets/{ticket['id']}/comments", json={"body": "Unauthorized"})
+    assert listed.status_code == 404
+    assert created.status_code == 404

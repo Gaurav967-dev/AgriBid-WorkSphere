@@ -276,3 +276,84 @@ export async function deleteTicket(ticketId: string): Promise<{
         "Unable to delete the ticket.",
     );
 }
+
+export type TicketComment = {
+    id: string;
+    ticket_id: string;
+    parent_comment_id: string | null;
+    author: TicketUser;
+    body: string | null;
+    mentioned_users: TicketUser[];
+    created_at: string;
+    updated_at: string;
+    edited_at: string | null;
+    deleted_at: string | null;
+    is_deleted: boolean;
+};
+
+export type TicketCommentListResponse = {
+    items: TicketComment[];
+};
+
+export type CreateTicketCommentInput = {
+    body: string;
+    parent_comment_id?: string | null;
+    mentioned_user_ids?: string[];
+};
+
+export type UpdateTicketCommentInput = {
+    body: string;
+    mentioned_user_ids?: string[];
+};
+
+export async function getTicketComments(
+    ticketId: string,
+): Promise<TicketCommentListResponse> {
+    return apiRequest<TicketCommentListResponse>(
+        `/tickets/${encodeURIComponent(ticketId)}/comments`,
+        { method: "GET" },
+        "Unable to load ticket comments.",
+    );
+}
+
+export async function createTicketComment(
+    ticketId: string,
+    input: CreateTicketCommentInput,
+): Promise<TicketComment> {
+    return apiRequest<TicketComment>(
+        `/tickets/${encodeURIComponent(ticketId)}/comments`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(input),
+        },
+        "Unable to add the comment.",
+    );
+}
+
+export async function updateTicketComment(
+    ticketId: string,
+    commentId: string,
+    input: UpdateTicketCommentInput,
+): Promise<TicketComment> {
+    return apiRequest<TicketComment>(
+        `/tickets/${encodeURIComponent(ticketId)}/comments/${encodeURIComponent(commentId)}`,
+        {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(input),
+        },
+        "Unable to update the comment.",
+    );
+}
+
+export async function deleteTicketComment(
+    ticketId: string,
+    commentId: string,
+): Promise<TicketComment> {
+    return apiRequest<TicketComment>(
+        `/tickets/${encodeURIComponent(ticketId)}/comments/${encodeURIComponent(commentId)}`,
+        { method: "DELETE" },
+        "Unable to delete the comment.",
+    );
+}

@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import (
     JSON,
     CheckConstraint,
+    Column,
     Date,
     DateTime,
     ForeignKey,
@@ -14,6 +15,7 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
+    Table,
     Text,
     UniqueConstraint,
     func,
@@ -24,6 +26,29 @@ from sqlalchemy.types import Uuid
 
 from app.core.database import Base
 from app.models.core import Project, User
+
+ticket_comment_mentions = Table(
+    "ticket_comment_mentions",
+    Base.metadata,
+    Column(
+        "comment_id",
+        Uuid(as_uuid=True),
+        ForeignKey("ticket_comments.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "mentioned_user_id",
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        primary_key=True,
+    ),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    ),
+)
 
 
 class Ticket(Base):
@@ -267,3 +292,46 @@ class TicketActivity(Base):
         "User",
         foreign_keys=[actor_user_id],
     )
+
+
+class TicketComment(Base):
+    """A project-authorized comment or reply on a ticket."""
+
+    __tablename__ = "ticket_comments"
+    __table_args__ = (
+        Index("ix_ticket_comments_ticket_created", "ticket_id", "created_at"),
+        Index("ix_ticket_comments_parent", "parent_comment_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    ticket_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("tickets.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    author_user_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    parent_comment_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("ticket_comments.id", ondelete="SET NULL"), nullable=True
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+    edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    ticket: Mapped[Ticket] = relationship("Ticket")
+    author: Mapped[User] = relationship("User", foreign_keys=[author_user_id])
+    parent: Mapped[TicketComment | None] = relationship(
+        "TicketComment",
+        remote_side=[id],
+        foreign_keys=[parent_comment_id],
+        back_populates="replies",
+    )
+    replies: Mapped[list[TicketComment]] = relationship(
+        "TicketComment", back_populates="parent", order_by="TicketComment.created_at"
+    )
+    mentioned_users: Mapped[list[User]] = relationship("User", secondary=ticket_comment_mentions)
