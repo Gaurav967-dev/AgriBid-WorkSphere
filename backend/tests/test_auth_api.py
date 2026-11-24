@@ -256,8 +256,12 @@ def test_inactive_user_cannot_sign_in(auth_environment) -> None:
 
     response = sign_in(client)
 
-    assert response.status_code == 401
-    assert response.json()["detail"] == "Invalid email or password."
+    assert response.status_code == 403
+
+    assert response.json()["detail"] == (
+        "Your account has been deactivated. "
+        "Please contact your administrator to reactivate your account."
+    )
     assert "access_token" not in client.cookies
 
 

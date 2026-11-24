@@ -66,6 +66,7 @@ def _ticket_response(ticket: Ticket) -> TicketResponse:
         created_at=ticket.created_at,
         updated_at=ticket.updated_at,
         completed_at=ticket.completed_at,
+        completed_by=(_user_summary(ticket.completed_by) if ticket.completed_by else None),
     )
 
 
@@ -87,10 +88,7 @@ def _ticket_details(ticket: Ticket) -> TicketDetailsResponse:
 
     return TicketDetailsResponse(
         **summary.model_dump(),
-        activities=[
-            _activity_response(activity)
-            for activity in ticket.activities
-        ],
+        activities=[_activity_response(activity) for activity in ticket.activities],
     )
 
 
@@ -122,12 +120,12 @@ def get_tickets(
         "TESTING",
         "TESTING_DONE",
         "BUG_FIXED",
-        "DONE",
         "COMPLETED",
         "BLOCKED",
         "REOPENED",
         "CANCELLED",
-    ] | None = None,
+    ]
+    | None = None,
     priority: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"] | None = None,
     ticket_type: Literal[
         "EPIC",
@@ -137,7 +135,8 @@ def get_tickets(
         "BUG",
         "IMPROVEMENT",
         "TECHNICAL_DEBT",
-    ] | None = None,
+    ]
+    | None = None,
     assignee_id: UUID | None = None,
     search: str | None = Query(default=None, max_length=100),
     sort_by: Literal[

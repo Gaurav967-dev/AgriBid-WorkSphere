@@ -182,10 +182,11 @@ def change_status(
     client: TestClient,
     ticket_id: str,
     status: str,
+    reason: str | None = None,
 ):
     return client.patch(
         f"/api/v1/tickets/{ticket_id}/status",
-        json={"status": status},
+        json={"status": status, "reason": reason},
     )
 
 
@@ -210,16 +211,12 @@ def test_admin_can_create_ticket_and_activity_is_recorded(ticket_environment):
     assert "ASSIGNED" in actions
 
     with session_factory() as session:
-        ticket = session.scalar(
-            select(Ticket).where(Ticket.id == UUID(result["id"]))
-        )
+        ticket = session.scalar(select(Ticket).where(Ticket.id == UUID(result["id"])))
         assert ticket is not None
         assert ticket.number == 1
 
         activities = session.scalars(
-            select(TicketActivity).where(
-                TicketActivity.ticket_id == ticket.id
-            )
+            select(TicketActivity).where(TicketActivity.ticket_id == ticket.id)
         ).all()
 
         assert len(activities) >= 4
@@ -271,9 +268,7 @@ def test_outsider_cannot_view_project_ticket(ticket_environment):
 
     sign_in_as(client, "OUTSIDER")
 
-    detail_response = client.get(
-        f"/api/v1/tickets/{ticket['id']}"
-    )
+    detail_response = client.get(f"/api/v1/tickets/{ticket['id']}")
     list_response = client.get(
         "/api/v1/tickets",
         params={"project_id": str(ids["project"])},
@@ -323,63 +318,54 @@ def test_role_specific_ticket_status_workflow(ticket_environment):
     ticket = create_ticket(client, ids)
     ticket_id = ticket["id"]
 
-    # PM can move a ticket to any permitted workflow status.
     sign_in_as(client, "PM")
-    response = change_status(client, ticket_id, "TODO")
-    assert response.status_code == 200
+    assert change_status(client, ticket_id, "TODO").status_code == 200
 
-    # Assigned Developer can move TODO -> IN_PROGRESS -> IN_REVIEW.
     sign_in_as(client, "DEVELOPER")
+    assert change_status(client, ticket_id, "IN_PROGRESS").status_code == 200
+    assert change_status(client, ticket_id, "IN_REVIEW").status_code == 200
 
-    response = change_status(client, ticket_id, "IN_PROGRESS")
-    assert response.status_code == 200
-
-    response = change_status(client, ticket_id, "IN_REVIEW")
-    assert response.status_code == 200
-
-    # PM moves the ticket into testing.
     sign_in_as(client, "PM")
-    response = change_status(client, ticket_id, "TESTING")
-    assert response.status_code == 200
+    assert change_status(client, ticket_id, "TESTING").status_code == 200
 
-    # Assigned Tester can mark testing done.
     sign_in_as(client, "TESTER")
     response = change_status(client, ticket_id, "TESTING_DONE")
-
     assert response.status_code == 200
     assert response.json()["status"] == "TESTING_DONE"
 
-    # TESTING_DONE is not the same status as DONE.
-    assert response.json()["status"] != "DONE"
+    # TESTING_DONE is not final completion; PM can route it back to testing.
+    sign_in_as(client, "PM")
+    assert change_status(client, ticket_id, "TESTING").status_code == 200
 
-    # Tester can reopen the ticket; Developer resumes work.
-    response = change_status(client, ticket_id, "REOPENED")
+    sign_in_as(client, "TESTER")
+    assert change_status(client, ticket_id, "REOPENED").status_code == 400
+    response = change_status(
+        client,
+        ticket_id,
+        "REOPENED",
+        reason="Testing failed; another fix is required.",
+    )
     assert response.status_code == 200
+    assert response.json()["status"] == "REOPENED"
 
     sign_in_as(client, "DEVELOPER")
-    response = change_status(client, ticket_id, "IN_PROGRESS")
+    assert change_status(client, ticket_id, "IN_PROGRESS").status_code == 200
+    assert change_status(client, ticket_id, "IN_REVIEW").status_code == 200
 
-    assert response.status_code == 200
-    assert response.json()["status"] == "IN_PROGRESS"
-
-    # BUG_FIXED and COMPLETED remain distinct workflow states.
     sign_in_as(client, "PM")
-    response = change_status(client, ticket_id, "TESTING")
-    assert response.status_code == 200
+    assert change_status(client, ticket_id, "TESTING").status_code == 200
 
     sign_in_as(client, "TESTER")
     response = change_status(client, ticket_id, "BUG_FIXED")
-
     assert response.status_code == 200
     assert response.json()["status"] == "BUG_FIXED"
 
-    # PM records the final completed state.
     sign_in_as(client, "PM")
     response = change_status(client, ticket_id, "COMPLETED")
-
     assert response.status_code == 200
     assert response.json()["status"] == "COMPLETED"
     assert response.json()["completed_at"] is not None
+    assert response.json()["completed_by"]["id"] == str(ids["pm"])
 
 
 def test_tester_cannot_skip_testing(ticket_environment):
@@ -394,7 +380,7 @@ def test_tester_cannot_skip_testing(ticket_environment):
 
     sign_in_as(client, "TESTER")
 
-    response = change_status(client, ticket["id"], "DONE")
+    response = change_status(client, ticket["id"], "COMPLETED")
 
     assert response.status_code == 403
 
@@ -437,36 +423,97 @@ def test_soft_delete_preserves_ticket_and_history(ticket_environment):
     assert detail_response.status_code == 404
 
     with session_factory() as session:
-        stored_ticket = session.scalar(
-            select(Ticket).where(Ticket.id == ticket_id)
-        )
+        stored_ticket = session.scalar(select(Ticket).where(Ticket.id == ticket_id))
 
         assert stored_ticket is not None
         assert stored_ticket.deleted_at is not None
 
         activities = session.scalars(
-            select(TicketActivity).where(
-                TicketActivity.ticket_id == ticket_id
-            )
+            select(TicketActivity).where(TicketActivity.ticket_id == ticket_id)
         ).all()
 
         assert any(activity.action == "DELETED" for activity in activities)
 
 
-def test_developer_can_move_todo_directly_to_in_review(ticket_environment):
+def test_developer_cannot_skip_in_progress_when_moving_to_in_review(
+    ticket_environment,
+):
     client, _, ids = ticket_environment
     sign_in_as(client, "ADMIN")
 
     ticket = create_ticket(client, ids)
 
-    # PM moves the newly created ticket from BACKLOG to TODO.
     sign_in_as(client, "PM")
-    response = change_status(client, ticket["id"], "TODO")
-    assert response.status_code == 200
+    assert change_status(client, ticket["id"], "TODO").status_code == 200
 
-    # Developer takes the permitted direct transition.
     sign_in_as(client, "DEVELOPER")
     response = change_status(client, ticket["id"], "IN_REVIEW")
 
+    assert response.status_code == 403
+
+
+def test_tester_can_return_failed_testing_to_in_progress_with_reason(
+    ticket_environment,
+):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+    ticket = create_ticket(client, ids)
+
+    sign_in_as(client, "PM")
+    assert change_status(client, ticket["id"], "TESTING").status_code == 200
+
+    sign_in_as(client, "TESTER")
+    assert change_status(client, ticket["id"], "IN_PROGRESS").status_code == 400
+
+    response = change_status(
+        client,
+        ticket["id"],
+        "IN_PROGRESS",
+        reason="Testing failed; developer action is required.",
+    )
     assert response.status_code == 200
-    assert response.json()["status"] == "IN_REVIEW"
+    assert response.json()["status"] == "IN_PROGRESS"
+
+
+def test_blocking_unblocking_and_cancellation_require_reasons(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+    ticket = create_ticket(client, ids)
+
+    sign_in_as(client, "PM")
+
+    assert change_status(client, ticket["id"], "BLOCKED").status_code == 400
+    response = change_status(
+        client,
+        ticket["id"],
+        "BLOCKED",
+        reason="Waiting for an external dependency.",
+    )
+    assert response.status_code == 200
+
+    assert change_status(client, ticket["id"], "TODO").status_code == 400
+    response = change_status(
+        client,
+        ticket["id"],
+        "TODO",
+        reason="The dependency is now available.",
+    )
+    assert response.status_code == 200
+
+    assert change_status(client, ticket["id"], "CANCELLED").status_code == 400
+    response = change_status(
+        client,
+        ticket["id"],
+        "CANCELLED",
+        reason="The requested work is no longer required.",
+    )
+    assert response.status_code == 200
+
+
+def test_legacy_done_status_is_rejected(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+    ticket = create_ticket(client, ids)
+
+    response = change_status(client, ticket["id"], "DONE")
+    assert response.status_code == 422

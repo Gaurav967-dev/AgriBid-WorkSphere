@@ -73,8 +73,17 @@ def sign_in(
         user.password_hash if user is not None else None,
     )
 
-    if user is None or not user.is_active or not password_matches:
+    if user is None or not password_matches:
         raise invalid_credentials()
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Your account has been deactivated. "
+                "Please contact your administrator to reactivate your account."
+            ),
+        )
 
     try:
         auth_session, refresh_token = create_refresh_session(db, user)

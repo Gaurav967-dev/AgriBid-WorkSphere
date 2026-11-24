@@ -28,9 +28,8 @@ def _ticket_options():
         joinedload(Ticket.assignee).joinedload(User.role),
         joinedload(Ticket.reviewer).joinedload(User.role),
         joinedload(Ticket.tester).joinedload(User.role),
-        selectinload(Ticket.activities)
-        .joinedload(TicketActivity.actor)
-        .joinedload(User.role),
+        joinedload(Ticket.completed_by).joinedload(User.role),
+        selectinload(Ticket.activities).joinedload(TicketActivity.actor).joinedload(User.role),
     )
 
 
@@ -52,9 +51,7 @@ def get_ticket(db: Session, ticket_id: UUID) -> Ticket:
 
 
 def _get_active_project(db: Session, project_id: UUID) -> Project:
-    project = db.scalar(
-        select(Project).where(Project.id == project_id)
-    )
+    project = db.scalar(select(Project).where(Project.id == project_id))
 
     if project is None:
         raise TicketServiceError("Project not found.", 404)
@@ -249,11 +246,7 @@ def create_ticket(
         )
 
     # Lock the project row while allocating its next ticket number.
-    project = db.scalar(
-        select(Project)
-        .where(Project.id == data.project_id)
-        .with_for_update()
-    )
+    project = db.scalar(select(Project).where(Project.id == data.project_id).with_for_update())
 
     if project is None:
         raise TicketServiceError("Project not found.", 404)
@@ -408,18 +401,17 @@ def list_tickets(
             )
         )
 
-    base_query = (
-        select(Ticket)
-        .join(Project, Project.id == Ticket.project_id)
-        .where(*filters)
-    )
+    base_query = select(Ticket).join(Project, Project.id == Ticket.project_id).where(*filters)
 
-    total = db.scalar(
-        select(func.count(Ticket.id))
-        .select_from(Ticket)
-        .join(Project, Project.id == Ticket.project_id)
-        .where(*filters)
-    ) or 0
+    total = (
+        db.scalar(
+            select(func.count(Ticket.id))
+            .select_from(Ticket)
+            .join(Project, Project.id == Ticket.project_id)
+            .where(*filters)
+        )
+        or 0
+    )
 
     sort_columns = {
         "created_at": Ticket.created_at,
@@ -435,12 +427,13 @@ def list_tickets(
 
     tickets = list(
         db.scalars(
-            base_query
-            .options(*_ticket_options())
+            base_query.options(*_ticket_options())
             .order_by(ordering, Ticket.id.asc())
             .offset((page - 1) * page_size)
             .limit(page_size)
-        ).unique().all()
+        )
+        .unique()
+        .all()
     )
 
     return tickets, total
@@ -491,14 +484,21 @@ def update_ticket(
 
         setattr(ticket, field_name, new_value)
 
+        is_assignment_change = field_name in {
+            "assignee_id",
+            "reviewer_id",
+            "tester_id",
+        }
+
         _add_activity(
             db,
             ticket_id=ticket.id,
             actor_id=actor.id,
-            action="UPDATED",
+            action="ASSIGNED" if is_assignment_change else "UPDATED",
             field_name=field_name,
             old_value=old_value,
             new_value=new_value,
+            description=("Ticket assignment changed." if is_assignment_change else None),
         )
 
     db.commit()
@@ -513,7 +513,7 @@ def update_ticket_status(
     new_status: str,
     reason: str | None = None,
 ) -> Ticket:
-    """Apply a role-specific transition and record the status change."""
+    """Apply the approved workflow and record the status change."""
     ticket = get_ticket(db, ticket_id)
     project = _get_active_project(db, ticket.project_id)
 
@@ -521,9 +521,34 @@ def update_ticket_status(
 
     current_status = ticket.status
     role_code = actor.role.code
+    reason = reason.strip() if reason and reason.strip() else None
 
     if current_status == new_status:
         raise TicketServiceError("Ticket is already in that status.", 409)
+
+    # The approved workflow requires explanations for exception transitions.
+    if new_status in {"BLOCKED", "REOPENED", "CANCELLED"} and not reason:
+        raise TicketServiceError(
+            f"A reason is required when moving a ticket to {new_status}.",
+            400,
+        )
+
+    if current_status == "BLOCKED" and not reason:
+        raise TicketServiceError(
+            "A reason is required when unblocking a ticket.",
+            400,
+        )
+
+    if (
+        role_code == "TESTER"
+        and current_status == "TESTING"
+        and new_status == "IN_PROGRESS"
+        and not reason
+    ):
+        raise TicketServiceError(
+            "A comment is required when returning failed testing to development.",
+            400,
+        )
 
     allowed = False
 
@@ -534,6 +559,12 @@ def update_ticket_status(
         _ensure_project_management_access(project=project, actor=actor)
         allowed = True
 
+    # The assigned reviewer may approve IN_REVIEW work for testing.
+    elif (
+        current_status == "IN_REVIEW" and new_status == "TESTING" and ticket.reviewer_id == actor.id
+    ):
+        allowed = True
+
     elif role_code == "DEVELOPER":
         if ticket.assignee_id != actor.id:
             raise TicketServiceError(
@@ -542,7 +573,7 @@ def update_ticket_status(
             )
 
         allowed_transitions = {
-            "TODO": {"IN_PROGRESS", "IN_REVIEW"},
+            "TODO": {"IN_PROGRESS"},
             "IN_PROGRESS": {"IN_REVIEW"},
             "REOPENED": {"IN_PROGRESS"},
         }
@@ -556,26 +587,32 @@ def update_ticket_status(
             )
 
         allowed_transitions = {
-            "TESTING": {"TESTING_DONE", "BUG_FIXED"},
-            "TESTING_DONE": {"REOPENED"},
-            "DONE": {"REOPENED"},
+            "TESTING": {
+                "TESTING_DONE",
+                "BUG_FIXED",
+                "REOPENED",
+                "IN_PROGRESS",
+            },
         }
         allowed = new_status in allowed_transitions.get(current_status, set())
 
     if not allowed:
         raise TicketServiceError(
-            f"Role {role_code} cannot move a ticket from "
-            f"{current_status} to {new_status}.",
+            f"Role {role_code} cannot move a ticket from {current_status} to {new_status}.",
             403,
         )
 
     old_status = ticket.status
     ticket.status = new_status
 
-    if new_status in {"DONE", "COMPLETED"}:
+    if new_status == "COMPLETED":
         ticket.completed_at = datetime.now(UTC)
-    elif old_status in {"DONE", "COMPLETED"}:
+        ticket.completed_by_user_id = actor.id
+        ticket.completed_by = actor
+    elif old_status == "COMPLETED":
         ticket.completed_at = None
+        ticket.completed_by_user_id = None
+        ticket.completed_by = None
 
     _add_activity(
         db,

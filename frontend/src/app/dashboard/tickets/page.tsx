@@ -46,7 +46,6 @@ const STATUS_OPTIONS: { label: string; value: TicketStatus | "ALL" }[] = [
     { label: "Testing", value: "TESTING" },
     { label: "Testing done", value: "TESTING_DONE" },
     { label: "Bug fixed", value: "BUG_FIXED" },
-    { label: "Done", value: "DONE" },
     { label: "Completed", value: "COMPLETED" },
     { label: "Blocked", value: "BLOCKED" },
     { label: "Reopened", value: "REOPENED" },
@@ -80,7 +79,6 @@ const STATUS_STYLES: Record<TicketStatus, string> = {
     TESTING: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300",
     TESTING_DONE: "border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-900 dark:bg-teal-950/40 dark:text-teal-300",
     BUG_FIXED: "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900 dark:bg-orange-950/40 dark:text-orange-300",
-    DONE: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300",
     COMPLETED: "border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300",
     BLOCKED: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300",
     REOPENED: "border-pink-200 bg-pink-50 text-pink-700 dark:border-pink-900 dark:bg-pink-950/40 dark:text-pink-300",
@@ -102,7 +100,6 @@ const STATUS_LABELS: Record<TicketStatus, string> = {
     TESTING: "Testing",
     TESTING_DONE: "Testing done",
     BUG_FIXED: "Bug fixed",
-    DONE: "Done",
     COMPLETED: "Completed",
     BLOCKED: "Blocked",
     REOPENED: "Reopened",
@@ -136,7 +133,7 @@ function formatDate(value: string | null): string {
 function isOverdue(ticket: Ticket): boolean {
     if (
         !ticket.due_date ||
-        ["DONE", "COMPLETED", "CANCELLED"].includes(ticket.status)
+        ["COMPLETED", "CANCELLED"].includes(ticket.status)
     ) {
         return false;
     }

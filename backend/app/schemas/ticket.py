@@ -27,7 +27,6 @@ TicketStatus = Literal[
     "TESTING",
     "TESTING_DONE",
     "BUG_FIXED",
-    "DONE",
     "COMPLETED",
     "BLOCKED",
     "REOPENED",
@@ -234,6 +233,7 @@ class TicketResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     completed_at: datetime | None
+    completed_by: TicketUserSummaryResponse | None
 
 
 class TicketActivityResponse(BaseModel):

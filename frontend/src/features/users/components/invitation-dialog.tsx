@@ -39,9 +39,14 @@ export function InvitationDialog({
     const mutation = useMutation({
         mutationFn: createInvitation,
         onSuccess: async () => {
-            await queryClient.invalidateQueries({
-                queryKey: ["users", "invitations"],
-            });
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: ["users", "invitations"],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ["users", "management"],
+                }),
+            ]);
         },
     });
 

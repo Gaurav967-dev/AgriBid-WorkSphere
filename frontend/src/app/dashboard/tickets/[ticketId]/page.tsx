@@ -70,7 +70,6 @@ const STATUS_LABELS: Record<TicketStatus, string> = {
     TESTING: "Testing",
     TESTING_DONE: "Testing done",
     BUG_FIXED: "Bug fixed",
-    DONE: "Done",
     COMPLETED: "Completed",
     BLOCKED: "Blocked",
     REOPENED: "Reopened",
@@ -85,7 +84,6 @@ const STATUS_STYLES: Record<TicketStatus, string> = {
     TESTING: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300",
     TESTING_DONE: "border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-900 dark:bg-teal-950 dark:text-teal-300",
     BUG_FIXED: "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900 dark:bg-orange-950 dark:text-orange-300",
-    DONE: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300",
     COMPLETED: "border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950 dark:text-green-300",
     BLOCKED: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300",
     REOPENED: "border-pink-200 bg-pink-50 text-pink-700 dark:border-pink-900 dark:bg-pink-950 dark:text-pink-300",
@@ -107,7 +105,6 @@ const ALL_STATUSES: TicketStatus[] = [
     "TESTING",
     "TESTING_DONE",
     "BUG_FIXED",
-    "DONE",
     "COMPLETED",
     "BLOCKED",
     "REOPENED",
@@ -423,7 +420,6 @@ export default function TicketDetailsPage() {
             const transitions: Partial<Record<TicketStatus, TicketStatus[]>> = {
                 TESTING: ["TESTING_DONE", "BUG_FIXED"],
                 TESTING_DONE: ["REOPENED"],
-                DONE: ["REOPENED"],
             };
 
             return transitions[ticket.status] ?? [];
@@ -656,7 +652,7 @@ export default function TicketDetailsPage() {
 
     const overdue =
         Boolean(ticket.due_date) &&
-        !["DONE", "COMPLETED", "CANCELLED"].includes(ticket.status) &&
+        !["COMPLETED", "CANCELLED"].includes(ticket.status) &&
         new Date(`${ticket.due_date}T00:00:00`) <
         new Date(new Date().setHours(0, 0, 0, 0));
 
