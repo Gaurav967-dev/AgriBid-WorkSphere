@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 
 import {
+    signOut,
     verifyToken,
     type AuthUser,
 } from "@/features/auth/api/auth-api";
@@ -167,6 +168,7 @@ export default function TeamsPage() {
 
     const [user, setUser] = useState<AuthUser | null>(null);
     const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+    const [isSigningOut, setIsSigningOut] = useState(false);
 
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
@@ -218,6 +220,19 @@ export default function TeamsPage() {
             active = false;
         };
     }, [router]);
+
+    async function handleSignOut() {
+        setIsSigningOut(true);
+
+        try {
+            await signOut();
+        } catch {
+            // The session may already have expired.
+        } finally {
+            router.replace("/");
+            router.refresh();
+        }
+    }
 
     const isAdmin = user?.role_code === "ADMIN";
 
@@ -545,7 +560,7 @@ export default function TeamsPage() {
                     <main className="min-h-full w-full p-0">
                         <section className="w-full">
                             {/* Teams heading */}
-                            <div className="sticky top-0 z-20 flex h-14 w-full shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900 sm:px-6">
+                            <div className="sticky top-0 z-40 flex h-14 w-full shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900 sm:px-6">
                                 <div className="flex items-center gap-2">
                                     {/* Desktop sidebar control */}
                                     <button
@@ -582,7 +597,12 @@ export default function TeamsPage() {
                                     </span>
                                 </div>
 
-<WorkspaceActions user={user} lastUpdated={relativeUpdate(latestTeamUpdate)} />
+<WorkspaceActions
+                                    user={user}
+                                    lastUpdated={relativeUpdate(latestTeamUpdate)}
+                                    onSignOut={handleSignOut}
+                                    isSigningOut={isSigningOut}
+                                />
                             </div>
 
                             {/* Filter and Display toolbar */}

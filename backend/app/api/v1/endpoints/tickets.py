@@ -1,19 +1,25 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from math import ceil
 from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.api.v1.dependencies.auth import get_current_user
 from app.core.database import get_db
 from app.core.rate_limit import limiter
-from app.models import Ticket, TicketActivity, User
+from app.models import ProjectMember, Ticket, TicketActivity, TicketComment, User
 from app.schemas.ticket import (
     TicketActivityResponse,
+    TicketCommentCreateRequest,
+    TicketCommentListResponse,
+    TicketCommentResponse,
+    TicketCommentUpdateRequest,
     TicketCreateRequest,
     TicketDeleteResponse,
     TicketDetailsResponse,
@@ -291,3 +297,235 @@ def delete_existing_ticket(
         ticket_id=ticket_id,
         deleted_at=deleted_at,
     )
+
+
+def _comment_response(comment: TicketComment) -> TicketCommentResponse:
+    is_deleted = comment.deleted_at is not None
+    return TicketCommentResponse(
+        id=comment.id,
+        ticket_id=comment.ticket_id,
+        parent_comment_id=comment.parent_comment_id,
+        author=_user_summary(comment.author),
+        body=None if is_deleted else comment.body,
+        mentioned_users=[_user_summary(user) for user in comment.mentioned_users],
+        created_at=comment.created_at,
+        updated_at=comment.updated_at,
+        edited_at=comment.edited_at,
+        deleted_at=comment.deleted_at,
+        is_deleted=is_deleted,
+    )
+
+
+def _ticket_for_comment(
+    db: Session,
+    ticket_id: UUID,
+    actor: User,
+) -> Ticket:
+    try:
+        ticket = ticket_service.get_ticket(db, ticket_id)
+        ticket_service.ensure_ticket_access(
+            db,
+            project=ticket.project,
+            actor=actor,
+        )
+        return ticket
+    except ticket_service.TicketServiceError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=str(exc),
+        ) from exc
+
+
+def _validated_mentioned_users(db: Session, *, ticket: Ticket, user_ids: list[UUID]) -> list[User]:
+    if not user_ids:
+        return []
+
+    users = (
+        db.scalars(
+            select(User)
+            .options(joinedload(User.role))
+            .where(User.id.in_(user_ids), User.is_active.is_(True))
+        )
+        .unique()
+        .all()
+    )
+    if len(users) != len(user_ids):
+        raise HTTPException(status_code=400, detail="One or more mentioned users are unavailable.")
+
+    member_ids = set(
+        db.scalars(
+            select(ProjectMember.user_id).where(
+                ProjectMember.project_id == ticket.project_id,
+                ProjectMember.removed_at.is_(None),
+            )
+        ).all()
+    )
+    allowed_ids = member_ids | {ticket.project.project_manager_id}
+    for mentioned_user in users:
+        if mentioned_user.role.code != "ADMIN" and mentioned_user.id not in allowed_ids:
+            raise HTTPException(
+                status_code=400, detail="Mentioned users must have access to this project."
+            )
+    return users
+
+
+def _load_ticket_comment(db: Session, *, ticket_id: UUID, comment_id: UUID) -> TicketComment:
+    comment = db.scalar(
+        select(TicketComment)
+        .options(
+            joinedload(TicketComment.author).joinedload(User.role),
+            selectinload(TicketComment.mentioned_users).joinedload(User.role),
+        )
+        .where(TicketComment.id == comment_id, TicketComment.ticket_id == ticket_id)
+    )
+    if comment is None:
+        raise HTTPException(status_code=404, detail="Comment not found.")
+    return comment
+
+
+def _record_comment_activity(
+    db: Session, *, ticket_id: UUID, actor: User, action: str, description: str
+) -> None:
+    db.add(
+        TicketActivity(
+            ticket_id=ticket_id,
+            actor_user_id=actor.id,
+            action=action,
+            description=description,
+        )
+    )
+
+
+@router.get("/{ticket_id}/comments", response_model=TicketCommentListResponse)
+@limiter.limit("60/minute")
+def list_ticket_comments(
+    request: Request,
+    ticket_id: UUID,
+    actor: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TicketCommentListResponse:
+    ticket = _ticket_for_comment(db, ticket_id, actor)
+    comments = (
+        db.scalars(
+            select(TicketComment)
+            .options(
+                joinedload(TicketComment.author).joinedload(User.role),
+                selectinload(TicketComment.mentioned_users).joinedload(User.role),
+            )
+            .where(TicketComment.ticket_id == ticket.id)
+            .order_by(TicketComment.created_at.asc(), TicketComment.id.asc())
+        )
+        .unique()
+        .all()
+    )
+    return TicketCommentListResponse(items=[_comment_response(item) for item in comments])
+
+
+@router.post("/{ticket_id}/comments", response_model=TicketCommentResponse, status_code=201)
+@limiter.limit("30/minute")
+def create_ticket_comment(
+    request: Request,
+    ticket_id: UUID,
+    data: TicketCommentCreateRequest,
+    actor: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TicketCommentResponse:
+    ticket = _ticket_for_comment(db, ticket_id, actor)
+    if data.parent_comment_id is not None:
+        parent = db.scalar(
+            select(TicketComment).where(
+                TicketComment.id == data.parent_comment_id,
+                TicketComment.ticket_id == ticket.id,
+                TicketComment.deleted_at.is_(None),
+            )
+        )
+        if parent is None:
+            raise HTTPException(
+                status_code=400, detail="Reply target must be an existing comment on this ticket."
+            )
+
+    mentioned_users = _validated_mentioned_users(
+        db, ticket=ticket, user_ids=data.mentioned_user_ids
+    )
+    comment = TicketComment(
+        ticket_id=ticket.id,
+        author_user_id=actor.id,
+        parent_comment_id=data.parent_comment_id,
+        body=data.body,
+        mentioned_users=mentioned_users,
+    )
+    db.add(comment)
+    db.flush()
+    _record_comment_activity(
+        db,
+        ticket_id=ticket.id,
+        actor=actor,
+        action="COMMENT_ADDED",
+        description="A ticket comment was added.",
+    )
+    db.commit()
+    return _comment_response(_load_ticket_comment(db, ticket_id=ticket.id, comment_id=comment.id))
+
+
+@router.patch("/{ticket_id}/comments/{comment_id}", response_model=TicketCommentResponse)
+@limiter.limit("30/minute")
+def update_ticket_comment(
+    request: Request,
+    ticket_id: UUID,
+    comment_id: UUID,
+    data: TicketCommentUpdateRequest,
+    actor: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TicketCommentResponse:
+    ticket = _ticket_for_comment(db, ticket_id, actor)
+    comment = _load_ticket_comment(db, ticket_id=ticket.id, comment_id=comment_id)
+    if comment.deleted_at is not None:
+        raise HTTPException(status_code=409, detail="Deleted comments cannot be edited.")
+    if comment.author_user_id != actor.id:
+        raise HTTPException(status_code=403, detail="You can only edit your own comments.")
+
+    comment.body = data.body
+    comment.edited_at = datetime.now(UTC)
+    if data.mentioned_user_ids is not None:
+        comment.mentioned_users = _validated_mentioned_users(
+            db, ticket=ticket, user_ids=data.mentioned_user_ids
+        )
+    _record_comment_activity(
+        db,
+        ticket_id=ticket.id,
+        actor=actor,
+        action="COMMENT_EDITED",
+        description="A ticket comment was edited.",
+    )
+    db.commit()
+    return _comment_response(_load_ticket_comment(db, ticket_id=ticket.id, comment_id=comment.id))
+
+
+@router.delete("/{ticket_id}/comments/{comment_id}", response_model=TicketCommentResponse)
+@limiter.limit("20/minute")
+def delete_ticket_comment(
+    request: Request,
+    ticket_id: UUID,
+    comment_id: UUID,
+    actor: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TicketCommentResponse:
+    ticket = _ticket_for_comment(db, ticket_id, actor)
+    comment = _load_ticket_comment(db, ticket_id=ticket.id, comment_id=comment_id)
+    is_project_manager = actor.role.code == "PM" and ticket.project.project_manager_id == actor.id
+    if comment.author_user_id != actor.id and actor.role.code != "ADMIN" and not is_project_manager:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only delete your own comments unless you manage this project.",
+        )
+    if comment.deleted_at is None:
+        comment.deleted_at = datetime.now(UTC)
+        _record_comment_activity(
+            db,
+            ticket_id=ticket.id,
+            actor=actor,
+            action="COMMENT_DELETED",
+            description="A ticket comment was deleted.",
+        )
+        db.commit()
+    return _comment_response(_load_ticket_comment(db, ticket_id=ticket.id, comment_id=comment.id))
