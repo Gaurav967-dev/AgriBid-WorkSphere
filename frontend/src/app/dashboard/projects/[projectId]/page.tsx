@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
@@ -35,6 +35,7 @@ import {
 } from "@/features/projects/api/projects-api";
 
 import { getTickets } from "@/features/tickets/api/tickets-api";
+import { AttachmentsPanel } from "@/features/attachments/components/attachments-panel";
 
 const statuses: ProjectStatus[] = [
   "PLANNING",
@@ -530,6 +531,11 @@ export default function ProjectDetailsPage() {
                   <p className="mt-1 text-sm font-semibold">{formatDate(project.updated_at)}</p>
                 </div>
               </div>
+            </article>
+
+            <article className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <h2 className="mb-3 text-base font-semibold">Project files</h2>
+              <AttachmentsPanel projectId={project.id} />
             </article>
 
             <article className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">

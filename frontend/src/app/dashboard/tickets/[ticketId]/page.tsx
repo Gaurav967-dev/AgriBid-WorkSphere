@@ -59,6 +59,7 @@ import {
 } from "@/features/projects/api/projects-api";
 
 import { TicketCommentsPanel } from "@/features/tickets/components/ticket-comments-panel";
+import { AttachmentsPanel } from "@/features/attachments/components/attachments-panel";
 
 import { WorkspaceActions } from "@/components/workspace-actions";
 import { WorkspaceSidebar } from "@/components/workspace-sidebar";
@@ -1133,6 +1134,37 @@ export default function TicketDetailsPage() {
                                 </Card>
 
                                 <Card
+                                    title="Attachments and GitHub links"
+                                    icon={<Link2 className="size-4" />}
+                                >
+                                    <div className="space-y-3">
+                                        <AttachmentsPanel projectId={ticket.project.id} ticketId={ticket.id} />
+
+                                        <div className="rounded-lg border border-dashed border-slate-200 p-3 text-center dark:border-slate-700">
+                                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                                                GitHub integration is not connected yet
+                                            </p>
+                                            <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                                                Branch, commit and pull-request links require
+                                                the GitHub linking module.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </Card>
+
+<Card
+                                    title="Comments and collaboration"
+                                    icon={<Users className="size-4" />}
+                                >
+                                    <TicketCommentsPanel
+                                        ticketId={ticketId}
+                                        projectUsers={projectUsers}
+                                        currentUser={user}
+                                        canModerate={canManage}
+                                    />
+                                </Card>
+
+<Card
                                     title="Activity history"
                                     icon={<History className="size-4" />}
                                 >
@@ -1197,49 +1229,69 @@ export default function TicketDetailsPage() {
                                         </div>
                                     )}
                                 </Card>
-
-                                <Card
-                                    title="Comments and collaboration"
-                                    icon={<Users className="size-4" />}
-                                >
-                                    <TicketCommentsPanel
-                                        ticketId={ticketId}
-                                        projectUsers={projectUsers}
-                                        currentUser={user}
-                                        canModerate={canManage}
-                                    />
-                                </Card>
-
-                                <Card
-                                    title="Attachments and GitHub links"
-                                    icon={<Link2 className="size-4" />}
-                                >
-                                    <div className="space-y-3">
-                                        <div className="rounded-lg border border-dashed border-slate-200 p-3 text-center dark:border-slate-700">
-                                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                                                File attachments are not connected yet
-                                            </p>
-                                            <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                                                Secure upload and download endpoints are
-                                                required before files can be attached.
-                                            </p>
-                                        </div>
-
-                                        <div className="rounded-lg border border-dashed border-slate-200 p-3 text-center dark:border-slate-700">
-                                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                                                GitHub integration is not connected yet
-                                            </p>
-                                            <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                                                Branch, commit and pull-request links require
-                                                the GitHub linking module.
-                                            </p>
-                                        </div>
-                                    </div>
-                                </Card>
                             </div>
 
                             <aside className="min-w-0 space-y-2.5">
                                 <Card
+                                    title="Ticket information"
+                                    icon={<Clipboard className="size-4" />}
+                                >
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <DetailField label="Ticket type">
+                                            {TYPE_LABELS[ticket.type]}
+                                        </DetailField>
+
+                                        <DetailField label="Priority">
+                                            <PriorityBadge priority={ticket.priority} />
+                                        </DetailField>
+
+                                        <DetailField label="Project">
+                                            <Link
+                                                href="/dashboard/projects"
+                                                className="font-semibold text-violet-700 hover:underline dark:text-violet-300"
+                                            >
+                                                {ticket.project.key}
+                                            </Link>
+                                        </DetailField>
+
+                                        <DetailField label="Estimated effort">
+                                            {ticket.estimated_effort === null
+                                                ? "Not set"
+                                                : `${ticket.estimated_effort} hours`}
+                                        </DetailField>
+
+                                        <DetailField label="Start date">
+                                            {formatDate(ticket.start_date)}
+                                        </DetailField>
+
+                                        <DetailField label="Due date">
+                                            <span
+                                                className={
+                                                    overdue
+                                                        ? "font-semibold text-rose-600"
+                                                        : ""
+                                                }
+                                            >
+                                                {formatDate(ticket.due_date)}
+                                            </span>
+                                            {overdue && (
+                                                <span className="mt-1 block text-[10px] font-semibold text-rose-600">
+                                                    Overdue
+                                                </span>
+                                            )}
+                                        </DetailField>
+
+                                        <DetailField label="Created">
+                                            {formatDate(ticket.created_at)}
+                                        </DetailField>
+
+                                        <DetailField label="Last updated">
+                                            {formatDate(ticket.updated_at)}
+                                        </DetailField>
+                                    </div>
+                                </Card>
+
+<Card
                                     title="Workflow"
                                     icon={<Activity className="size-4" />}
                                 >
@@ -1324,7 +1376,7 @@ export default function TicketDetailsPage() {
                                     </div>
                                 </Card>
 
-                                <Card
+<Card
                                     title="People"
                                     icon={<Users className="size-4" />}
                                 >
@@ -1346,66 +1398,7 @@ export default function TicketDetailsPage() {
                                     />
                                 </Card>
 
-                                <Card
-                                    title="Ticket information"
-                                    icon={<Clipboard className="size-4" />}
-                                >
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <DetailField label="Ticket type">
-                                            {TYPE_LABELS[ticket.type]}
-                                        </DetailField>
-
-                                        <DetailField label="Priority">
-                                            <PriorityBadge priority={ticket.priority} />
-                                        </DetailField>
-
-                                        <DetailField label="Project">
-                                            <Link
-                                                href="/dashboard/projects"
-                                                className="font-semibold text-violet-700 hover:underline dark:text-violet-300"
-                                            >
-                                                {ticket.project.key}
-                                            </Link>
-                                        </DetailField>
-
-                                        <DetailField label="Estimated effort">
-                                            {ticket.estimated_effort === null
-                                                ? "Not set"
-                                                : `${ticket.estimated_effort} hours`}
-                                        </DetailField>
-
-                                        <DetailField label="Start date">
-                                            {formatDate(ticket.start_date)}
-                                        </DetailField>
-
-                                        <DetailField label="Due date">
-                                            <span
-                                                className={
-                                                    overdue
-                                                        ? "font-semibold text-rose-600"
-                                                        : ""
-                                                }
-                                            >
-                                                {formatDate(ticket.due_date)}
-                                            </span>
-                                            {overdue && (
-                                                <span className="mt-1 block text-[10px] font-semibold text-rose-600">
-                                                    Overdue
-                                                </span>
-                                            )}
-                                        </DetailField>
-
-                                        <DetailField label="Created">
-                                            {formatDate(ticket.created_at)}
-                                        </DetailField>
-
-                                        <DetailField label="Last updated">
-                                            {formatDate(ticket.updated_at)}
-                                        </DetailField>
-                                    </div>
-                                </Card>
-
-                                <Card
+<Card
                                     title="Parent and child tickets"
                                     icon={<ChevronDown className="size-4" />}
                                 >
@@ -1481,7 +1474,7 @@ export default function TicketDetailsPage() {
                                     </div>
                                 </Card>
 
-                                <Card
+<Card
                                     title="Record information"
                                     icon={<Clock className="size-4" />}
                                 >

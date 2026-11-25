@@ -616,3 +616,132 @@ def test_outsider_cannot_read_or_comment_on_ticket(ticket_environment):
     created = client.post(f"/api/v1/tickets/{ticket['id']}/comments", json={"body": "Unauthorized"})
     assert listed.status_code == 404
     assert created.status_code == 404
+
+
+def test_ticket_attachment_upload_list_preview_download_and_soft_delete(
+    ticket_environment, monkeypatch, tmp_path
+):
+    from app.core.config import get_settings
+    from app.models import Attachment
+
+    monkeypatch.setattr(get_settings(), "upload_dir", str(tmp_path / "private-files"))
+    client, session_factory, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+    ticket = create_ticket(client, ids)
+    sign_in_as(client, "DEVELOPER")
+    png_bytes = b"\x89PNG\r\n\x1a\n" + b"module-six-test-image"
+
+    uploaded = client.post(
+        f"/api/v1/tickets/{ticket['id']}/attachments",
+        files=[("files", ("evidence.png", png_bytes, "image/png"))],
+    )
+    assert uploaded.status_code == 201, uploaded.text
+    item = uploaded.json()["items"][0]
+    assert item["original_filename"] == "evidence.png"
+    assert item["mime_type"] == "image/png"
+    assert item["file_size"] == len(png_bytes)
+    assert item["uploaded_by"]["id"] == str(ids["developer"])
+
+    listed = client.get(f"/api/v1/tickets/{ticket['id']}/attachments")
+    assert listed.status_code == 200
+    assert len(listed.json()["items"]) == 1
+
+    preview = client.get(f"/api/v1/tickets/{ticket['id']}/attachments/{item['id']}/preview")
+    assert preview.status_code == 200
+    assert preview.headers["content-type"].startswith("image/png")
+    assert preview.content == png_bytes
+
+    download = client.get(f"/api/v1/tickets/{ticket['id']}/attachments/{item['id']}/download")
+    assert download.status_code == 200
+    assert "attachment;" in download.headers["content-disposition"]
+    assert download.content == png_bytes
+
+    deleted = client.delete(f"/api/v1/tickets/{ticket['id']}/attachments/{item['id']}")
+    assert deleted.status_code == 200
+    assert client.get(f"/api/v1/tickets/{ticket['id']}/attachments").json()["items"] == []
+    assert (
+        client.get(f"/api/v1/tickets/{ticket['id']}/attachments/{item['id']}/download").status_code
+        == 404
+    )
+
+    with session_factory() as session:
+        metadata = session.get(Attachment, UUID(item["id"]))
+        assert metadata is not None and metadata.deleted_at is not None
+        actions = session.scalars(
+            select(TicketActivity).where(TicketActivity.ticket_id == UUID(ticket["id"]))
+        ).all()
+        assert {row.action for row in actions}.issuperset(
+            {"ATTACHMENT_UPLOADED", "ATTACHMENT_DELETED"}
+        )
+
+
+def test_ticket_attachments_reject_mismatched_content_and_oversized_file(
+    ticket_environment, monkeypatch, tmp_path
+):
+    from app.core.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "upload_dir", str(tmp_path / "private-files"))
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+    ticket = create_ticket(client, ids)
+
+    mismatch = client.post(
+        f"/api/v1/tickets/{ticket['id']}/attachments",
+        files=[("files", ("fake.png", b"not really a png", "image/png"))],
+    )
+    assert mismatch.status_code == 400
+
+    monkeypatch.setattr(get_settings(), "max_upload_size_bytes", 8)
+    oversized = client.post(
+        f"/api/v1/tickets/{ticket['id']}/attachments",
+        files=[("files", ("large.png", b"\x89PNG\r\n\x1a\n12345", "image/png"))],
+    )
+    assert oversized.status_code == 413
+
+
+def test_ticket_attachment_limit_is_five_active_files(ticket_environment, monkeypatch, tmp_path):
+    from app.core.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "upload_dir", str(tmp_path / "private-files"))
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+    ticket = create_ticket(client, ids)
+    payload = b"\x89PNG\r\n\x1a\n" + b"x"
+
+    five_files = [("files", (f"image-{index}.png", payload, "image/png")) for index in range(5)]
+    first = client.post(f"/api/v1/tickets/{ticket['id']}/attachments", files=five_files)
+    assert first.status_code == 201, first.text
+    sixth = client.post(
+        f"/api/v1/tickets/{ticket['id']}/attachments",
+        files=[("files", ("sixth.png", payload, "image/png"))],
+    )
+    assert sixth.status_code == 409
+
+
+def test_project_attachment_is_private_to_project_members(
+    ticket_environment, monkeypatch, tmp_path
+):
+    monkeypatch.setattr(
+        "app.services.attachment_storage.get_settings",
+        lambda: type(
+            "Settings",
+            (),
+            {
+                "upload_dir": str(tmp_path / "private-files"),
+                "max_upload_size_bytes": 5 * 1024 * 1024,
+            },
+        )(),
+    )
+    client, _, ids = ticket_environment
+    sign_in_as(client, "DEVELOPER")
+    png_bytes = b"\x89PNG\r\n\x1a\nproject-file"
+    uploaded = client.post(
+        f"/api/v1/projects/{ids['project']}/attachments",
+        files=[("files", ("project.png", png_bytes, "image/png"))],
+    )
+    assert uploaded.status_code == 201, uploaded.text
+    attachment_id = uploaded.json()["items"][0]["id"]
+
+    sign_in_as(client, "OUTSIDER")
+    denied = client.get(f"/api/v1/projects/{ids['project']}/attachments/{attachment_id}/download")
+    assert denied.status_code == 404
