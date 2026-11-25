@@ -1,3 +1,4 @@
+from app.models.attachment import Attachment
 from app.models.core import (
     AuthSession,
     PasswordResetToken,
@@ -15,6 +16,7 @@ from app.models.core import (
 from app.models.ticket import Ticket, TicketActivity, TicketComment
 
 __all__ = [
+    "Attachment",
     "AuthSession",
     "PasswordResetToken",
     "Permission",
