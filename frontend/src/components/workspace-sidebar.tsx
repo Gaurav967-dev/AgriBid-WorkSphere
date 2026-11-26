@@ -41,7 +41,7 @@ const MAIN_NAVIGATION: NavigationItem[] = [
     { label: "Projects", href: "/dashboard/projects", icon: FolderKanban },
     { label: "Teams", href: "/dashboard/teams", icon: Users, adminOnly: true },
     { label: "Tasks", href: "/dashboard/tickets", icon: FileText },
-    { label: "Backlog", icon: Workflow, disabled: true },
+    { label: "Sprints & Backlog", href: "/dashboard/sprints", icon: Workflow },
     { label: "Calendar", icon: CalendarDays, disabled: true },
 ];
 
