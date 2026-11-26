@@ -13,6 +13,7 @@ from app.models.core import (
     role_permissions,
     user_invitation_teams,
 )
+from app.models.sprint import Sprint, SprintTicket
 from app.models.ticket import Ticket, TicketActivity, TicketComment
 
 __all__ = [
@@ -32,4 +33,6 @@ __all__ = [
     "Ticket",
     "TicketActivity",
     "TicketComment",
+    "Sprint",
+    "SprintTicket",
 ]
