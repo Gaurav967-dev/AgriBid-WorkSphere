@@ -269,6 +269,7 @@ def reports_environment(monkeypatch):
                 "project": project.id,
                 "team": team.id,
                 "other_project": other_project.id,
+                "other_team": other_team.id,
                 "sprint": sprint.id,
                 "admin": users["ADMIN"].id,
                 "pm": users["PM"].id,
@@ -330,13 +331,13 @@ def test_project_and_team_reports_respect_project_visibility(reports_environment
     )
     team = client.get(f"/api/v1/reports/teams/{ids['team']}")
     private_team = client.get(
-        f"/api/v1/reports/teams/{ids['team'].__class__.__name__}"
+        f"/api/v1/reports/teams/{ids['other_team']}"
     )
 
     assert project.status_code == 200
     assert private_project.status_code == 404
     assert team.status_code == 200
-    assert private_team.status_code == 422
+    assert private_team.status_code == 404
 
 
 def test_team_report_includes_workload_and_completion_context(reports_environment):
