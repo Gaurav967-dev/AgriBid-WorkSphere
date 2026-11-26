@@ -420,12 +420,20 @@ def list_tickets(
         filters.append(Ticket.due_date <= due_date_to)
 
     if created_date_from is not None:
-        filters.append(Ticket.created_at >= datetime.combine(created_date_from, datetime.min.time()))
+        filters.append(
+            Ticket.created_at
+            >= datetime.combine(created_date_from, datetime.min.time(), tzinfo=UTC)
+        )
 
     if created_date_to is not None:
-        filters.append(Ticket.created_at < datetime.combine(
-            created_date_to + timedelta(days=1), datetime.min.time()
-        ))
+        filters.append(
+            Ticket.created_at
+            < datetime.combine(
+                created_date_to + timedelta(days=1),
+                datetime.min.time(),
+                tzinfo=UTC,
+            )
+        )
 
     if label and label.strip():
         escaped_label = label.strip().replace("\\", "\\\\").replace('"', '\\"')
