@@ -16,6 +16,7 @@ import {
     Users,
     AlertTriangle,
     TrendingUp,
+    type LucideIcon,
 } from "lucide-react";
 
 import { signOut, verifyToken, type AuthUser } from "@/features/auth/api/auth-api";
@@ -36,7 +37,7 @@ import { useWorkspaceSidebarState } from "@/components/workspace-sidebar-state";
 
 type ReportType = "project" | "team" | "sprint";
 
-const REPORT_TABS: Array<{ id: ReportType; label: string; icon: typeof FolderKanban }> = [
+const REPORT_TABS: Array<{ id: ReportType; label: string; icon: LucideIcon }> = [
     { id: "project", label: "Project", icon: FolderKanban },
     { id: "team", label: "Team", icon: Users },
     { id: "sprint", label: "Sprint", icon: Activity },
@@ -75,7 +76,7 @@ function MetricCard({
     label: string;
     value: string | number;
     description: string;
-    icon: typeof Ticket;
+    icon: LucideIcon;
     tone?: "violet" | "emerald" | "amber" | "sky";
 }) {
     const tones = {
