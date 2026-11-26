@@ -141,7 +141,7 @@ function DistributionCard({
 function ProjectReportView({ report }: { report: ProjectReport }) {
     return (
         <div className="space-y-2">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricCard label="Total tickets" value={report.total_tickets} description="Non-deleted tickets in this project" icon={Ticket} />
                 <MetricCard label="Completed tickets" value={report.completed_tickets} description="Tickets in Completed status" icon={CheckCircle2} tone="emerald" />
                 <MetricCard label="Pending tickets" value={report.pending_tickets} description="Excludes Completed and Cancelled" icon={Clock3} tone="sky" />
@@ -161,7 +161,7 @@ function ProjectReportView({ report }: { report: ProjectReport }) {
                 </div>
             </section>
 
-            <div className="grid gap-3 xl:grid-cols-3">
+            <div className="grid gap-2 xl:grid-cols-3">
                 <DistributionCard title="Tickets by priority" items={report.tickets_by_priority} color="bg-amber-500" />
                 <DistributionCard title="Tickets by status" items={report.tickets_by_status} color="bg-sky-500" />
                 <DistributionCard title="Tickets by type" items={report.tickets_by_type} color="bg-violet-500" />
@@ -172,8 +172,8 @@ function ProjectReportView({ report }: { report: ProjectReport }) {
 
 function TeamReportView({ report }: { report: TeamReport }) {
     return (
-        <div className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="space-y-2">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricCard label="Assigned tickets" value={report.total_assigned_tickets} description="Tickets with an assigned owner" icon={Ticket} />
                 <MetricCard label="Completed tickets" value={report.completed_tickets} description="Assigned tickets in Completed status" icon={CheckCircle2} tone="emerald" />
                 <MetricCard label="Pending tickets" value={report.pending_tickets} description="Assigned tickets still open" icon={Clock3} tone="sky" />
@@ -194,10 +194,10 @@ function TeamReportView({ report }: { report: TeamReport }) {
                             <tr>
                                 <th className="px-3 py-2 font-semibold">Team member</th>
                                 <th className="px-2 py-2 text-right font-semibold">Assigned</th>
-                                <th className="px-3 py-3 text-right font-semibold">Completed</th>
-                                <th className="px-3 py-3 text-right font-semibold">Pending</th>
-                                <th className="px-3 py-3 text-right font-semibold">In progress</th>
-                                <th className="px-3 py-3 text-right font-semibold">Overdue</th>
+                                <th className="px-2 py-2 text-right font-semibold">Completed</th>
+                                <th className="px-2 py-2 text-right font-semibold">Pending</th>
+                                <th className="px-2 py-2 text-right font-semibold">In progress</th>
+                                <th className="px-2 py-2 text-right font-semibold">Overdue</th>
                                 <th className="px-3 py-2 text-right font-semibold">Completion</th>
                             </tr>
                         </thead>
@@ -212,8 +212,8 @@ function TeamReportView({ report }: { report: TeamReport }) {
                                     </td>
                                     <td className="px-2 py-2 text-right tabular-nums">{member.assigned_tickets}</td>
                                     <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-300">{member.completed_tickets}</td>
-                                    <td className="px-3 py-3 text-right tabular-nums">{member.pending_tickets}</td>
-                                    <td className="px-3 py-3 text-right tabular-nums">{member.in_progress_tickets}</td>
+                                    <td className="px-2 py-2 text-right tabular-nums">{member.pending_tickets}</td>
+                                    <td className="px-2 py-2 text-right tabular-nums">{member.in_progress_tickets}</td>
                                     <td className="px-3 py-3 text-right tabular-nums text-amber-700 dark:text-amber-300">{member.overdue_tickets}</td>
                                     <td className="px-3 py-2 text-right font-semibold tabular-nums">{member.completion_percentage.toFixed(1)}%</td>
                                 </tr>
@@ -233,15 +233,15 @@ function TeamReportView({ report }: { report: TeamReport }) {
 
 function SprintReportView({ report }: { report: SprintReport }) {
     return (
-        <div className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="space-y-2">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricCard label="Sprint tickets" value={report.total_tickets} description="Tickets in the final sprint scope" icon={Ticket} />
                 <MetricCard label="Completed work" value={report.completed_work} description="Tickets completed by sprint close" icon={CheckCircle2} tone="emerald" />
                 <MetricCard label="Incomplete work" value={report.incomplete_work} description="Work not completed by sprint close" icon={Clock3} tone="sky" />
                 <MetricCard label="Completion rate" value={`${report.completion_rate.toFixed(1)}%`} description={`${report.cancelled_work} cancelled ticket(s) excluded from incomplete work`} icon={TrendingUp} tone="violet" />
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-3">
                 <MetricCard label="Scope changes" value={report.scope_change_count} description="Additions and removals after sprint start" icon={Activity} />
                 <MetricCard label="Added after start" value={report.tickets_added_after_start} description="Tickets added once the sprint was active" icon={ArrowDownToLine} tone="sky" />
                 <MetricCard label="Removed after start" value={report.tickets_removed_after_start} description="Tickets removed before sprint close" icon={AlertTriangle} tone="amber" />
@@ -252,9 +252,9 @@ function SprintReportView({ report }: { report: SprintReport }) {
                     <h2 className="text-sm font-semibold">Sprint work</h2>
                     <p className="text-[11px] text-slate-500">{report.project_key} · {report.sprint_name} · {formatDate(report.start_date)} – {formatDate(report.end_date)}</p>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="min-h-0 flex-1 overflow-auto">
                     <table className="w-full min-w-[660px] text-left text-[11px]">
-                        <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-400 dark:bg-slate-950/50">
+                        <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-400 dark:bg-slate-950/50">
                             <tr>
                                 <th className="px-3 py-2 font-semibold">Ticket</th>
                                 <th className="px-2 py-2 font-semibold">Status at close</th>
@@ -273,8 +273,8 @@ function SprintReportView({ report }: { report: SprintReport }) {
                                         <p className="mt-0.5 text-slate-600 dark:text-slate-300">{ticket.title}</p>
                                     </td>
                                     <td className="px-2 py-2">{ticket.status.replaceAll("_", " ")}</td>
-                                    <td className="px-3 py-3">{ticket.priority}</td>
-                                    <td className="px-3 py-3">{ticket.type.replaceAll("_", " ")}</td>
+                                    <td className="px-2 py-2">{ticket.priority}</td>
+                                    <td className="px-2 py-2">{ticket.type.replaceAll("_", " ")}</td>
                                     <td className="px-3 py-2">{ticket.assignee_name ?? "Unassigned"}</td>
                                 </tr>
                             ))}
