@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from math import ceil
 from uuid import UUID
 
 from sqlalchemy import func, or_, select
@@ -325,8 +324,8 @@ def add_tickets_to_sprint(
     sprint = _get_sprint(db, sprint_id)
     _ensure_project_management_access(project=sprint.project, actor=actor)
     _ensure_project_can_be_modified(sprint.project)
-    if sprint.status != "PLANNED":
-        raise SprintServiceError("Tickets can only be added to a planned sprint.", 409)
+    if sprint.status == "COMPLETED":
+        raise SprintServiceError("Tickets cannot be added to a completed sprint.", 409)
 
     tickets = list(
         db.scalars(
@@ -370,6 +369,19 @@ def add_tickets_to_sprint(
                 added_by_user_id=actor.id,
             )
         )
+        if sprint.status == "ACTIVE":
+            ticket.status = "TODO"
+            db.add(
+                TicketActivity(
+                    ticket_id=ticket.id,
+                    actor_user_id=actor.id,
+                    action="STATUS_CHANGED",
+                    field_name="status",
+                    old_value="BACKLOG",
+                    new_value="TODO",
+                    description=f"Ticket moved to TODO when added to active sprint {sprint.name}.",
+                )
+            )
 
     db.commit()
     return _get_sprint(db, sprint.id)
@@ -385,8 +397,8 @@ def remove_ticket_from_sprint(
     sprint = _get_sprint(db, sprint_id)
     _ensure_project_management_access(project=sprint.project, actor=actor)
     _ensure_project_can_be_modified(sprint.project)
-    if sprint.status != "PLANNED":
-        raise SprintServiceError("Tickets can only be removed from a planned sprint.", 409)
+    if sprint.status == "COMPLETED":
+        raise SprintServiceError("Tickets cannot be removed from a completed sprint.", 409)
 
     assignment = db.scalar(
         select(SprintTicket).where(
@@ -400,6 +412,25 @@ def remove_ticket_from_sprint(
 
     assignment.removed_at = datetime.now(UTC)
     assignment.status_at_close = None
+    ticket = assignment.ticket
+    if sprint.status == "ACTIVE" and ticket.deleted_at is None and ticket.status not in {
+        "COMPLETED",
+        "CANCELLED",
+        "BACKLOG",
+    }:
+        old_status = ticket.status
+        ticket.status = "BACKLOG"
+        db.add(
+            TicketActivity(
+                ticket_id=ticket.id,
+                actor_user_id=actor.id,
+                action="STATUS_CHANGED",
+                field_name="status",
+                old_value=old_status,
+                new_value="BACKLOG",
+                description=f"Ticket returned to Backlog when removed from sprint {sprint.name}.",
+            )
+        )
     db.commit()
     return _get_sprint(db, sprint.id)
 
