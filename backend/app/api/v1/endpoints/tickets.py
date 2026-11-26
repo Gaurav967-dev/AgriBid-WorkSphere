@@ -148,6 +148,7 @@ def get_tickets(
     ]
     | None = None,
     assignee_id: UUID | None = None,
+    assignee_unassigned: bool = False,
     reporter_id: UUID | None = None,
     team_id: UUID | None = None,
     due_date_from: date | None = None,
@@ -179,6 +180,7 @@ def get_tickets(
         priority_filter=priority,
         type_filter=ticket_type,
         assignee_id=assignee_id,
+        assignee_unassigned=assignee_unassigned,
         reporter_id=reporter_id,
         team_id=team_id,
         due_date_from=due_date_from,
