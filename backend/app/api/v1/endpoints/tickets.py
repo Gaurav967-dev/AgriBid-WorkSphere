@@ -6,7 +6,7 @@ from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import select
+from sqlalchemy import select, union
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload, selectinload
 
@@ -248,27 +248,21 @@ def get_ticket_filter_options(
     if not project_ids:
         return TicketFilterOptionsResponse()
 
-    people_ids = (
-        select(Project.project_manager_id).where(Project.id.in_(project_ids))
-        .union(
-            select(ProjectMember.user_id).where(
-                ProjectMember.project_id.in_(project_ids),
-                ProjectMember.removed_at.is_(None),
-            )
-        )
-        .union(
-            select(Ticket.reporter_id).where(
-                Ticket.project_id.in_(project_ids),
-                Ticket.deleted_at.is_(None),
-            )
-        )
-        .union(
-            select(Ticket.assignee_id).where(
-                Ticket.project_id.in_(project_ids),
-                Ticket.deleted_at.is_(None),
-                Ticket.assignee_id.is_not(None),
-            )
-        )
+    people_ids = union(
+        select(Project.project_manager_id).where(Project.id.in_(project_ids)),
+        select(ProjectMember.user_id).where(
+            ProjectMember.project_id.in_(project_ids),
+            ProjectMember.removed_at.is_(None),
+        ),
+        select(Ticket.reporter_id).where(
+            Ticket.project_id.in_(project_ids),
+            Ticket.deleted_at.is_(None),
+        ),
+        select(Ticket.assignee_id).where(
+            Ticket.project_id.in_(project_ids),
+            Ticket.deleted_at.is_(None),
+            Ticket.assignee_id.is_not(None),
+        ),
     )
     people = list(
         db.scalars(
