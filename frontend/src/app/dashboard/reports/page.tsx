@@ -113,7 +113,7 @@ function DistributionCard({
 }) {
     const total = items.reduce((sum, item) => sum + item.count, 0);
     return (
-        <section className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:h-[220px]">
+        <section className="flex h-full min-h-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
                 <span className="text-[10px] text-slate-400">{total.toLocaleString("en-IN")} tickets</span>
@@ -140,8 +140,8 @@ function DistributionCard({
 
 function ProjectReportView({ report }: { report: ProjectReport }) {
     return (
-        <div className="space-y-2">
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="space-y-2 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
+            <div className="grid shrink-0 gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricCard label="Total tickets" value={report.total_tickets} description="Non-deleted tickets in this project" icon={Ticket} />
                 <MetricCard label="Completed tickets" value={report.completed_tickets} description="Tickets in Completed status" icon={CheckCircle2} tone="emerald" />
                 <MetricCard label="Pending tickets" value={report.pending_tickets} description="Excludes Completed and Cancelled" icon={Clock3} tone="sky" />
@@ -161,7 +161,7 @@ function ProjectReportView({ report }: { report: ProjectReport }) {
                 </div>
             </section>
 
-            <div className="grid gap-2 xl:grid-cols-3">
+            <div className="grid min-h-0 gap-2 xl:flex-1 xl:grid-cols-3">
                 <DistributionCard title="Tickets by priority" items={report.tickets_by_priority} color="bg-amber-500" />
                 <DistributionCard title="Tickets by status" items={report.tickets_by_status} color="bg-sky-500" />
                 <DistributionCard title="Tickets by type" items={report.tickets_by_type} color="bg-violet-500" />
@@ -172,16 +172,16 @@ function ProjectReportView({ report }: { report: ProjectReport }) {
 
 function TeamReportView({ report }: { report: TeamReport }) {
     return (
-        <div className="space-y-2">
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="space-y-2 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
+            <div className="grid shrink-0 gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricCard label="Assigned tickets" value={report.total_assigned_tickets} description="Tickets with an assigned owner" icon={Ticket} />
                 <MetricCard label="Completed tickets" value={report.completed_tickets} description="Assigned tickets in Completed status" icon={CheckCircle2} tone="emerald" />
                 <MetricCard label="Pending tickets" value={report.pending_tickets} description="Assigned tickets still open" icon={Clock3} tone="sky" />
                 <MetricCard label="Overdue tickets" value={report.overdue_tickets} description="Open assigned tickets past due" icon={AlertTriangle} tone="amber" />
             </div>
 
-            <div className="grid min-h-0 gap-2 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
-            <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:h-[205px]">
+            <div className="grid min-h-0 gap-2 lg:flex-1 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+            <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-2 dark:border-slate-800">
                     <div>
                         <h2 className="text-sm font-semibold">Workload by team member</h2>
@@ -235,21 +235,22 @@ function TeamReportView({ report }: { report: TeamReport }) {
 
 function SprintReportView({ report }: { report: SprintReport }) {
     return (
-        <div className="space-y-2">
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="space-y-2 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
+            <div className="grid shrink-0 gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricCard label="Sprint tickets" value={report.total_tickets} description="Tickets in the final sprint scope" icon={Ticket} />
                 <MetricCard label="Completed work" value={report.completed_work} description="Tickets completed by sprint close" icon={CheckCircle2} tone="emerald" />
                 <MetricCard label="Incomplete work" value={report.incomplete_work} description="Work not completed by sprint close" icon={Clock3} tone="sky" />
                 <MetricCard label="Completion rate" value={`${report.completion_rate.toFixed(1)}%`} description={`${report.cancelled_work} cancelled ticket(s) excluded from incomplete work`} icon={TrendingUp} tone="violet" />
             </div>
 
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid shrink-0 gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricCard label="Scope changes" value={report.scope_change_count} description="Additions and removals after sprint start" icon={Activity} />
                 <MetricCard label="Added after start" value={report.tickets_added_after_start} description="Tickets added once the sprint was active" icon={ArrowDownToLine} tone="sky" />
                 <MetricCard label="Removed after start" value={report.tickets_removed_after_start} description="Tickets removed before sprint close" icon={AlertTriangle} tone="amber" />
             </div>
 
-            <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:h-[155px]">
+            <div className="grid min-h-0 gap-2 lg:flex-1 lg:grid-rows-2">
+            <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <div className="shrink-0 border-b border-slate-100 px-3 py-2 dark:border-slate-800">
                     <h2 className="text-sm font-semibold">Sprint work</h2>
                     <p className="text-[11px] text-slate-500">{report.project_key} · {report.sprint_name} · {formatDate(report.start_date)} – {formatDate(report.end_date)}</p>
@@ -285,7 +286,7 @@ function SprintReportView({ report }: { report: SprintReport }) {
                 </div>
             </section>
 
-            <section className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:h-[140px]">
+            <section className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
                     <div>
                         <h2 className="text-sm font-semibold">Sprint scope changes</h2>
@@ -311,6 +312,7 @@ function SprintReportView({ report }: { report: SprintReport }) {
                     </div>
                 )}
             </section>
+            </div>
         </div>
     );
 }
