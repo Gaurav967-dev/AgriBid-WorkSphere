@@ -126,6 +126,7 @@ export default function SprintsPage() {
     const [pageError, setPageError] = useState("");
     const [backlogOpen, setBacklogOpen] = useState(false);
     const [backlogSearch, setBacklogSearch] = useState("");
+    const [backlogPage, setBacklogPage] = useState(1);
     const [selectedTicketIds, setSelectedTicketIds] = useState<string[]>([]);
 
     useEffect(() => {
@@ -172,8 +173,8 @@ export default function SprintsPage() {
     }, [selectedSprint, selectedSprintId]);
 
     const backlogQuery = useQuery({
-        queryKey: ["project-sprint-backlog", projectId, backlogSearch],
-        queryFn: () => getProjectBacklog(projectId, backlogSearch, 1, 100),
+        queryKey: ["project-sprint-backlog", projectId, backlogSearch, backlogPage],
+        queryFn: () => getProjectBacklog(projectId, backlogSearch, backlogPage, 50),
         enabled: backlogOpen && Boolean(projectId) && Boolean(selectedSprint) && selectedSprint.status !== "COMPLETED",
     });
 
@@ -300,6 +301,8 @@ export default function SprintsPage() {
         setSelectedSprintId("");
         setPageError("");
         setBacklogOpen(false);
+        setBacklogPage(1);
+        setBacklogSearch("");
         setSelectedTicketIds([]);
     }
 
@@ -444,7 +447,7 @@ export default function SprintsPage() {
                                                 {canManage && (
                                                     <div className="flex shrink-0 flex-wrap items-center gap-2">
                                                         {selectedSprint.status === "PLANNED" && <button type="button" onClick={openEditForm} className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-semibold hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"><Pencil className="size-3.5" /> Edit</button>}
-                                                        {(selectedSprint.status === "PLANNED" || selectedSprint.status === "ACTIVE") && <button type="button" onClick={() => { setBacklogOpen(true); setSelectedTicketIds([]); }} className="inline-flex h-9 items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 text-xs font-semibold text-violet-700 hover:bg-violet-100 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300"><Plus className="size-3.5" /> Add backlog tickets</button>}
+                                                        {(selectedSprint.status === "PLANNED" || selectedSprint.status === "ACTIVE") && <button type="button" onClick={() => { setBacklogOpen(true); setBacklogPage(1); setSelectedTicketIds([]); }} className="inline-flex h-9 items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 text-xs font-semibold text-violet-700 hover:bg-violet-100 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300"><Plus className="size-3.5" /> Add backlog tickets</button>}
                                                         {selectedSprint.status === "PLANNED" && <button type="button" onClick={() => startMutation.mutate()} disabled={actionPending} className="inline-flex h-9 items-center gap-2 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"><Play className="size-3.5" /> Start sprint</button>}
                                                         {selectedSprint.status === "ACTIVE" && <button type="button" onClick={() => { if (window.confirm("Complete this sprint? Unfinished, non-cancelled tickets will return to Backlog.")) completeMutation.mutate(); }} disabled={actionPending} className="inline-flex h-9 items-center gap-2 rounded-lg bg-violet-700 px-3 text-xs font-semibold text-white hover:bg-violet-800 disabled:opacity-50"><CheckCircle2 className="size-3.5" /> Complete sprint</button>}
                                                     </div>
@@ -537,7 +540,7 @@ export default function SprintsPage() {
                             <button type="button" onClick={() => setBacklogOpen(false)} aria-label="Close backlog selector" className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="size-4" /></button>
                         </div>
                         <div className="border-b border-slate-100 p-3 dark:border-slate-800">
-                            <div className="relative"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" /><input value={backlogSearch} onChange={(event) => setBacklogSearch(event.target.value)} placeholder="Search ticket key or title" className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950" /></div>
+                            <div className="relative"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" /><input value={backlogSearch} onChange={(event) => { setBacklogSearch(event.target.value); setBacklogPage(1); }} placeholder="Search ticket key or title" className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950" /></div>
                             <p className="mt-2 text-xs text-slate-500">{selectedTicketIds.length} selected · {backlogQuery.data?.total ?? 0} backlog tickets available</p>
                         </div>
                         <div className="min-h-0 flex-1 overflow-y-auto p-3">
@@ -559,6 +562,15 @@ export default function SprintsPage() {
                                 </div>
                             )}
                         </div>
+                        {(backlogQuery.data?.total_pages ?? 0) > 1 && (
+                            <div className="flex items-center justify-between border-t border-slate-100 px-4 py-2 dark:border-slate-800">
+                                <span className="text-[11px] text-slate-500">Page {backlogPage} of {backlogQuery.data?.total_pages ?? 1}</span>
+                                <div className="flex gap-2">
+                                    <button type="button" onClick={() => setBacklogPage((page) => Math.max(1, page - 1))} disabled={backlogPage <= 1 || backlogQuery.isFetching} className="h-8 rounded-md border border-slate-200 px-2.5 text-[11px] font-semibold disabled:opacity-40 dark:border-slate-700">Previous</button>
+                                    <button type="button" onClick={() => setBacklogPage((page) => Math.min(backlogQuery.data?.total_pages ?? page, page + 1))} disabled={backlogPage >= (backlogQuery.data?.total_pages ?? 1) || backlogQuery.isFetching} className="h-8 rounded-md border border-slate-200 px-2.5 text-[11px] font-semibold disabled:opacity-40 dark:border-slate-700">Next</button>
+                                </div>
+                            </div>
+                        )}
                         <div className="flex items-center justify-between gap-3 border-t border-slate-100 p-3 dark:border-slate-800">
                             <span className="text-xs text-slate-500">{selectedTicketIds.length} tickets selected</span>
                             <div className="flex gap-2"><button type="button" onClick={() => setBacklogOpen(false)} className="h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold dark:border-slate-700">Cancel</button><button type="button" onClick={() => addTicketsMutation.mutate()} disabled={selectedTicketIds.length === 0 || addTicketsMutation.isPending} className="inline-flex h-9 items-center gap-2 rounded-lg bg-violet-700 px-4 text-xs font-semibold text-white hover:bg-violet-800 disabled:opacity-50">{addTicketsMutation.isPending && <Loader2 className="size-3.5 animate-spin" />}Add selected</button></div>
