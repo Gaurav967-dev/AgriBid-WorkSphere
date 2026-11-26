@@ -16,7 +16,6 @@ import {
     Pencil,
     Play,
     Plus,
-    RefreshCw,
     Search,
     Target,
     Trash2,
@@ -241,7 +240,6 @@ export default function SprintsPage() {
         },
         onError: (error: Error) => setPageError(error.message),
     });
-
     const completeMutation = useMutation({
         mutationFn: () => completeSprint(selectedSprint!.id),
         onSuccess: async (sprint) => {
@@ -327,7 +325,7 @@ export default function SprintsPage() {
     }
 
     return (
-        <main className="workspace-shell flex min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+        <main className="workspace-shell flex min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 xl:h-dvh xl:min-h-0 xl:overflow-hidden">
             <WorkspaceSidebar
                 user={user}
                 collapsed={collapsed}
@@ -335,7 +333,7 @@ export default function SprintsPage() {
                 onMobileClose={() => setMobileNavOpen(false)}
             />
 
-            <div className="flex min-w-0 flex-1 flex-col">
+            <div className="flex min-w-0 flex-1 flex-col xl:min-h-0 xl:overflow-hidden">
                 <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900 sm:px-6">
                     <div className="flex min-w-0 items-center gap-3">
                         <button type="button" onClick={toggleCollapsed} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} className="hidden size-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 md:flex dark:text-slate-300 dark:hover:bg-slate-800"><PanelLeft className="size-4" /></button>
@@ -347,12 +345,11 @@ export default function SprintsPage() {
                     <WorkspaceActions user={user} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
                 </header>
 
-                <section className="flex-1 space-y-4 px-3 pb-5 pt-3 sm:px-5 lg:px-6">
-                    <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
+                <section className="flex-1 space-y-3 px-3 pb-3 pt-2 sm:px-5 lg:px-6 xl:flex xl:min-h-0 xl:flex-col xl:overflow-hidden">
+                    <div className="flex flex-col justify-between gap-2 md:flex-row md:items-center xl:shrink-0">
                         <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.13em] text-violet-600 dark:text-violet-300">Agile planning</p>
-                            <h1 className="mt-1 text-2xl font-bold tracking-tight">Sprints &amp; Backlog</h1>
-                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Plan sprint work, track ticket progress, and review completed work.</p>
+                            <h1 className="text-xl font-bold tracking-tight">Sprints &amp; Backlog</h1>
+                            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Plan sprint work, track ticket progress, and review completed work.</p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <label htmlFor="sprint-project" className="sr-only">Project</label>
@@ -376,14 +373,13 @@ export default function SprintsPage() {
                             <Link href="/dashboard/projects" className="mt-4 inline-flex text-sm font-semibold text-violet-700 hover:underline dark:text-violet-300">View projects</Link>
                         </div>
                     ) : (
-                        <div className="grid min-w-0 gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
-                            <aside className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                        <div className="grid min-w-0 gap-3 xl:min-h-0 xl:flex-1 xl:overflow-hidden xl:grid-cols-[280px_minmax(0,1fr)]">
+                            <aside className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 xl:flex xl:min-h-0 xl:flex-col xl:overflow-hidden">
                                 <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3 dark:border-slate-800">
                                     <div>
                                         <h2 className="text-sm font-semibold">Project sprints</h2>
                                         <p className="mt-0.5 text-xs text-slate-500">{sprintsQuery.data?.total ?? 0} total</p>
                                     </div>
-                                    <button type="button" onClick={() => sprintsQuery.refetch()} aria-label="Refresh sprints" disabled={sprintsQuery.isFetching} className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 disabled:opacity-50 dark:hover:bg-slate-800"><RefreshCw className={`size-4 ${sprintsQuery.isFetching ? "animate-spin" : ""}`} /></button>
                                 </div>
 
                                 {sprintsQuery.isLoading ? (
@@ -395,7 +391,7 @@ export default function SprintsPage() {
                                         <p className="mt-1 text-xs text-slate-500">Create a sprint to begin planning tickets.</p>
                                     </div>
                                 ) : (
-                                    <div className="mt-3 space-y-2">
+                                    <div className="mt-3 min-h-0 space-y-2 xl:flex-1 xl:overflow-y-auto xl:pr-1">
                                         {sprints.map((sprint) => {
                                             const active = sprint.id === selectedSprint?.id;
                                             return (
@@ -416,7 +412,7 @@ export default function SprintsPage() {
                                 )}
                             </aside>
 
-                            <section className="min-w-0 space-y-4">
+                            <section className="flex min-w-0 flex-col gap-4 xl:min-h-0 xl:overflow-hidden xl:gap-3">
                                 {!selectedSprint ? (
                                     <div className="rounded-xl border border-dashed border-slate-300 bg-white px-5 py-16 text-center dark:border-slate-700 dark:bg-slate-900">
                                         <Target className="mx-auto size-9 text-slate-300" />
@@ -425,16 +421,15 @@ export default function SprintsPage() {
                                     </div>
                                 ) : (
                                     <>
-                                        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5">
-                                            <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
-                                                <div className="min-w-0">
+                                        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-4 xl:shrink-0">
+                                            <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">                                                <div className="min-w-0">
                                                     <div className="flex flex-wrap items-center gap-2">
                                                         <SprintStatusBadge status={selectedSprint.status} />
                                                         <span className="text-xs text-slate-400">{selectedSprint.project_key}</span>
                                                     </div>
-                                                    <h2 className="mt-2 text-xl font-bold">{selectedSprint.name}</h2>
-                                                    <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">{selectedSprint.goal}</p>
-                                                    <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-500">
+                                                    <h2 className="mt-1.5 text-lg font-bold">{selectedSprint.name}</h2>
+                                                    <p className="mt-0.5 max-w-3xl text-xs leading-5 text-slate-500 dark:text-slate-400">{selectedSprint.goal}</p>
+                                                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-slate-500">
                                                         <span className="inline-flex items-center gap-1.5"><CalendarDays className="size-3.5" /> {formatDate(selectedSprint.start_date)} – {formatDate(selectedSprint.end_date)}</span>
                                                         {selectedSprint.started_at && <span className="inline-flex items-center gap-1.5"><Play className="size-3.5" /> Started {formatDate(selectedSprint.started_at)}</span>}
                                                         {selectedSprint.completed_at && <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="size-3.5" /> Completed {formatDate(selectedSprint.completed_at)}</span>}
@@ -451,28 +446,28 @@ export default function SprintsPage() {
                                                 )}
                                             </div>
 
-                                            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                                            <div className="mt-3 grid gap-2 sm:grid-cols-3">
                                                 {[
                                                     { label: "Assigned tickets", value: selectedSprint.assigned_tickets, icon: FolderKanban },
                                                     { label: "Completed tickets", value: selectedSprint.completed_tickets, icon: CheckCircle2 },
                                                     { label: "Pending tickets", value: selectedSprint.pending_tickets, icon: Clock3 },
                                                 ].map((metric) => {
                                                     const Icon = metric.icon;
-                                                    return <div key={metric.label} className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/50"><div className="flex items-center justify-between gap-2 text-xs text-slate-500"><span>{metric.label}</span><Icon className="size-4" /></div><p className="mt-1 text-2xl font-bold tabular-nums">{metric.value}</p></div>;
+                                                    return <div key={metric.label} className="rounded-lg border border-slate-100 bg-slate-50 p-2.5 dark:border-slate-800 dark:bg-slate-950/50"><div className="flex items-center justify-between gap-2 text-xs text-slate-500"><span>{metric.label}</span><Icon className="size-4" /></div><p className="mt-0.5 text-xl font-bold tabular-nums">{metric.value}</p></div>;
                                                 })}
                                             </div>
 
-                                            <div className="mt-4">
-                                                <div className="flex items-center justify-between text-xs"><span className="font-semibold text-slate-600 dark:text-slate-300">Sprint progress</span><span className="font-bold tabular-nums">{selectedSprint.completion_percentage}%</span></div>
-                                                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full bg-violet-600 transition-all" style={{ width: `${selectedSprint.completion_percentage}%` }} /></div>
+                                            <div className="mt-3">
+                                                <div className="flex items-center justify-between text-[11px]"><span className="font-semibold text-slate-600 dark:text-slate-300">Sprint progress</span><span className="font-bold tabular-nums">{selectedSprint.completion_percentage}%</span></div>
+                                                <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full bg-violet-600 transition-all" style={{ width: `${selectedSprint.completion_percentage}%` }} /></div>
                                             </div>
                                         </div>
 
-                                        <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                                            <div className="flex flex-col justify-between gap-2 border-b border-slate-100 px-4 py-3 dark:border-slate-800 sm:flex-row sm:items-center">
+                                        <div className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 xl:flex-1 xl:overflow-hidden">
+                                            <div className="flex shrink-0 flex-col justify-between gap-1.5 border-b border-slate-100 px-3 py-2.5 dark:border-slate-800 sm:flex-row sm:items-center">
                                                 <div>
                                                     <h3 className="text-sm font-semibold">Sprint tickets</h3>
-                                                    <p className="mt-0.5 text-xs text-slate-500">Ticket status is read from the current workflow and reflected in sprint progress.</p>
+                                                    <p className="mt-0.5 text-[11px] text-slate-500">Ticket status is read from the current workflow and reflected in sprint progress.</p>
                                                 </div>
                                                 <span className="text-xs font-medium text-slate-500">{selectedSprint.tickets.length} tickets</span>
                                             </div>
@@ -483,12 +478,12 @@ export default function SprintsPage() {
                                                     {canEditSelected && <button type="button" onClick={() => setBacklogOpen(true)} className="mt-3 text-xs font-semibold text-violet-700 hover:underline dark:text-violet-300">Add tickets from Backlog</button>}
                                                 </div>
                                             ) : (
-                                                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                <div className="divide-y divide-slate-100 dark:divide-slate-800 xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
                                                     {selectedSprint.tickets.map((ticket) => (
-                                                        <div key={ticket.id} className="flex flex-col justify-between gap-2 px-4 py-3 sm:flex-row sm:items-center">
+                                                        <div key={ticket.id} className="flex flex-col justify-between gap-1.5 px-3 py-2.5 sm:flex-row sm:items-center">
                                                             <div className="min-w-0">
                                                                 <div className="flex flex-wrap items-center gap-2"><Link href={`/dashboard/tickets/${ticket.ticket_id}`} className="text-[11px] font-bold text-violet-700 hover:underline dark:text-violet-300">{ticket.ticket_key}</Link><span className={`text-[10px] font-semibold ${priorityStyle(ticket.priority)}`}>{ticket.priority}</span><span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500 dark:bg-slate-800">{ticket.type}</span></div>
-                                                                <Link href={`/dashboard/tickets/${ticket.ticket_id}`} className="mt-1 block truncate text-sm font-medium hover:text-violet-700 dark:hover:text-violet-300">{ticket.title}</Link>
+                                                                <Link href={`/dashboard/tickets/${ticket.ticket_id}`} className="mt-0.5 block truncate text-xs font-medium hover:text-violet-700 dark:hover:text-violet-300">{ticket.title}</Link>
                                                                 <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500"><span>{ticket.assignee_name ?? "Unassigned"}</span><span>Due {formatDate(ticket.due_date)}</span><span>{ticket.status.replaceAll("_", " ")}</span></div>
                                                             </div>
                                                             {canEditSelected && <button type="button" onClick={() => { if (window.confirm(`Remove ${ticket.ticket_key} from this sprint? If the sprint is active, unfinished work returns to Backlog.`)) removeTicketMutation.mutate(ticket.ticket_id); }} disabled={removeTicketMutation.isPending} aria-label={`Remove ${ticket.ticket_key} from sprint`} className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 self-start rounded-md px-2 text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:text-rose-300 dark:hover:bg-rose-950/30 sm:self-center"><Trash2 className="size-3.5" /> Remove</button>}
