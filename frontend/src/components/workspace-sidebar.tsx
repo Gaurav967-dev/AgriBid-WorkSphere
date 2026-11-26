@@ -305,11 +305,21 @@ function GlobalSearchDialog({
 }) {
     const router = useRouter();
     const [query, setQuery] = useState("");
+    const [debouncedQuery, setDebouncedQuery] = useState("");
     const trimmedQuery = query.trim();
+
+    useEffect(() => {
+        const timeout = window.setTimeout(
+            () => setDebouncedQuery(trimmedQuery),
+            250,
+        );
+        return () => window.clearTimeout(timeout);
+    }, [trimmedQuery]);
+
     const searchQuery = useQuery({
-        queryKey: ["workspace-global-search", trimmedQuery],
-        queryFn: () => searchWorkspace(trimmedQuery),
-        enabled: trimmedQuery.length >= 2,
+        queryKey: ["workspace-global-search", debouncedQuery],
+        queryFn: () => searchWorkspace(debouncedQuery),
+        enabled: debouncedQuery.length >= 2,
         staleTime: 10_000,
         retry: false,
     });
