@@ -205,7 +205,10 @@ def create_sprint(
     data: SprintCreateRequest,
 ) -> Sprint:
     if actor.role.code not in {"ADMIN", "PM"}:
-        raise SprintServiceError("Only Administrators and Project Managers can create sprints.", 403)
+        raise SprintServiceError(
+            "Only Administrators and Project Managers can create sprints.",
+            403,
+        )
 
     project = db.scalar(
         select(Project).where(Project.id == project_id).with_for_update()
@@ -501,7 +504,10 @@ def complete_sprint(db: Session, *, sprint_id: UUID, actor: User) -> Sprint:
                     field_name="status",
                     old_value=old_status,
                     new_value="BACKLOG",
-                    description=f"Unfinished ticket returned to Backlog when sprint {sprint.name} completed.",
+                    description=(
+                        f"Unfinished ticket returned to Backlog when sprint {sprint.name} "
+                        "completed."
+                    ),
                 )
             )
 
