@@ -373,7 +373,7 @@ function GlobalSearchDialog({
                 <div className="min-h-0 flex-1 overflow-y-auto p-3">
                     {trimmedQuery.length < 2 ? (
                         <p className="px-3 py-8 text-center text-xs text-slate-400">Enter at least 2 characters to search the workspace.</p>
-                    ) : searchQuery.isFetching ? (
+                    ) : trimmedQuery !== debouncedQuery || searchQuery.isFetching ? (
                         <div className="flex items-center justify-center gap-2 py-10 text-xs text-slate-500"><Loader2 className="size-4 animate-spin" /> Searching workspace...</div>
                     ) : searchQuery.isError ? (
                         <p role="alert" className="px-3 py-8 text-center text-xs text-rose-600">{searchQuery.error.message}</p>
