@@ -1,13 +1,20 @@
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import String, case, cast, func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from app.models import Project, ProjectMember, Ticket, TicketActivity, User
+from app.models import (
+    Project,
+    ProjectMember,
+    SprintTicket,
+    Ticket,
+    TicketActivity,
+    User,
+)
 from app.schemas.ticket import TicketCreateRequest, TicketUpdateRequest
 
 
@@ -351,6 +358,15 @@ def list_tickets(
     priority_filter: str | None,
     type_filter: str | None,
     assignee_id: UUID | None,
+    assignee_unassigned: bool,
+    reporter_id: UUID | None,
+    team_id: UUID | None,
+    due_date_from: date | None,
+    due_date_to: date | None,
+    created_date_from: date | None,
+    created_date_to: date | None,
+    label: str | None,
+    sprint_id: UUID | None,
     search: str | None,
     sort_by: str,
     sort_order: str,
@@ -389,8 +405,52 @@ def list_tickets(
     if type_filter:
         filters.append(Ticket.type == type_filter)
 
-    if assignee_id is not None:
+    if assignee_unassigned:
+        filters.append(Ticket.assignee_id.is_(None))
+    elif assignee_id is not None:
         filters.append(Ticket.assignee_id == assignee_id)
+
+    if reporter_id is not None:
+        filters.append(Ticket.reporter_id == reporter_id)
+
+    if team_id is not None:
+        filters.append(Project.team_id == team_id)
+
+    if due_date_from is not None:
+        filters.append(Ticket.due_date >= due_date_from)
+
+    if due_date_to is not None:
+        filters.append(Ticket.due_date <= due_date_to)
+
+    if created_date_from is not None:
+        filters.append(
+            Ticket.created_at
+            >= datetime.combine(created_date_from, datetime.min.time(), tzinfo=UTC)
+        )
+
+    if created_date_to is not None:
+        filters.append(
+            Ticket.created_at
+            < datetime.combine(
+                created_date_to + timedelta(days=1),
+                datetime.min.time(),
+                tzinfo=UTC,
+            )
+        )
+
+    if label and label.strip():
+        escaped_label = label.strip().replace("\\", "\\\\").replace('"', '\\"')
+        filters.append(cast(Ticket.labels, String).ilike(f'%"{escaped_label}"%'))
+
+    if sprint_id is not None:
+        filters.append(
+            select(SprintTicket.id)
+            .where(
+                SprintTicket.ticket_id == Ticket.id,
+                SprintTicket.sprint_id == sprint_id,
+            )
+            .exists()
+        )
 
     if search:
         term = f"%{search.strip()}%"
@@ -413,17 +473,26 @@ def list_tickets(
         or 0
     )
 
+    priority_order = case(
+        (Ticket.priority == "LOW", 1),
+        (Ticket.priority == "MEDIUM", 2),
+        (Ticket.priority == "HIGH", 3),
+        (Ticket.priority == "CRITICAL", 4),
+        else_=0,
+    )
     sort_columns = {
         "created_at": Ticket.created_at,
         "updated_at": Ticket.updated_at,
         "due_date": Ticket.due_date,
-        "priority": Ticket.priority,
+        "priority": priority_order,
         "title": Ticket.title,
         "number": Ticket.number,
     }
 
     sort_column = sort_columns.get(sort_by, Ticket.updated_at)
     ordering = sort_column.asc() if sort_order == "asc" else sort_column.desc()
+    if sort_by == "due_date":
+        ordering = ordering.nullslast()
 
     tickets = list(
         db.scalars(

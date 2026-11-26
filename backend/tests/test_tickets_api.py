@@ -129,6 +129,7 @@ def ticket_environment(monkeypatch):
 
             ids = {
                 "project": project.id,
+                "team": team.id,
                 "admin": users["ADMIN"].id,
                 "pm": users["PM"].id,
                 "developer": users["DEVELOPER"].id,
@@ -1017,3 +1018,259 @@ def test_project_attachment_hard_limit_is_five_mb(
     )
     assert response.status_code == 413
     assert response.json()["detail"] == "Each attachment must be 5 MB or smaller."
+
+def test_global_search_returns_only_authorized_records(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+    ticket = create_ticket(client, ids)
+
+    project_results = client.get(
+        "/api/v1/search",
+        params={"q": "Ticket Test"},
+    )
+    assert project_results.status_code == 200, project_results.text
+    project_payload = project_results.json()
+    assert any(item["id"] == str(ids["project"]) for item in project_payload["projects"])
+    assert any(item["id"] == str(ids["team"]) for item in project_payload["teams"])
+
+    ticket_results = client.get(
+        "/api/v1/search",
+        params={"q": "Implement ticket workflow"},
+    )
+    assert ticket_results.status_code == 200, ticket_results.text
+    assert any(item["id"] == ticket["id"] for item in ticket_results.json()["tickets"])
+
+    ticket_id_results = client.get(
+        "/api/v1/search",
+        params={"q": ticket["id"][:8]},
+    )
+    assert ticket_id_results.status_code == 200, ticket_id_results.text
+    assert any(item["id"] == ticket["id"] for item in ticket_id_results.json()["tickets"])
+
+    user_results = client.get(
+        "/api/v1/search",
+        params={"q": "Test Admin"},
+    )
+    assert user_results.status_code == 200, user_results.text
+    assert any(item["id"] == str(ids["admin"]) for item in user_results.json()["users"])
+
+    sign_in_as(client, "OUTSIDER")
+    outsider_results = client.get(
+        "/api/v1/search",
+        params={"q": "Implement ticket workflow"},
+    )
+    assert outsider_results.status_code == 200, outsider_results.text
+    outsider_payload = outsider_results.json()
+    assert outsider_payload == {
+        "projects": [],
+        "tickets": [],
+        "users": [],
+        "teams": [],
+    }
+
+
+def test_global_search_supports_visible_project_members(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "DEVELOPER")
+
+    response = client.get(
+        "/api/v1/search",
+        params={"q": "Ticket Test"},
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert any(item["id"] == str(ids["project"]) for item in payload["projects"])
+    assert any(item["id"] == str(ids["team"]) for item in payload["teams"])
+
+    unrelated_user = client.get(
+        "/api/v1/search",
+        params={"q": "Outside Developer"},
+    )
+    assert unrelated_user.status_code == 200, unrelated_user.text
+    assert not any(
+        item["id"] == str(ids["outsider"])
+        for item in unrelated_user.json()["users"]
+    )
+
+
+def test_ticket_filter_options_follow_project_visibility(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+    create_ticket(client, ids)
+
+    response = client.get(
+        "/api/v1/tickets/filter-options",
+        params={"project_id": str(ids["project"])},
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert {person["id"] for person in payload["people"]} >= {
+        str(ids["admin"]),
+        str(ids["pm"]),
+        str(ids["developer"]),
+        str(ids["tester"]),
+    }
+    assert payload["teams"] == [{"id": str(ids["team"]), "name": "Ticket Test Team"}]
+
+    sign_in_as(client, "OUTSIDER")
+    denied = client.get(
+        "/api/v1/tickets/filter-options",
+        params={"project_id": str(ids["project"])},
+    )
+    assert denied.status_code == 404
+
+
+def test_ticket_filters_combine_before_pagination(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+
+    first_response = client.post(
+        "/api/v1/tickets",
+        json={
+            "project_id": str(ids["project"]),
+            "title": "Module 10 acceptance target",
+            "type": "TASK",
+            "priority": "HIGH",
+            "assignee_id": str(ids["developer"]),
+            "reviewer_id": str(ids["pm"]),
+            "tester_id": str(ids["tester"]),
+            "start_date": "2026-11-26",
+            "due_date": "2026-11-27",
+            "labels": ["module-ten", "workflow"],
+        },
+    )
+    second_response = client.post(
+        "/api/v1/tickets",
+        json={
+            "project_id": str(ids["project"]),
+            "title": "Module 10 acceptance later",
+            "type": "TASK",
+            "priority": "HIGH",
+            "assignee_id": str(ids["developer"]),
+            "reviewer_id": str(ids["pm"]),
+            "tester_id": str(ids["tester"]),
+            "start_date": "2026-11-26",
+            "due_date": "2026-11-28",
+            "labels": ["module-ten", "workflow"],
+        },
+    )
+    assert first_response.status_code == 201, first_response.text
+    assert second_response.status_code == 201, second_response.text
+    first_ticket = first_response.json()
+    second_ticket = second_response.json()
+
+    sprint_response = client.post(
+        f"/api/v1/projects/{ids['project']}/sprints",
+        json={
+            "name": "Module 10 Filter Sprint",
+            "goal": "Validate combined ticket filters",
+            "start_date": "2026-11-27",
+            "end_date": "2026-12-04",
+        },
+    )
+    assert sprint_response.status_code == 201, sprint_response.text
+    sprint_id = sprint_response.json()["id"]
+    added = client.post(
+        f"/api/v1/sprints/{sprint_id}/tickets",
+        json={"ticket_ids": [first_ticket["id"], second_ticket["id"]]},
+    )
+    assert added.status_code == 200, added.text
+
+    response = client.get(
+        "/api/v1/tickets",
+        params={
+            "project_id": str(ids["project"]),
+            "reporter_id": str(ids["admin"]),
+            "team_id": str(ids["team"]),
+            "due_date_from": "2026-11-27",
+            "due_date_to": "2026-11-27",
+            "created_date_from": (date.today() - timedelta(days=2)).isoformat(),
+            "created_date_to": (date.today() + timedelta(days=2)).isoformat(),
+            "label": "module-ten",
+            "sprint_id": sprint_id,
+            "search": "Module 10 acceptance",
+            "sort_by": "created_at",
+            "sort_order": "desc",
+            "page": 1,
+            "page_size": 1,
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["total"] == 1
+    assert payload["page"] == 1
+    assert payload["page_size"] == 1
+    assert payload["total_pages"] == 1
+    assert [item["id"] for item in payload["items"]] == [first_ticket["id"]]
+    assert first_ticket["id"] != second_ticket["id"]
+
+
+def test_unassigned_filter_is_applied_before_pagination(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+
+    assigned = create_ticket(client, ids)
+    unassigned_response = client.post(
+        "/api/v1/tickets",
+        json={
+            "project_id": str(ids["project"]),
+            "title": "Unassigned module 10 ticket",
+            "type": "TASK",
+            "priority": "LOW",
+        },
+    )
+    assert unassigned_response.status_code == 201, unassigned_response.text
+
+    response = client.get(
+        "/api/v1/tickets",
+        params={
+            "assignee_unassigned": "true",
+            "page": 1,
+            "page_size": 1,
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["total"] == 1
+    assert payload["items"][0]["id"] == unassigned_response.json()["id"]
+    assert payload["items"][0]["assignee"] is None
+    assert assigned["id"] != unassigned_response.json()["id"]
+
+def test_priority_sort_uses_ticket_priority_order(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+
+    expected = []
+    for priority in ("LOW", "MEDIUM", "HIGH", "CRITICAL"):
+        response = client.post(
+            "/api/v1/tickets",
+            json={
+                "project_id": str(ids["project"]),
+                "title": f"Priority sort {priority}",
+                "type": "TASK",
+                "priority": priority,
+            },
+        )
+        assert response.status_code == 201, response.text
+        expected.append((priority, response.json()["ticket_key"]))
+
+    descending = client.get(
+        "/api/v1/tickets",
+        params={"sort_by": "priority", "sort_order": "desc"},
+    )
+    ascending = client.get(
+        "/api/v1/tickets",
+        params={"sort_by": "priority", "sort_order": "asc"},
+    )
+
+    assert descending.status_code == 200, descending.text
+    assert ascending.status_code == 200, ascending.text
+    assert [item["priority"] for item in descending.json()["items"]] == [
+        "CRITICAL", "HIGH", "MEDIUM", "LOW",
+    ]
+    assert [item["priority"] for item in ascending.json()["items"]] == [
+        "LOW", "MEDIUM", "HIGH", "CRITICAL",
+    ]
+

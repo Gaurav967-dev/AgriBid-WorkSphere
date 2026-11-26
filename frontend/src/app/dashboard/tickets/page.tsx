@@ -46,6 +46,7 @@ import {
     changeTicketStatus,
     createTicket,
     getTickets,
+    getTicketFilterOptions,
     type CreateTicketInput,
     type Ticket,
     type TicketPriority,
@@ -166,6 +167,7 @@ const SORT_OPTIONS: { label: string; sortBy: SortField; sortOrder: "asc" | "desc
     { label: "Due date · earliest first", sortBy: "due_date", sortOrder: "asc" },
     { label: "Due date · latest first", sortBy: "due_date", sortOrder: "desc" },
     { label: "Priority · highest first", sortBy: "priority", sortOrder: "desc" },
+    { label: "Priority · lowest first", sortBy: "priority", sortOrder: "asc" },
     { label: "Title · A to Z", sortBy: "title", sortOrder: "asc" },
 ];
 
@@ -400,6 +402,15 @@ export default function TicketsPage() {
     const [ticketType, setTicketType] = useState<TicketType | "ALL">("ALL");
     const [projectId, setProjectId] = useState("ALL");
     const [assigneeId, setAssigneeId] = useState("ALL");
+    const [reporterId, setReporterId] = useState("ALL");
+    const [teamId, setTeamId] = useState("ALL");
+    const [dueDateFrom, setDueDateFrom] = useState("");
+    const [dueDateTo, setDueDateTo] = useState("");
+    const [createdDateFrom, setCreatedDateFrom] = useState("");
+    const [createdDateTo, setCreatedDateTo] = useState("");
+    const [labelFilter, setLabelFilter] = useState("");
+    const [sprintId, setSprintId] = useState("ALL");
+    const [filtersInitialized, setFiltersInitialized] = useState(false);
     const [sortBy, setSortBy] = useState<SortField>("updated_at");
     const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
@@ -470,10 +481,73 @@ export default function TicketsPage() {
     }, [search]);
 
     useEffect(() => {
+        if (!filtersInitialized) return;
+        const params = new URLSearchParams();
+        if (view !== "board") params.set("view", view);
+        if (page > 1) params.set("page", String(page));
+        if (search.trim()) params.set("q", search.trim());
+        if (projectId !== "ALL") params.set("project", projectId);
+        if (status !== "ALL") params.set("status", status);
+        if (priority !== "ALL") params.set("priority", priority);
+        if (ticketType !== "ALL") params.set("type", ticketType);
+        if (assigneeId !== "ALL") params.set("assignee", assigneeId);
+        if (reporterId !== "ALL") params.set("reporter", reporterId);
+        if (teamId !== "ALL") params.set("team", teamId);
+        if (dueDateFrom) params.set("due_from", dueDateFrom);
+        if (dueDateTo) params.set("due_to", dueDateTo);
+        if (createdDateFrom) params.set("created_from", createdDateFrom);
+        if (createdDateTo) params.set("created_to", createdDateTo);
+        if (labelFilter.trim()) params.set("label", labelFilter.trim());
+        if (sprintId !== "ALL") params.set("sprint", sprintId);
+        if (sortBy !== "updated_at" || sortOrder !== "desc") {
+            params.set("sort", sortBy);
+            params.set("order", sortOrder);
+        }
+        const query = params.toString();
+        window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
+    }, [
+        filtersInitialized, view, page, search, projectId, status, priority, ticketType,
+        assigneeId, reporterId, teamId, dueDateFrom, dueDateTo, createdDateFrom,
+        createdDateTo, labelFilter, sprintId, sortBy, sortOrder,
+    ]);
+
+    useEffect(() => {
         let active = true;
         verifyToken()
             .then(({ user: verifiedUser }) => {
                 if (!active) return;
+                const params = new URLSearchParams(window.location.search);
+                const initialView = params.get("view");
+                if (initialView === "board" || initialView === "list" || initialView === "calendar" || initialView === "backlog") {
+                    setView(initialView);
+                }
+                setSearch((params.get("q") ?? "").slice(0, 100));
+                setPage(Math.max(1, Number.parseInt(params.get("page") ?? "1", 10) || 1));
+
+                const initialStatus = params.get("status") as TicketStatus | null;
+                if (initialStatus && STATUS_OPTIONS.some((option) => option.value === initialStatus)) setStatus(initialStatus);
+                const initialPriority = params.get("priority") as TicketPriority | null;
+                if (initialPriority && PRIORITY_OPTIONS.some((option) => option.value === initialPriority)) setPriority(initialPriority);
+                const initialType = params.get("type") as TicketType | null;
+                if (initialType && TYPE_OPTIONS.some((option) => option.value === initialType)) setTicketType(initialType);
+
+                setProjectId(params.get("project") || "ALL");
+                setAssigneeId(params.get("assignee") || "ALL");
+                setReporterId(params.get("reporter") || "ALL");
+                setTeamId(params.get("team") || "ALL");
+                setDueDateFrom(params.get("due_from") || "");
+                setDueDateTo(params.get("due_to") || "");
+                setCreatedDateFrom(params.get("created_from") || "");
+                setCreatedDateTo(params.get("created_to") || "");
+                setLabelFilter((params.get("label") ?? "").slice(0, 100));
+                setSprintId(params.get("sprint") || "ALL");
+
+                const initialSort = params.get("sort") as SortField | null;
+                if (initialSort && SORT_OPTIONS.some((option) => option.sortBy === initialSort)) setSortBy(initialSort);
+                const initialOrder = params.get("order");
+                if (initialOrder === "asc" || initialOrder === "desc") setSortOrder(initialOrder);
+                setFiltersInitialized(true);
+
                 setUser(verifiedUser);
                 setIsCheckingAuth(false);
             })
@@ -491,6 +565,12 @@ export default function TicketsPage() {
         enabled: !isCheckingAuth && Boolean(user),
     });
 
+    const filterOptionsQuery = useQuery({
+        queryKey: ["ticket-filter-options", projectId],
+        queryFn: () => getTicketFilterOptions(projectId === "ALL" ? undefined : projectId),
+        enabled: !isCheckingAuth && Boolean(user) && filtersInitialized,
+    });
+
     const ticketFilters = {
         search: debouncedSearch,
         status: status === "ALL" ? undefined : status,
@@ -498,6 +578,15 @@ export default function TicketsPage() {
         ticketType: ticketType === "ALL" ? undefined : ticketType,
         projectId: projectId === "ALL" ? undefined : projectId,
         assigneeId: assigneeId === "ALL" || assigneeId === "UNASSIGNED" ? undefined : assigneeId,
+        assigneeUnassigned: assigneeId === "UNASSIGNED",
+        reporterId: reporterId === "ALL" ? undefined : reporterId,
+        teamId: teamId === "ALL" ? undefined : teamId,
+        dueDateFrom: dueDateFrom || undefined,
+        dueDateTo: dueDateTo || undefined,
+        createdDateFrom: createdDateFrom || undefined,
+        createdDateTo: createdDateTo || undefined,
+        label: labelFilter.trim() || undefined,
+        sprintId: sprintId === "ALL" ? undefined : sprintId,
         sortBy,
         sortOrder,
     };
@@ -505,7 +594,7 @@ export default function TicketsPage() {
     const ticketsQuery = useQuery({
         queryKey: ["tickets", "list", page, PAGE_SIZE, ticketFilters],
         queryFn: () => getTickets({ page, pageSize: PAGE_SIZE, ...ticketFilters }),
-        enabled: !isCheckingAuth && Boolean(user) && view === "list",
+        enabled: !isCheckingAuth && Boolean(user) && filtersInitialized && view === "list",
     });
 
     const boardQuery = useInfiniteQuery({
@@ -513,7 +602,7 @@ export default function TicketsPage() {
         queryFn: ({ pageParam }) => getTickets({ page: pageParam, pageSize: BOARD_PAGE_SIZE, ...ticketFilters }),
         initialPageParam: 1,
         getNextPageParam: (lastPage) => lastPage.page < lastPage.total_pages ? lastPage.page + 1 : undefined,
-        enabled: !isCheckingAuth && Boolean(user) && view !== "list",
+        enabled: !isCheckingAuth && Boolean(user) && filtersInitialized && view !== "list",
     });
 
     const statusMutation = useMutation({
@@ -528,16 +617,20 @@ export default function TicketsPage() {
 
     const boardTickets = boardQuery.data?.pages.flatMap((item) => item.items) ?? [];
     const tickets = view === "list" ? ticketsQuery.data?.items ?? [] : boardTickets;
-    const visibleTickets = assigneeId === "UNASSIGNED" ? tickets.filter((ticket) => !ticket.assignee) : tickets;
-    const visibleBoardTickets = assigneeId === "UNASSIGNED" ? boardTickets.filter((ticket) => !ticket.assignee) : boardTickets;
-    const assigneeSource = boardTickets.length > 0 ? boardTickets : ticketsQuery.data?.items ?? [];
+    const visibleTickets = tickets;
+    const visibleBoardTickets = boardTickets;
     const totalPages = Math.max(1, ticketsQuery.data?.total_pages ?? 1);
     const hasNextBoardPage = Boolean(boardQuery.hasNextPage);
     const isLoadingTickets = view === "list" ? ticketsQuery.isLoading : boardQuery.isLoading;
     const ticketsError = view === "list" ? ticketsQuery.error : boardQuery.error;
     const projects = projectsQuery.data?.items ?? [];
     const canCreateTicket = user?.role_code === "ADMIN" || user?.role_code === "PM";
-    const activeFilterCount = [status !== "ALL", priority !== "ALL", ticketType !== "ALL", projectId !== "ALL", assigneeId !== "ALL"].filter(Boolean).length;
+    const activeFilterCount = [
+        status !== "ALL", priority !== "ALL", ticketType !== "ALL", projectId !== "ALL",
+        assigneeId !== "ALL", reporterId !== "ALL", teamId !== "ALL", dueDateFrom !== "",
+        dueDateTo !== "", createdDateFrom !== "", createdDateTo !== "", labelFilter.trim() !== "",
+        sprintId !== "ALL",
+    ].filter(Boolean).length;
 
     function resetPage() {
         setPage(1);
@@ -550,6 +643,14 @@ export default function TicketsPage() {
         setTicketType("ALL");
         setProjectId("ALL");
         setAssigneeId("ALL");
+        setReporterId("ALL");
+        setTeamId("ALL");
+        setDueDateFrom("");
+        setDueDateTo("");
+        setCreatedDateFrom("");
+        setCreatedDateTo("");
+        setLabelFilter("");
+        setSprintId("ALL");
         setSortBy("updated_at");
         setSortOrder("desc");
         resetPage();
@@ -759,15 +860,23 @@ export default function TicketsPage() {
                             <div ref={filterDropdownRef} className="relative shrink-0">
                                 <button type="button" onClick={() => { setFilterOpen((open) => !open); setSortOpen(false); setCalendarPickerOpen(false); setImportExportOpen(false); }} aria-expanded={filterOpen} className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"><Filter className="size-4" /> Filter {activeFilterCount > 0 && <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-bold text-violet-700 dark:bg-violet-950 dark:text-violet-300">{activeFilterCount}</span>}<ChevronDown className="size-3.5" /></button>
                                 {filterOpen && (
-                                    <div className="absolute left-0 top-11 z-40 w-[min(92vw,360px)] rounded-xl border border-slate-200 bg-white p-4 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                                    <div className="absolute left-0 top-11 z-40 max-h-[75vh] w-[min(94vw,420px)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 shadow-xl dark:border-slate-700 dark:bg-slate-900">
                                         <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-semibold">Filter tasks</h2><button type="button" onClick={() => setFilterOpen(false)} aria-label="Close filters" className="rounded p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="size-4" /></button></div>
 
                                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                            <label><span className="mb-1.5 block text-xs font-medium text-slate-500">Project</span><select value={projectId} onChange={(event) => { setProjectId(event.target.value); resetPage(); }} className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs dark:border-slate-700 dark:bg-slate-950"><option value="ALL">All projects</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.key} · {project.name}</option>)}</select></label>
+                                            <label><span className="mb-1.5 block text-xs font-medium text-slate-500">Project</span><select value={projectId} onChange={(event) => { setProjectId(event.target.value); setAssigneeId("ALL"); setReporterId("ALL"); setTeamId("ALL"); setSprintId("ALL"); resetPage(); }} className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs dark:border-slate-700 dark:bg-slate-950"><option value="ALL">All projects</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.key} · {project.name}</option>)}</select></label>
                                             <label><span className="mb-1.5 block text-xs font-medium text-slate-500">Status</span><select value={status} onChange={(event) => { setStatus(event.target.value as TicketStatus | "ALL"); resetPage(); }} className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs dark:border-slate-700 dark:bg-slate-950">{STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
                                             <label><span className="mb-1.5 block text-xs font-medium text-slate-500">Priority</span><select value={priority} onChange={(event) => { setPriority(event.target.value as TicketPriority | "ALL"); resetPage(); }} className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs dark:border-slate-700 dark:bg-slate-950">{PRIORITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
                                             <label><span className="mb-1.5 block text-xs font-medium text-slate-500">Type</span><select value={ticketType} onChange={(event) => { setTicketType(event.target.value as TicketType | "ALL"); resetPage(); }} className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs dark:border-slate-700 dark:bg-slate-950">{TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-                                            <label className="sm:col-span-2"><span className="mb-1.5 block text-xs font-medium text-slate-500">Assignee</span><select value={assigneeId} onChange={(event) => { setAssigneeId(event.target.value); resetPage(); }} className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs dark:border-slate-700 dark:bg-slate-950"><option value="ALL">All assignees</option><option value="UNASSIGNED">Unassigned</option>{Array.from(new Map(assigneeSource.filter((ticket) => ticket.assignee).map((ticket) => [ticket.assignee!.id, ticket.assignee!])).values()).map((person) => <option key={person.id} value={person.id}>{person.full_name}</option>)}</select></label>
+                                            <label><span className="mb-1.5 block text-xs font-medium text-slate-500">Assignee</span><select value={assigneeId} onChange={(event) => { setAssigneeId(event.target.value); resetPage(); }} className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs dark:border-slate-700 dark:bg-slate-950"><option value="ALL">All assignees</option><option value="UNASSIGNED">Unassigned</option>{(filterOptionsQuery.data?.people ?? []).map((person) => <option key={person.id} value={person.id}>{person.full_name}</option>)}</select></label>
+                                            <label><span className="mb-1.5 block text-xs font-medium text-slate-500">Reporter</span><select value={reporterId} onChange={(event) => { setReporterId(event.target.value); resetPage(); }} className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs dark:border-slate-700 dark:bg-slate-950"><option value="ALL">All reporters</option>{(filterOptionsQuery.data?.people ?? []).map((person) => <option key={person.id} value={person.id}>{person.full_name}</option>)}</select></label>
+                                            <label><span className="mb-1.5 block text-xs font-medium text-slate-500">Team</span><select value={teamId} onChange={(event) => { setTeamId(event.target.value); resetPage(); }} className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs dark:border-slate-700 dark:bg-slate-950"><option value="ALL">All teams</option>{(filterOptionsQuery.data?.teams ?? []).map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
+                                            <label><span className="mb-1.5 block text-xs font-medium text-slate-500">Sprint</span><select value={sprintId} onChange={(event) => { setSprintId(event.target.value); resetPage(); }} className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs dark:border-slate-700 dark:bg-slate-950"><option value="ALL">All sprints</option>{(filterOptionsQuery.data?.sprints ?? []).map((sprint) => <option key={sprint.id} value={sprint.id}>{sprint.project_key} · {sprint.name}</option>)}</select></label>
+                                            <label><span className="mb-1.5 block text-xs font-medium text-slate-500">Due date from</span><input type="date" value={dueDateFrom} max={dueDateTo || undefined} onChange={(event) => { setDueDateFrom(event.target.value); resetPage(); }} className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs dark:border-slate-700 dark:bg-slate-950" /></label>
+                                            <label><span className="mb-1.5 block text-xs font-medium text-slate-500">Due date to</span><input type="date" value={dueDateTo} min={dueDateFrom || undefined} onChange={(event) => { setDueDateTo(event.target.value); resetPage(); }} className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs dark:border-slate-700 dark:bg-slate-950" /></label>
+                                            <label><span className="mb-1.5 block text-xs font-medium text-slate-500">Created date from</span><input type="date" value={createdDateFrom} max={createdDateTo || undefined} onChange={(event) => { setCreatedDateFrom(event.target.value); resetPage(); }} className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs dark:border-slate-700 dark:bg-slate-950" /></label>
+                                            <label><span className="mb-1.5 block text-xs font-medium text-slate-500">Created date to</span><input type="date" value={createdDateTo} min={createdDateFrom || undefined} onChange={(event) => { setCreatedDateTo(event.target.value); resetPage(); }} className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs dark:border-slate-700 dark:bg-slate-950" /></label>
+                                            <label className="sm:col-span-2"><span className="mb-1.5 block text-xs font-medium text-slate-500">Label</span><input value={labelFilter} maxLength={100} onChange={(event) => { setLabelFilter(event.target.value); resetPage(); }} placeholder="Filter by exact label" className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs dark:border-slate-700 dark:bg-slate-950" /></label>
                                         </div>
                                         <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 dark:border-slate-800"><button type="button" onClick={clearFilters} className="text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-violet-700">Clear all filters</button><button type="button" onClick={() => setFilterOpen(false)} className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900">Apply</button></div>
                                     </div>

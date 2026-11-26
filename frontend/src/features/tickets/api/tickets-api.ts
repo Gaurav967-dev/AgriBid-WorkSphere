@@ -84,12 +84,27 @@ export type TicketListResponse = {
     total_pages: number;
 };
 
+export type TicketFilterOptionsResponse = {
+    people: Array<{ id: string; full_name: string; email: string; role_code: string }>;
+    teams: Array<{ id: string; name: string }>;
+    sprints: Array<{ id: string; name: string; project_id: string; project_key: string; status: string }>;
+};
+
 export type TicketListParams = {
     projectId?: string;
     status?: TicketStatus;
     priority?: TicketPriority;
     ticketType?: TicketType;
     assigneeId?: string;
+    assigneeUnassigned?: boolean;
+    reporterId?: string;
+    teamId?: string;
+    dueDateFrom?: string;
+    dueDateTo?: string;
+    createdDateFrom?: string;
+    createdDateTo?: string;
+    label?: string;
+    sprintId?: string;
     search?: string;
     sortBy?: "created_at" | "updated_at" | "due_date" | "priority" | "title" | "number";
     sortOrder?: "asc" | "desc";
@@ -203,12 +218,32 @@ export async function getTickets(
     if (params.priority) query.set("priority", params.priority);
     if (params.ticketType) query.set("ticket_type", params.ticketType);
     if (params.assigneeId) query.set("assignee_id", params.assigneeId);
+    if (params.assigneeUnassigned) query.set("assignee_unassigned", "true");
+    if (params.reporterId) query.set("reporter_id", params.reporterId);
+    if (params.teamId) query.set("team_id", params.teamId);
+    if (params.dueDateFrom) query.set("due_date_from", params.dueDateFrom);
+    if (params.dueDateTo) query.set("due_date_to", params.dueDateTo);
+    if (params.createdDateFrom) query.set("created_date_from", params.createdDateFrom);
+    if (params.createdDateTo) query.set("created_date_to", params.createdDateTo);
+    if (params.label?.trim()) query.set("label", params.label.trim());
+    if (params.sprintId) query.set("sprint_id", params.sprintId);
     if (params.search?.trim()) query.set("search", params.search.trim());
 
     return apiRequest<TicketListResponse>(
         `/tickets?${query.toString()}`,
         { method: "GET" },
         "Unable to load tickets.",
+    );
+}
+
+export async function getTicketFilterOptions(
+    projectId?: string,
+): Promise<TicketFilterOptionsResponse> {
+    const query = projectId ? `?project_id=${encodeURIComponent(projectId)}` : "";
+    return apiRequest(
+        `/tickets/filter-options${query}`,
+        { method: "GET" },
+        "Unable to load ticket filter options.",
     );
 }
 
