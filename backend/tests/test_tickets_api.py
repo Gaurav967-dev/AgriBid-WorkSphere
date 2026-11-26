@@ -1083,6 +1083,16 @@ def test_global_search_supports_visible_project_members(ticket_environment):
     assert any(item["id"] == str(ids["project"]) for item in payload["projects"])
     assert any(item["id"] == str(ids["team"]) for item in payload["teams"])
 
+    unrelated_user = client.get(
+        "/api/v1/search",
+        params={"q": "Outside Developer"},
+    )
+    assert unrelated_user.status_code == 200, unrelated_user.text
+    assert not any(
+        item["id"] == str(ids["outsider"])
+        for item in unrelated_user.json()["users"]
+    )
+
 
 def test_ticket_filter_options_follow_project_visibility(ticket_environment):
     client, _, ids = ticket_environment
