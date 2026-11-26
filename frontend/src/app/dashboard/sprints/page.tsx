@@ -182,15 +182,17 @@ export default function SprintsPage() {
         (user?.role_code === "PM" && selectedProject?.project_manager.id === user.id),
     );
 
-    function invalidateSprintQueries() {
-        void queryClient.invalidateQueries({ queryKey: ["project-sprints", projectId] });
-        void queryClient.invalidateQueries({ queryKey: ["project-sprint-backlog", projectId] });
+    async function invalidateSprintQueries() {
+        await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ["project-sprints", projectId] }),
+            queryClient.invalidateQueries({ queryKey: ["project-sprint-backlog", projectId] }),
+        ]);
     }
 
     const createMutation = useMutation({
         mutationFn: (input: SprintInput) => createSprint(projectId, input),
-        onSuccess: (sprint) => {
-            invalidateSprintQueries();
+        onSuccess: async (sprint) => {
+            await invalidateSprintQueries();
             setSelectedSprintId(sprint.id);
             setFormOpen(false);
             setFormError("");
@@ -201,8 +203,8 @@ export default function SprintsPage() {
 
     const updateMutation = useMutation({
         mutationFn: (input: SprintInput) => updateSprint(editingSprintId!, input),
-        onSuccess: (sprint) => {
-            invalidateSprintQueries();
+        onSuccess: async (sprint) => {
+            await invalidateSprintQueries();
             setSelectedSprintId(sprint.id);
             setFormOpen(false);
             setEditingSprintId(null);
@@ -213,8 +215,8 @@ export default function SprintsPage() {
 
     const addTicketsMutation = useMutation({
         mutationFn: () => addSprintTickets(selectedSprint!.id, selectedTicketIds),
-        onSuccess: (sprint) => {
-            invalidateSprintQueries();
+        onSuccess: async (sprint) => {
+            await invalidateSprintQueries();
             setSelectedSprintId(sprint.id);
             setBacklogOpen(false);
             setSelectedTicketIds([]);
@@ -226,14 +228,16 @@ export default function SprintsPage() {
 
     const removeTicketMutation = useMutation({
         mutationFn: (ticketId: string) => removeSprintTicket(selectedSprint!.id, ticketId),
-        onSuccess: invalidateSprintQueries,
+        onSuccess: async () => {
+            await invalidateSprintQueries();
+        },
         onError: (error: Error) => setPageError(error.message),
     });
 
     const startMutation = useMutation({
         mutationFn: () => startSprint(selectedSprint!.id),
-        onSuccess: (sprint) => {
-            invalidateSprintQueries();
+        onSuccess: async (sprint) => {
+            await invalidateSprintQueries();
             setSelectedSprintId(sprint.id);
             setPageError("");
         },
@@ -313,7 +317,9 @@ export default function SprintsPage() {
 
     const isSaving = createMutation.isPending || updateMutation.isPending;
     const backlogItems = backlogQuery.data?.items ?? [];
-    const canEditSelected = canManage && selectedSprint?.status === "PLANNED";
+    const canEditSelected = canManage && (
+        selectedSprint?.status === "PLANNED" || selectedSprint?.status === "ACTIVE"
+    );
     const actionPending = startMutation.isPending || completeMutation.isPending;
 
     if (isCheckingAuth || !user) {
@@ -437,11 +443,9 @@ export default function SprintsPage() {
 
                                                 {canManage && (
                                                     <div className="flex shrink-0 flex-wrap items-center gap-2">
-                                                        {selectedSprint.status === "PLANNED" && <>
-                                                            <button type="button" onClick={openEditForm} className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-semibold hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"><Pencil className="size-3.5" /> Edit</button>
-                                                            <button type="button" onClick={() => { setBacklogOpen(true); setSelectedTicketIds([]); }} className="inline-flex h-9 items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 text-xs font-semibold text-violet-700 hover:bg-violet-100 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300"><Plus className="size-3.5" /> Add backlog tickets</button>
-                                                            <button type="button" onClick={() => startMutation.mutate()} disabled={actionPending} className="inline-flex h-9 items-center gap-2 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"><Play className="size-3.5" /> Start sprint</button>
-                                                        </>}
+                                                        {selectedSprint.status === "PLANNED" && <button type="button" onClick={openEditForm} className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-semibold hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"><Pencil className="size-3.5" /> Edit</button>}
+                                                        {(selectedSprint.status === "PLANNED" || selectedSprint.status === "ACTIVE") && <button type="button" onClick={() => { setBacklogOpen(true); setSelectedTicketIds([]); }} className="inline-flex h-9 items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 text-xs font-semibold text-violet-700 hover:bg-violet-100 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300"><Plus className="size-3.5" /> Add backlog tickets</button>}
+                                                        {selectedSprint.status === "PLANNED" && <button type="button" onClick={() => startMutation.mutate()} disabled={actionPending} className="inline-flex h-9 items-center gap-2 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"><Play className="size-3.5" /> Start sprint</button>}
                                                         {selectedSprint.status === "ACTIVE" && <button type="button" onClick={() => { if (window.confirm("Complete this sprint? Unfinished, non-cancelled tickets will return to Backlog.")) completeMutation.mutate(); }} disabled={actionPending} className="inline-flex h-9 items-center gap-2 rounded-lg bg-violet-700 px-3 text-xs font-semibold text-white hover:bg-violet-800 disabled:opacity-50"><CheckCircle2 className="size-3.5" /> Complete sprint</button>}
                                                     </div>
                                                 )}
@@ -487,7 +491,7 @@ export default function SprintsPage() {
                                                                 <Link href={`/dashboard/tickets/${ticket.ticket_id}`} className="mt-1 block truncate text-sm font-medium hover:text-violet-700 dark:hover:text-violet-300">{ticket.title}</Link>
                                                                 <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500"><span>{ticket.assignee_name ?? "Unassigned"}</span><span>Due {formatDate(ticket.due_date)}</span><span>{ticket.status.replaceAll("_", " ")}</span></div>
                                                             </div>
-                                                            {canEditSelected && <button type="button" onClick={() => { if (window.confirm(`Remove ${ticket.ticket_key} from this sprint?`)) removeTicketMutation.mutate(ticket.ticket_id); }} disabled={removeTicketMutation.isPending} aria-label={`Remove ${ticket.ticket_key} from sprint`} className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 self-start rounded-md px-2 text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:text-rose-300 dark:hover:bg-rose-950/30 sm:self-center"><Trash2 className="size-3.5" /> Remove</button>}
+                                                            {canEditSelected && <button type="button" onClick={() => { if (window.confirm(`Remove ${ticket.ticket_key} from this sprint? If the sprint is active, unfinished work returns to Backlog.`)) removeTicketMutation.mutate(ticket.ticket_id); }} disabled={removeTicketMutation.isPending} aria-label={`Remove ${ticket.ticket_key} from sprint`} className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 self-start rounded-md px-2 text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:text-rose-300 dark:hover:bg-rose-950/30 sm:self-center"><Trash2 className="size-3.5" /> Remove</button>}
                                                         </div>
                                                     ))}
                                                 </div>
