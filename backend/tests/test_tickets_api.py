@@ -1040,6 +1040,13 @@ def test_global_search_returns_only_authorized_records(ticket_environment):
     assert ticket_results.status_code == 200, ticket_results.text
     assert any(item["id"] == ticket["id"] for item in ticket_results.json()["tickets"])
 
+    ticket_id_results = client.get(
+        "/api/v1/search",
+        params={"q": ticket["id"][:8]},
+    )
+    assert ticket_id_results.status_code == 200, ticket_id_results.text
+    assert any(item["id"] == ticket["id"] for item in ticket_id_results.json()["tickets"])
+
     user_results = client.get(
         "/api/v1/search",
         params={"q": "Test Admin"},
@@ -1220,4 +1227,40 @@ def test_unassigned_filter_is_applied_before_pagination(ticket_environment):
     assert payload["items"][0]["id"] == unassigned_response.json()["id"]
     assert payload["items"][0]["assignee"] is None
     assert assigned["id"] != unassigned_response.json()["id"]
+
+def test_priority_sort_uses_ticket_priority_order(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+
+    expected = []
+    for priority in ("LOW", "MEDIUM", "HIGH", "CRITICAL"):
+        response = client.post(
+            "/api/v1/tickets",
+            json={
+                "project_id": str(ids["project"]),
+                "title": f"Priority sort {priority}",
+                "type": "TASK",
+                "priority": priority,
+            },
+        )
+        assert response.status_code == 201, response.text
+        expected.append((priority, response.json()["ticket_key"]))
+
+    descending = client.get(
+        "/api/v1/tickets",
+        params={"sort_by": "priority", "sort_order": "desc"},
+    )
+    ascending = client.get(
+        "/api/v1/tickets",
+        params={"sort_by": "priority", "sort_order": "asc"},
+    )
+
+    assert descending.status_code == 200, descending.text
+    assert ascending.status_code == 200, ascending.text
+    assert [item["priority"] for item in descending.json()["items"]] == [
+        "CRITICAL", "HIGH", "MEDIUM", "LOW",
+    ]
+    assert [item["priority"] for item in ascending.json()["items"]] == [
+        "LOW", "MEDIUM", "HIGH", "CRITICAL",
+    ]
 
