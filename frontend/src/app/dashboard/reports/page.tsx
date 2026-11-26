@@ -211,10 +211,10 @@ function TeamReportView({ report }: { report: TeamReport }) {
                                         <p className="mt-0.5 text-[10px] text-slate-400">{member.role_code.replaceAll("_", " ")}</p>
                                     </td>
                                     <td className="px-2 py-2 text-right tabular-nums">{member.assigned_tickets}</td>
-                                    <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-300">{member.completed_tickets}</td>
+                                    <td className="px-2 py-2 text-right tabular-nums text-emerald-700 dark:text-emerald-300">{member.completed_tickets}</td>
                                     <td className="px-2 py-2 text-right tabular-nums">{member.pending_tickets}</td>
                                     <td className="px-2 py-2 text-right tabular-nums">{member.in_progress_tickets}</td>
-                                    <td className="px-3 py-3 text-right tabular-nums text-amber-700 dark:text-amber-300">{member.overdue_tickets}</td>
+                                    <td className="px-2 py-2 text-right tabular-nums text-amber-700 dark:text-amber-300">{member.overdue_tickets}</td>
                                     <td className="px-3 py-2 text-right font-semibold tabular-nums">{member.completion_percentage.toFixed(1)}%</td>
                                 </tr>
                             ))}
