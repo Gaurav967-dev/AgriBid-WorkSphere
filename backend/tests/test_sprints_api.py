@@ -64,7 +64,7 @@ def sprint_environment(monkeypatch):
 
             outsider = User(
                 full_name="Outside Developer",
-                email="outside@sprint-test.agribid.ai",
+                email="outsider@sprint-test.agribid.ai",
                 password_hash=hash_password(TEST_PASSWORD),
                 role=roles["DEVELOPER"],
                 is_active=True,
