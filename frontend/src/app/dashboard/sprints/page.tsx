@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -28,10 +28,7 @@ import {
     verifyToken,
     type AuthUser,
 } from "@/features/auth/api/auth-api";
-import {
-    getProjects,
-    type Project,
-} from "@/features/projects/api/projects-api";
+import { getProjects } from "@/features/projects/api/projects-api";
 import {
     addSprintTickets,
     completeSprint,
@@ -41,7 +38,6 @@ import {
     removeSprintTicket,
     startSprint,
     updateSprint,
-    type Sprint,
     type SprintBacklogTicket,
     type SprintInput,
     type SprintStatus,
@@ -149,33 +145,34 @@ export default function SprintsPage() {
         enabled: !isCheckingAuth && Boolean(user),
     });
 
-    const projects = projectsQuery.data?.items ?? [];
-    const selectedProject = projects.find((project) => project.id === projectId) ?? null;
-
-    useEffect(() => {
-        if (!projectId && projects.length > 0) setProjectId(projects[0].id);
-    }, [projectId, projects]);
+    const projects = useMemo(
+        () => projectsQuery.data?.items ?? [],
+        [projectsQuery.data?.items],
+    );
+    // Use the first visible project as the default without synchronously
+    // setting component state from an effect.
+    const activeProjectId = projectId || projects[0]?.id || "";
+    const selectedProject =
+        projects.find((project) => project.id === activeProjectId) ?? null;
 
     const sprintsQuery = useQuery({
-        queryKey: ["project-sprints", projectId],
-        queryFn: () => getProjectSprints(projectId, 1, 50),
-        enabled: !isCheckingAuth && Boolean(user) && Boolean(projectId),
+        queryKey: ["project-sprints", activeProjectId],
+        queryFn: () => getProjectSprints(activeProjectId, 1, 50),
+        enabled: !isCheckingAuth && Boolean(user) && Boolean(activeProjectId),
     });
 
     const sprints = sprintsQuery.data?.items ?? [];
-    const selectedSprint = sprints.find((sprint) => sprint.id === selectedSprintId) ?? sprints[0] ?? null;
-
-    useEffect(() => {
-        if (selectedSprint && selectedSprintId !== selectedSprint.id) {
-            setSelectedSprintId(selectedSprint.id);
-        }
-        if (!selectedSprint && selectedSprintId) setSelectedSprintId("");
-    }, [selectedSprint, selectedSprintId]);
+    const selectedSprint =
+        sprints.find((sprint) => sprint.id === selectedSprintId) ?? sprints[0] ?? null;
 
     const backlogQuery = useQuery({
-        queryKey: ["project-sprint-backlog", projectId, backlogSearch, backlogPage],
-        queryFn: () => getProjectBacklog(projectId, backlogSearch, backlogPage, 50),
-        enabled: backlogOpen && Boolean(projectId) && Boolean(selectedSprint) && selectedSprint.status !== "COMPLETED",
+        queryKey: ["project-sprint-backlog", activeProjectId, backlogSearch, backlogPage],
+        queryFn: () => getProjectBacklog(activeProjectId, backlogSearch, backlogPage, 50),
+        enabled:
+            backlogOpen &&
+            Boolean(activeProjectId) &&
+            Boolean(selectedSprint) &&
+            selectedSprint.status !== "COMPLETED",
     });
 
     const canManage = Boolean(
@@ -185,13 +182,13 @@ export default function SprintsPage() {
 
     async function invalidateSprintQueries() {
         await Promise.all([
-            queryClient.invalidateQueries({ queryKey: ["project-sprints", projectId] }),
-            queryClient.invalidateQueries({ queryKey: ["project-sprint-backlog", projectId] }),
+            queryClient.invalidateQueries({ queryKey: ["project-sprints", activeProjectId] }),
+            queryClient.invalidateQueries({ queryKey: ["project-sprint-backlog", activeProjectId] }),
         ]);
     }
 
     const createMutation = useMutation({
-        mutationFn: (input: SprintInput) => createSprint(projectId, input),
+        mutationFn: (input: SprintInput) => createSprint(activeProjectId, input),
         onSuccess: async (sprint) => {
             await invalidateSprintQueries();
             setSelectedSprintId(sprint.id);
@@ -247,8 +244,8 @@ export default function SprintsPage() {
 
     const completeMutation = useMutation({
         mutationFn: () => completeSprint(selectedSprint!.id),
-        onSuccess: (sprint) => {
-            invalidateSprintQueries();
+        onSuccess: async (sprint) => {
+            await invalidateSprintQueries();
             setSelectedSprintId(sprint.id);
             setPageError("");
         },
@@ -359,7 +356,7 @@ export default function SprintsPage() {
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <label htmlFor="sprint-project" className="sr-only">Project</label>
-                            <select id="sprint-project" value={projectId} onChange={(event) => handleProjectChange(event.target.value)} disabled={projectsQuery.isLoading || projects.length === 0} className="h-10 min-w-56 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-violet-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                            <select id="sprint-project" value={activeProjectId} onChange={(event) => handleProjectChange(event.target.value)} disabled={projectsQuery.isLoading || projects.length === 0} className="h-10 min-w-56 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-violet-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
                                 {projects.length === 0 && <option value="">No visible projects</option>}
                                 {projects.map((project) => <option key={project.id} value={project.id}>{project.key} · {project.name}</option>)}
                             </select>
