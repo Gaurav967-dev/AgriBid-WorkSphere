@@ -358,3 +358,53 @@ def test_sprint_cannot_be_started_twice_or_edited_after_start(sprint_environment
     assert first_start.status_code == 200
     assert second_start.status_code == 409
     assert update_after_start.status_code == 409
+
+
+def test_active_sprint_can_accept_and_release_backlog_tickets(sprint_environment):
+    client, session_factory, ids = sprint_environment
+    sign_in_as(client, "ADMIN")
+    first_ticket = create_ticket(client, ids, "Initial sprint ticket")
+    added_later_ticket = create_ticket(client, ids, "Additional sprint ticket")
+
+    sign_in_as(client, "PM")
+    sprint = create_sprint(client, ids)
+    initial_assignment = client.post(
+        f"/api/v1/sprints/{sprint['id']}/tickets",
+        json={"ticket_ids": [first_ticket["id"]]},
+    )
+    assert initial_assignment.status_code == 200, initial_assignment.text
+
+    started = client.post(f"/api/v1/sprints/{sprint['id']}/start")
+    assert started.status_code == 200, started.text
+
+    added = client.post(
+        f"/api/v1/sprints/{sprint['id']}/tickets",
+        json={"ticket_ids": [added_later_ticket["id"]]},
+    )
+    assert added.status_code == 200, added.text
+    assert added.json()["assigned_tickets"] == 2
+    added_row = next(
+        item for item in added.json()["tickets"]
+        if item["ticket_id"] == added_later_ticket["id"]
+    )
+    assert added_row["status"] == "TODO"
+
+    removed = client.delete(
+        f"/api/v1/sprints/{sprint['id']}/tickets/{added_later_ticket['id']}"
+    )
+    assert removed.status_code == 200, removed.text
+
+    with session_factory() as session:
+        stored_ticket = session.scalar(
+            select(Ticket).where(Ticket.id == UUID(added_later_ticket["id"]))
+        )
+        assert stored_ticket.status == "BACKLOG"
+
+    active_details = client.get(f"/api/v1/sprints/{sprint['id']}")
+    assert active_details.status_code == 200
+    assert active_details.json()["assigned_tickets"] == 1
+
+    closed = client.post(f"/api/v1/sprints/{sprint['id']}/complete")
+    assert closed.status_code == 200, closed.text
+    assert closed.json()["assigned_tickets"] == 1
+    assert [item["ticket_id"] for item in closed.json()["tickets"]] == [first_ticket["id"]]
