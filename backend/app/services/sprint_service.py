@@ -362,13 +362,13 @@ def add_tickets_to_sprint(
                 f"Ticket {ticket.ticket_key} is already assigned to a sprint.", 409
             )
 
-        db.add(
-            SprintTicket(
-                sprint_id=sprint.id,
-                ticket_id=ticket.id,
-                added_by_user_id=actor.id,
-            )
+        assignment = SprintTicket(
+            sprint_id=sprint.id,
+            ticket_id=ticket.id,
+            added_by_user_id=actor.id,
         )
+        sprint.ticket_assignments.append(assignment)
+        db.add(assignment)
         if sprint.status == "ACTIVE":
             ticket.status = "TODO"
             db.add(
