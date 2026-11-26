@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from math import ceil
 from typing import Literal
 from uuid import UUID
@@ -144,6 +144,14 @@ def get_tickets(
     ]
     | None = None,
     assignee_id: UUID | None = None,
+    reporter_id: UUID | None = None,
+    team_id: UUID | None = None,
+    due_date_from: date | None = None,
+    due_date_to: date | None = None,
+    created_date_from: date | None = None,
+    created_date_to: date | None = None,
+    label: str | None = Query(default=None, max_length=100),
+    sprint_id: UUID | None = None,
     search: str | None = Query(default=None, max_length=100),
     sort_by: Literal[
         "created_at",
@@ -167,6 +175,14 @@ def get_tickets(
         priority_filter=priority,
         type_filter=ticket_type,
         assignee_id=assignee_id,
+        reporter_id=reporter_id,
+        team_id=team_id,
+        due_date_from=due_date_from,
+        due_date_to=due_date_to,
+        created_date_from=created_date_from,
+        created_date_to=created_date_to,
+        label=label,
+        sprint_id=sprint_id,
         search=search,
         sort_by=sort_by,
         sort_order=sort_order,
