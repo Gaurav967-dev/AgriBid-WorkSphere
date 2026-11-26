@@ -29,11 +29,48 @@ export type TeamProjectDistribution = {
     project_count: number;
 };
 
+export type DashboardActivity = {
+    id: string;
+    ticket_id: string;
+    ticket_key: string;
+    ticket_title: string;
+    project_id: string;
+    project_name: string;
+    actor_name: string;
+    action: string;
+    description: string | null;
+    created_at: string;
+};
+
+export type DashboardDeadline = {
+    ticket_id: string;
+    ticket_key: string;
+    title: string;
+    project_id: string;
+    project_name: string;
+    due_date: string;
+    status: string;
+    priority: string;
+    assignee_name: string | null;
+    tester_name: string | null;
+};
+
+export type DashboardTeamWorkload = {
+    team_id: string;
+    team_name: string;
+    project_count: number;
+    open_tickets: number;
+    overdue_tickets: number;
+};
+
 export type DashboardResponse = {
     role_code: DashboardRole;
     metrics: DashboardMetric[];
     projects: DashboardProject[];
     team_project_distribution: TeamProjectDistribution[];
+    recent_activities: DashboardActivity[];
+    upcoming_deadlines: DashboardDeadline[];
+    team_workload: DashboardTeamWorkload[];
 };
 
 type ApiErrorPayload = {

@@ -32,6 +32,8 @@ from app.services.ticket_service import TicketServiceError
 
 router = APIRouter(tags=["Attachments"])
 
+MAX_PROJECT_ATTACHMENTS = 5
+
 
 def _project_for_actor(db: Session, project_id: UUID, actor: User) -> Project:
     try:
@@ -149,6 +151,28 @@ async def _create_attachments(
         raise HTTPException(
             status_code=409, detail="Attachments cannot be changed in an archived project."
         )
+
+    if ticket is None:
+        # Lock the project row so concurrent project-file uploads cannot exceed the quota.
+        db.scalar(select(Project.id).where(Project.id == project.id).with_for_update())
+        active_project_count = (
+            db.scalar(
+                select(func.count(Attachment.id)).where(
+                    Attachment.project_id == project.id,
+                    Attachment.ticket_id.is_(None),
+                    Attachment.deleted_at.is_(None),
+                )
+            )
+            or 0
+        )
+        if active_project_count + len(files) > MAX_PROJECT_ATTACHMENTS:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "A project can have no more than 5 active attachments. "
+                    f"{active_project_count} are already attached."
+                ),
+            )
 
     # Validate the complete batch before writing any bytes. This avoids partial uploads
     # when a later file in the same request fails validation.

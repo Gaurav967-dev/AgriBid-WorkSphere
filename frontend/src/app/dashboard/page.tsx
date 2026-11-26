@@ -11,13 +11,13 @@ import {
     CalendarDays,
     CheckCircle2,
     CirclePause,
+    CircleAlert,
     Clock3,
     Send,
+    Ticket as TicketIcon,
     FolderKanban,
     Layers3,
     Menu,
-    RefreshCw,
-    ShieldCheck,
     Users,
     UserRoundCheck,
     PanelLeft,
@@ -34,6 +34,9 @@ import {
     type DashboardMetric,
     type DashboardProject,
     type DashboardRole,
+    type DashboardActivity,
+    type DashboardDeadline,
+    type DashboardTeamWorkload,
 } from "@/features/dashboard/api/dashboard-api";
 import { WorkspaceActions } from "@/components/workspace-actions";
 import { WorkspaceSidebar } from "@/components/workspace-sidebar";
@@ -50,6 +53,26 @@ const METRIC_ICONS: Record<string, LucideIcon> = {
     assigned_projects: BriefcaseBusiness,
     planning_projects: CalendarDays,
     on_hold_projects: CirclePause,
+    total_tickets: TicketIcon,
+    pending_tickets: Clock3,
+    completed_tickets: CheckCircle2,
+    overdue_tickets: CircleAlert,
+    project_completion: CheckCircle2,
+    open_tickets: Clock3,
+    in_progress_tickets: Activity,
+    my_assigned_tickets: TicketIcon,
+    my_pending_tickets: Clock3,
+    tickets_awaiting_review: CalendarDays,
+    overdue_tasks: CircleAlert,
+    assigned_testing_tickets: TicketIcon,
+    testing_queue: Clock3,
+    passed_tickets: CheckCircle2,
+    failed_tickets: CircleAlert,
+    reopened_tickets: Activity,
+    bugs_reported: CircleAlert,
+    pending_testing: Clock3,
+    upcoming_testing_deadlines: CalendarDays,
+    upcoming_deadlines: CalendarDays,
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -112,6 +135,21 @@ function formatDate(value: string | null): string {
     }).format(date);
 }
 
+function formatDateTime(value: string | null): string {
+    if (!value) return "Unknown date";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Unknown date";
+
+    return new Intl.DateTimeFormat("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    }).format(date);
+}
+
 
 
 function InvitationSummaryCard({
@@ -126,15 +164,15 @@ function InvitationSummaryCard({
     icon: LucideIcon;
 }) {
     return (
-        <article className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex items-center justify-between gap-3">
+        <article className="flex min-h-[88px] flex-col justify-between rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-start justify-between gap-3">
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{title}</p>
-                <span className="flex size-8 items-center justify-center rounded-lg bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
-                    <Icon className="size-4" />
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
+                    <Icon className="size-5" />
                 </span>
             </div>
-            <p className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{value.toLocaleString("en-IN")}</p>
-            <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{detail}</p>
+            <p className="mt-0.5 text-lg font-bold tracking-tight text-slate-900 dark:text-white">{value.toLocaleString("en-IN")}</p>
+            <p className="mt-1 text-[10px] leading-4 text-slate-500 dark:text-slate-400">{detail}</p>
         </article>
     );
 }
@@ -153,23 +191,23 @@ function MetricCard({ metric }: { metric: DashboardMetric }) {
     const Icon = METRIC_ICONS[metric.key] ?? Activity;
 
     return (
-        <article className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <article className="flex min-h-[88px] flex-col justify-between rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                         {metric.title}
                     </p>
-                    <p className="mt-1 text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-                        {metric.value.toLocaleString("en-IN")}
+                    <p className="mt-0.5 text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+                        {metric.value.toLocaleString("en-IN")}{metric.key === "project_completion" ? "%" : ""}
                     </p>
                 </div>
 
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
                     <Icon className="size-5" />
                 </div>
             </div>
 
-            <p className="mt-2 text-[11px] leading-4 text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-[10px] leading-4 text-slate-500 dark:text-slate-400">
                 {metric.description}
             </p>
         </article>
@@ -306,7 +344,7 @@ function TeamDistribution({
     }
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-2">
             {items.map((item) => (
                 <div key={item.team_id}>
                     <div className="mb-2 flex items-center justify-between gap-3">
@@ -339,13 +377,201 @@ function TeamDistribution({
     );
 }
 
+
+function RecentActivityFeed({
+    items,
+    title,
+    className = "",
+}: {
+    items: DashboardActivity[];
+    title: string;
+    className?: string;
+}) {
+    const uniqueItems = Array.from(new Map(items.map((item) => [item.id, item])).values());
+
+    return (
+        <section className={`rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 ${className}`}>
+            <div className="flex items-center justify-between gap-3">
+                <div>
+                    <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                        {title}
+                    </h2>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        Latest recorded ticket events
+                    </p>
+                </div>
+                <Activity className="size-4 text-violet-600 dark:text-violet-300" />
+            </div>
+
+            {items.length === 0 ? (
+                <div className={`mt-4 rounded-lg border border-dashed border-slate-300 px-3 py-7 text-center dark:border-slate-700`}>
+                    <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                        No recent activity
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-400">
+                        Ticket activity will appear here when work is updated.
+                    </p>
+                </div>
+            ) : (
+                <div className="mt-2 max-h-[280px] divide-y divide-slate-100 overflow-y-auto pr-1 dark:divide-slate-800">
+                    {uniqueItems.map((item) => (
+                        <Link
+                            key={item.id}
+                            href={`/dashboard/tickets/${item.ticket_id}`}
+                            className={`flex items-start gap-3 py-3 transition hover:bg-slate-50 dark:hover:bg-slate-800/50`}
+                        >
+                            <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
+                                <Activity className="size-3.5" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                                <span className="block text-xs font-semibold text-slate-800 dark:text-slate-100">
+                                    {item.actor_name} · {item.action.replaceAll("_", " ").toLowerCase()}
+                                </span>
+                                <span className="mt-0.5 block truncate text-[11px] text-slate-500">
+                                    {item.description || `${item.ticket_key} · ${item.ticket_title}`}
+                                </span>
+                                <span className="mt-1 block text-[10px] text-slate-400">
+                                    {item.project_name} · {formatDateTime(item.created_at)}
+                                </span>
+                            </span>
+                            <span className="shrink-0 text-[10px] font-semibold text-violet-700 dark:text-violet-300">
+                                {item.ticket_key}
+                            </span>
+                        </Link>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+function UpcomingDeadlineList({
+    items,
+    title,
+}: {
+    items: DashboardDeadline[];
+    title: string;
+}) {
+    return (
+        <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-center justify-between gap-3">
+                <div>
+                    <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                        {title}
+                    </h2>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        Due within the next 30 days
+                    </p>
+                </div>
+                <CalendarDays className="size-4 text-violet-600 dark:text-violet-300" />
+            </div>
+
+            {items.length === 0 ? (
+                <div className="mt-4 rounded-lg border border-dashed border-slate-300 px-3 py-7 text-center dark:border-slate-700">
+                    <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                        No upcoming deadlines
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-400">
+                        Tickets with upcoming due dates will appear here.
+                    </p>
+                </div>
+            ) : (
+                <div className="mt-3 divide-y divide-slate-100 dark:divide-slate-800">
+                    {items.map((item) => (
+                        <Link
+                            key={item.ticket_id}
+                            href={`/dashboard/tickets/${item.ticket_id}`}
+                            className="flex items-center justify-between gap-3 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                        >
+                            <span className="min-w-0">
+                                <span className="block truncate text-xs font-semibold text-slate-800 dark:text-slate-100">
+                                    {item.ticket_key} · {item.title}
+                                </span>
+                                <span className="mt-0.5 block truncate text-[11px] text-slate-500">
+                                    {item.project_name} · {item.status.replaceAll("_", " ")}
+                                </span>
+                                <span className="mt-0.5 block text-[10px] text-slate-400">
+                                    {item.assignee_name || item.tester_name || "Unassigned"}
+                                </span>
+                            </span>
+                            <span className="shrink-0 text-right">
+                                <span className="block text-xs font-semibold text-slate-700 dark:text-slate-200">
+                                    {formatDate(item.due_date)}
+                                </span>
+                                <span className="text-[10px] text-slate-400">
+                                    {item.priority}
+                                </span>
+                            </span>
+                        </Link>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+function TeamWorkloadList({ items }: { items: DashboardTeamWorkload[] }) {
+    return (
+        <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-center justify-between gap-3">
+                <div>
+                    <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                        Team workload
+                    </h2>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        Open and overdue tickets across your managed teams
+                    </p>
+                </div>
+                <Users className="size-4 text-violet-600 dark:text-violet-300" />
+            </div>
+
+            {items.length === 0 ? (
+                <div className="mt-4 rounded-lg border border-dashed border-slate-300 px-3 py-7 text-center dark:border-slate-700">
+                    <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                        No team workload available
+                    </p>
+                </div>
+            ) : (
+                <div className="mt-3 divide-y divide-slate-100 dark:divide-slate-800">
+                    {items.map((item) => (
+                        <div key={item.team_id} className="flex items-center justify-between gap-3 py-3">
+                            <span className="min-w-0">
+                                <span className="block truncate text-xs font-semibold text-slate-800 dark:text-slate-100">
+                                    {item.team_name}
+                                </span>
+                                <span className="mt-0.5 block text-[11px] text-slate-500">
+                                    {item.project_count} {item.project_count === 1 ? "project" : "projects"}
+                                </span>
+                            </span>
+                            <span className="flex shrink-0 items-center gap-3 text-right">
+                                <span>
+                                    <span className="block text-sm font-semibold tabular-nums text-slate-800 dark:text-slate-100">
+                                        {item.open_tickets}
+                                    </span>
+                                    <span className="block text-[10px] text-slate-400">Open</span>
+                                </span>
+                                <span>
+                                    <span className="block text-sm font-semibold tabular-nums text-rose-600 dark:text-rose-300">
+                                        {item.overdue_tickets}
+                                    </span>
+                                    <span className="block text-[10px] text-slate-400">Overdue</span>
+                                </span>
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
 function DashboardSkeleton() {
     return (
         <div className="space-y-6" role="status" aria-label="Loading dashboard">
             <div className="h-20 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {Array.from({ length: 6 }).map((_, index) => (
+                {Array.from({ length: 10 }).map((_, index) => (
                     <div
                         key={index}
                         className="h-36 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800"
@@ -493,26 +719,14 @@ export default function DashboardPage() {
                                     {roleContent.title}
                                 </h1>
 
-                                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                                <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
                                     {roleContent.description}
                                 </p>
 
-                                <p className="mt-2 text-xs font-medium text-slate-700 dark:text-slate-200">
+                                <p className="mt-1 text-xs font-medium text-slate-700 dark:text-slate-200">
                                     Welcome, {user.full_name || user.email}
                                 </p>
                             </div>
-
-                            <button
-                                type="button"
-                                onClick={() => dashboardQuery.refetch()}
-                                disabled={dashboardQuery.isFetching}
-                                className="inline-flex h-9 items-center justify-center gap-2 self-start rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 sm:self-center"
-                            >
-                                <RefreshCw
-                                    className={`size-3.5 ${dashboardQuery.isFetching ? "animate-spin" : ""}`}
-                                />
-                                Refresh
-                            </button>
                         </div>
 
                         {dashboardQuery.isLoading ? (
@@ -539,37 +753,36 @@ export default function DashboardPage() {
                             </div>
                         ) : dashboard ? (
                             <>
-                                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                <div className="mt-2 grid gap-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
                                     {metrics.map((metric) => (
                                         <MetricCard key={metric.key} metric={metric} />
                                     ))}
+                                    {isAdmin && (
+                                        <>
+                                            <InvitationSummaryCard
+                                                title="Total invitations"
+                                                value={invitationSummaryQuery.data?.total ?? 0}
+                                                detail="All invitations recorded"
+                                                icon={Send}
+                                            />
+                                            <InvitationSummaryCard
+                                                title="Pending invitations"
+                                                value={pendingInvitations}
+                                                detail="Awaiting employee acceptance"
+                                                icon={Clock3}
+                                            />
+                                            <InvitationSummaryCard
+                                                title="Accepted invitations"
+                                                value={acceptedInvitations}
+                                                detail="Accounts created from invitations"
+                                                icon={CheckCircle2}
+                                            />
+                                        </>
+                                    )}
                                 </div>
 
-                                {isAdmin && (
-                                    <section className="mt-2 grid gap-2 sm:grid-cols-3">
-                                        <InvitationSummaryCard
-                                            title="Total invitations"
-                                            value={invitationSummaryQuery.data?.total ?? 0}
-                                            detail="All invitations recorded"
-                                            icon={Send}
-                                        />
-                                        <InvitationSummaryCard
-                                            title="Pending invitations"
-                                            value={pendingInvitations}
-                                            detail="Awaiting employee acceptance"
-                                            icon={Clock3}
-                                        />
-                                        <InvitationSummaryCard
-                                            title="Accepted invitations"
-                                            value={acceptedInvitations}
-                                            detail="Accounts created from invitations"
-                                            icon={CheckCircle2}
-                                        />
-                                    </section>
-                                )}
-
                                 <div
-                                    className={`mt-4 grid gap-4 ${isAdmin ? "xl:grid-cols-[1.5fr_1fr]" : "grid-cols-1"}`}
+                                    className={`mt-2 grid gap-3 ${isAdmin ? "xl:grid-cols-[1.5fr_1fr]" : "grid-cols-1"}`}
                                 >
                                     <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                                         <div className="flex items-center justify-between gap-3">
@@ -595,7 +808,7 @@ export default function DashboardPage() {
 
                                         {projects.length > 0 ? (
                                             isAdmin ? (
-                                                <div className="mt-5 divide-y divide-slate-100 dark:divide-slate-800">
+                                                <div className="mt-3 divide-y divide-slate-100 dark:divide-slate-800">
                                                     {projects.map((project) => (
                                                         <ProjectUpdateRow
                                                             key={project.id}
@@ -604,7 +817,7 @@ export default function DashboardPage() {
                                                     ))}
                                                 </div>
                                             ) : (
-                                                <div className="mt-5 grid gap-3 md:grid-cols-2">
+                                                <div className="mt-3 grid gap-2 md:grid-cols-2">
                                                     {projects.map((project) => (
                                                         <ProjectCard
                                                             key={project.id}
@@ -637,7 +850,7 @@ export default function DashboardPage() {
                                                 </p>
                                             </div>
 
-                                            <div className="mt-4">
+                                            <div className="mt-3">
                                                 <TeamDistribution
                                                     items={
                                                         dashboard.team_project_distribution
@@ -648,16 +861,23 @@ export default function DashboardPage() {
                                     )}
                                 </div>
 
-                                <div className="mt-4 flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-                                    <ShieldCheck className="mt-0.5 size-4 shrink-0 text-violet-600 dark:text-violet-300" />
-                                    <div>
-                                        <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                                            Role-based workspace
-                                        </p>
-                                        <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                                            Dashboard information is limited to the projects and records your account is authorized to access.
-                                        </p>
-                                    </div>
+                                <div className={`mt-2 grid gap-3 ${isAdmin ? "md:grid-cols-2" : "xl:grid-cols-2"}`}>
+                                    <RecentActivityFeed
+                                        items={dashboard.recent_activities ?? []}
+                                        title={isAdmin ? "Recent system activity" : "Recent activity"}
+                                        className={isAdmin ? "md:col-span-2" : ""}
+                                    />
+
+                                    {role === "PM" && (
+                                        <TeamWorkloadList items={dashboard.team_workload ?? []} />
+                                    )}
+
+                                    {(role === "PM" || role === "DEVELOPER" || role === "TESTER") && (
+                                        <UpcomingDeadlineList
+                                            items={dashboard.upcoming_deadlines ?? []}
+                                            title={role === "TESTER" ? "Upcoming testing deadlines" : "Upcoming deadlines"}
+                                        />
+                                    )}
                                 </div>
                             </>
                         ) : null}

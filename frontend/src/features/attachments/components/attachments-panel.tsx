@@ -17,6 +17,8 @@ type Props = { projectId: string; ticketId?: string };
 type Preview = { url: string; name: string; mimeType: string };
 
 const ACCEPTED = ".jpg,.jpeg,.png,.webp,.pdf,.xls,.xlsx,.csv,.doc,.docx";
+const MAX_ATTACHMENTS = 5;
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
 function formatSize(bytes: number) {
     if (bytes < 1024) return `${bytes} B`;
@@ -64,6 +66,7 @@ export function AttachmentsPanel({ projectId, ticketId }: Props) {
             setMessage("Files uploaded successfully.");
             if (inputRef.current) inputRef.current.value = "";
             await queryClient.invalidateQueries({ queryKey });
+            if (ticketId) await queryClient.invalidateQueries({ queryKey: ["ticket-kanban-card-counts", ticketId] });
         },
         onError: (error: Error) => setMessage(error.message),
     });
@@ -74,6 +77,7 @@ export function AttachmentsPanel({ projectId, ticketId }: Props) {
         onSuccess: async () => {
             setMessage("Attachment deleted.");
             await queryClient.invalidateQueries({ queryKey });
+            if (ticketId) await queryClient.invalidateQueries({ queryKey: ["ticket-kanban-card-counts", ticketId] });
         },
         onError: (error: Error) => setMessage(error.message),
     });
@@ -117,6 +121,7 @@ export function AttachmentsPanel({ projectId, ticketId }: Props) {
                 <div className="flex items-center gap-2 text-xs text-slate-500">
                     <Paperclip className="size-4" />
                     <span>{items.length} {items.length === 1 ? "file" : "files"}</span>
+                    <span>{items.length}/{MAX_ATTACHMENTS} {ticketId ? "per ticket" : "per project"}</span>
                     {ticketId && <span>· Maximum 5 per ticket</span>}
                     <span>· Maximum 5 MB each</span>
                 </div>
@@ -128,24 +133,47 @@ export function AttachmentsPanel({ projectId, ticketId }: Props) {
                         accept={ACCEPTED}
                         className="hidden"
                         onChange={(event) => {
-                            const selected = Array.from(event.target.files ?? []);
-                            if (selected.length) {
-                                setMessage(null);
-                                uploadMutation.mutate(selected);
+                            const input = event.currentTarget;
+                            const selected = Array.from(input.files ?? []);
+                            input.value = "";
+                            if (!selected.length) return;
+
+                            const oversized = selected.find((file) => file.size > MAX_FILE_SIZE_BYTES);
+                            if (oversized) {
+                                setMessage(`${oversized.name} exceeds the 5 MB per-file limit.`);
+                                return;
                             }
+
+                            const remainingSlots = Math.max(0, MAX_ATTACHMENTS - items.length);
+                            if (selected.length > remainingSlots) {
+                                setMessage(
+                                    `You can attach at most 5 files ${ticketId ? "per ticket" : "per project"}. ` +
+                                    `${remainingSlots} upload slot(s) remain.`,
+                                );
+                                return;
+                            }
+
+                            setMessage(null);
+                            uploadMutation.mutate(selected);
                         }}
                     />
                     <button
                         type="button"
                         onClick={() => inputRef.current?.click()}
-                        disabled={uploadMutation.isPending}
+                        disabled={uploadMutation.isPending || attachmentsQuery.isFetching || !attachmentsQuery.data || items.length >= MAX_ATTACHMENTS}
                         className="inline-flex items-center gap-2 rounded-lg bg-violet-700 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-800 disabled:opacity-50"
                     >
                         {uploadMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
-                        {uploadMutation.isPending ? "Uploading..." : "Upload files"}
+                        {uploadMutation.isPending ? "Uploading..." : items.length >= MAX_ATTACHMENTS ? "Limit reached" : "Upload files"}
                     </button>
                 </div>
             </div>
+
+            {items.length > MAX_ATTACHMENTS && (
+                <p className="rounded-md bg-amber-50 px-2.5 py-2 text-[11px] text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                    This {ticketId ? "ticket" : "project"} has {items.length} active files. Delete {items.length - MAX_ATTACHMENTS} file(s) to return to the 5-file limit.
+                </p>
+            )}
 
             <p className="text-[11px] text-slate-400">
                 JPG, JPEG, PNG, WEBP, PDF, XLS, XLSX, CSV, DOC and DOCX.
@@ -170,7 +198,7 @@ export function AttachmentsPanel({ projectId, ticketId }: Props) {
                     No files attached yet.
                 </div>
             ) : (
-                <div className="divide-y divide-slate-100 rounded-lg border border-slate-200 dark:divide-slate-800 dark:border-slate-700">
+                <div className={`divide-y divide-slate-100 rounded-lg border border-slate-200 dark:divide-slate-800 dark:border-slate-700 ${ticketId ? "" : "max-h-48 overflow-y-auto"}`}>
                     {items.map((item) => (
                         <AttachmentRow
                             key={item.id}
@@ -216,8 +244,8 @@ function AttachmentRow({
 }) {
     const canPreview = item.mime_type.startsWith("image/") || item.mime_type === "application/pdf";
     return (
-        <div className="flex min-w-0 items-center gap-2.5 px-3 py-2.5">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+        <div className="flex min-w-0 items-center gap-2 px-2.5 py-2">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300">
                 <FileIcon mimeType={item.mime_type} />
             </div>
             <div className="min-w-0 flex-1">

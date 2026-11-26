@@ -27,7 +27,9 @@ from app.schemas.project import (
     ProjectUpdateRequest,
     ProjectUserSummaryResponse,
 )
+from app.schemas.project_overview import ProjectOverviewResponse
 from app.services import project_service
+from app.services.project_overview_service import get_project_overview
 from app.services.project_service import ProjectServiceError
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
@@ -221,6 +223,23 @@ def get_project_form_options(
         project_managers=[_user_summary(manager) for manager in managers],
         team_members=[_user_summary(member) for member in members],
     )
+
+
+@router.get("/{project_id}/overview", response_model=ProjectOverviewResponse)
+@limiter.limit("60/minute")
+def get_project_overview_data(
+    request: Request,
+    project_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ProjectOverviewResponse:
+    try:
+        project = project_service.get_project(db, project_id)
+    except ProjectServiceError as error:
+        _raise_service_error(error)
+
+    _ensure_project_access(project, current_user)
+    return ProjectOverviewResponse(**get_project_overview(db, project))
 
 
 @router.get("/{project_id}", response_model=ProjectDetailsResponse)

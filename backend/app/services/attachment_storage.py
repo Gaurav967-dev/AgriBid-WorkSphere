@@ -24,6 +24,7 @@ ALLOWED_TYPES: dict[str, str] = {
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 }
 OLE_SIGNATURE = bytes.fromhex("D0CF11E0A1B11AE1")
+MAX_ATTACHMENT_SIZE_BYTES = 5 * 1024 * 1024
 
 
 def private_storage_root() -> Path:
@@ -166,7 +167,8 @@ async def read_and_validate_upload(upload: UploadFile) -> tuple[str, bytes, str]
     extension = Path(filename).suffix.lower()
     if extension not in ALLOWED_TYPES:
         raise HTTPException(status_code=400, detail="This file type is not supported.")
-    limit = get_settings().max_upload_size_bytes
+    configured_limit = get_settings().max_upload_size_bytes
+    limit = min(configured_limit, MAX_ATTACHMENT_SIZE_BYTES)
     data = await upload.read(limit + 1)
     if not data:
         raise HTTPException(status_code=400, detail="Empty files cannot be uploaded.")

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date, timedelta
 from uuid import UUID
 
 import pytest
@@ -745,3 +746,274 @@ def test_project_attachment_is_private_to_project_members(
     sign_in_as(client, "OUTSIDER")
     denied = client.get(f"/api/v1/projects/{ids['project']}/attachments/{attachment_id}/download")
     assert denied.status_code == 404
+
+
+def dashboard_metric_map(payload: dict) -> dict[str, int | float]:
+    return {item["key"]: item["value"] for item in payload["metrics"]}
+
+
+def test_admin_dashboard_includes_ticket_kpis_and_recent_activity(ticket_environment):
+    client, session_factory, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+
+    pending_ticket = create_ticket(client, ids)
+    completed_ticket = create_ticket(client, ids)
+    reopened_ticket = create_ticket(client, ids)
+
+    assert change_status(client, completed_ticket["id"], "COMPLETED").status_code == 200
+    assert (
+        change_status(
+            client,
+            reopened_ticket["id"],
+            "REOPENED",
+            "Failed during testing",
+        ).status_code
+        == 200
+    )
+
+    with session_factory() as session:
+        overdue_ticket = session.scalar(
+            select(Ticket).where(Ticket.id == UUID(pending_ticket["id"]))
+        )
+        overdue_ticket.due_date = date.today() - timedelta(days=1)
+        session.commit()
+
+    response = client.get("/api/v1/dashboard")
+    assert response.status_code == 200, response.text
+
+    payload = response.json()
+    metrics = dashboard_metric_map(payload)
+    assert metrics["total_tickets"] == 3
+    assert metrics["pending_tickets"] == 2
+    assert metrics["completed_tickets"] == 1
+    assert metrics["overdue_tickets"] == 1
+    assert payload["recent_activities"]
+    assert payload["team_project_distribution"]
+
+
+def test_pm_dashboard_includes_project_completion_and_team_workload(ticket_environment):
+    client, _session_factory, ids = ticket_environment
+    sign_in_as(client, "PM")
+    ticket = create_ticket(client, ids)
+
+    response = client.get("/api/v1/dashboard")
+    assert response.status_code == 200, response.text
+
+    payload = response.json()
+    metrics = dashboard_metric_map(payload)
+    assert metrics["assigned_projects"] == 1
+    assert metrics["total_tickets"] == 1
+    assert metrics["open_tickets"] == 1
+    assert metrics["completed_tickets"] == 0
+    assert metrics["project_completion"] == 0.0
+    assert len(payload["team_workload"]) == 1
+    assert payload["team_workload"][0]["project_count"] == 1
+    assert payload["team_workload"][0]["open_tickets"] == 1
+    assert payload["recent_activities"]
+    assert ticket["ticket_key"] in {
+        item["ticket_key"] for item in payload["recent_activities"]
+    }
+
+
+def test_developer_dashboard_is_limited_to_assigned_tickets_and_deadlines(
+    ticket_environment,
+):
+    client, session_factory, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+    ticket = create_ticket(client, ids)
+
+    with session_factory() as session:
+        assigned_ticket = session.scalar(
+            select(Ticket).where(Ticket.id == UUID(ticket["id"]))
+        )
+        assigned_ticket.due_date = date.today() + timedelta(days=5)
+        session.commit()
+
+    sign_in_as(client, "DEVELOPER")
+    response = client.get("/api/v1/dashboard")
+    assert response.status_code == 200, response.text
+
+    payload = response.json()
+    metrics = dashboard_metric_map(payload)
+    assert metrics["my_assigned_tickets"] == 1
+    assert metrics["my_pending_tickets"] == 1
+    assert metrics["in_progress_tickets"] == 0
+    assert metrics["tickets_awaiting_review"] == 0
+    assert metrics["completed_tickets"] == 0
+    assert metrics["upcoming_deadlines"] == 1
+    assert metrics["overdue_tasks"] == 0
+    assert len(payload["upcoming_deadlines"]) == 1
+    assert payload["upcoming_deadlines"][0]["ticket_id"] == ticket["id"]
+
+
+def test_tester_failed_kpi_uses_only_current_reopened_non_deleted_tickets(
+    ticket_environment,
+):
+    client, _session_factory, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+
+    currently_reopened = create_ticket(client, ids)
+    reopened_then_in_progress = create_ticket(client, ids)
+    testing_done = create_ticket(client, ids)
+    bug_fixed = create_ticket(client, ids)
+    deleted_reopened = create_ticket(client, ids)
+
+    for ticket in (currently_reopened, reopened_then_in_progress, deleted_reopened):
+        transition = change_status(
+            client,
+            ticket["id"],
+            "REOPENED",
+            "Testing failed and returned to development",
+        )
+        assert transition.status_code == 200, transition.text
+
+    # A ticket that was reopened but has since returned to development is not
+    # currently failed, even though its status history contains REOPENED.
+    sign_in_as(client, "DEVELOPER")
+    transition = change_status(
+        client,
+        reopened_then_in_progress["id"],
+        "IN_PROGRESS",
+    )
+    assert transition.status_code == 200, transition.text
+
+    sign_in_as(client, "PM")
+    for ticket in (testing_done, bug_fixed):
+        transition = change_status(client, ticket["id"], "TESTING")
+        assert transition.status_code == 200, transition.text
+
+    sign_in_as(client, "TESTER")
+    transition = change_status(client, testing_done["id"], "TESTING_DONE")
+    assert transition.status_code == 200, transition.text
+    transition = change_status(client, bug_fixed["id"], "BUG_FIXED")
+    assert transition.status_code == 200, transition.text
+
+    # Soft-deleted tickets must not contribute to either current-state KPIs
+    # or the distinct reopened-history KPI.
+    sign_in_as(client, "ADMIN")
+    deleted_response = client.delete(f"/api/v1/tickets/{deleted_reopened['id']}")
+    assert deleted_response.status_code == 200, deleted_response.text
+
+    sign_in_as(client, "TESTER")
+    response = client.get("/api/v1/dashboard")
+    assert response.status_code == 200, response.text
+
+    metrics = dashboard_metric_map(response.json())
+    assert metrics["failed_tickets"] == 1
+    assert metrics["reopened_tickets"] == 2
+    assert metrics["passed_tickets"] == 1
+    assert metrics["assigned_testing_tickets"] == 4
+
+
+def test_project_overview_returns_full_ticket_distribution_activity_and_deadlines(
+    ticket_environment,
+):
+    client, session_factory, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+
+    completed_ticket = create_ticket(client, ids)
+    upcoming_ticket = create_ticket(client, ids)
+    deleted_ticket = create_ticket(client, ids)
+    assert change_status(client, completed_ticket["id"], "COMPLETED").status_code == 200
+    deleted_response = client.delete(f"/api/v1/tickets/{deleted_ticket['id']}")
+    assert deleted_response.status_code == 200, deleted_response.text
+
+    with session_factory() as session:
+        ticket = session.scalar(
+            select(Ticket).where(Ticket.id == UUID(upcoming_ticket["id"]))
+        )
+        ticket.due_date = date.today() + timedelta(days=5)
+        session.commit()
+
+    sign_in_as(client, "DEVELOPER")
+    response = client.get(f"/api/v1/projects/{ids['project']}/overview")
+    assert response.status_code == 200, response.text
+
+    payload = response.json()
+    assert payload["total_tickets"] == 2
+    assert payload["completed_tickets"] == 1
+    assert payload["completion_percentage"] == 50.0
+    assert len(payload["ticket_distribution"]) == 11
+    assert sum(item["count"] for item in payload["ticket_distribution"]) == 2
+    assert len(payload["team_members"]) == 2
+    assert payload["recent_activities"]
+    assert len(payload["upcoming_deadlines"]) == 1
+    assert payload["upcoming_deadlines"][0]["ticket_id"] == upcoming_ticket["id"]
+
+
+def test_outsider_cannot_read_project_overview(ticket_environment):
+    client, _session_factory, ids = ticket_environment
+    sign_in_as(client, "OUTSIDER")
+
+    response = client.get(f"/api/v1/projects/{ids['project']}/overview")
+    assert response.status_code == 404
+
+
+def test_project_attachment_limit_is_five_active_files(ticket_environment, monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(
+        "app.services.attachment_storage.get_settings",
+        lambda: SimpleNamespace(
+            upload_dir=str(tmp_path / "private-files"),
+            max_upload_size_bytes=5 * 1024 * 1024,
+        ),
+    )
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+    png_bytes = b"\x89PNG\r\n\x1a\nproject-file"
+
+    five_files = [
+        ("files", (f"project-{index}.png", png_bytes, "image/png"))
+        for index in range(5)
+    ]
+    uploaded = client.post(
+        f"/api/v1/projects/{ids['project']}/attachments",
+        files=five_files,
+    )
+    assert uploaded.status_code == 201, uploaded.text
+    assert len(uploaded.json()["items"]) == 5
+
+    sixth = client.post(
+        f"/api/v1/projects/{ids['project']}/attachments",
+        files=[("files", ("sixth.png", png_bytes, "image/png"))],
+    )
+    assert sixth.status_code == 409
+    assert "no more than 5 active attachments" in sixth.json()["detail"]
+
+    attachment_id = uploaded.json()["items"][0]["id"]
+    deleted = client.delete(
+        f"/api/v1/projects/{ids['project']}/attachments/{attachment_id}"
+    )
+    assert deleted.status_code == 200
+
+    replacement = client.post(
+        f"/api/v1/projects/{ids['project']}/attachments",
+        files=[("files", ("replacement.png", png_bytes, "image/png"))],
+    )
+    assert replacement.status_code == 201, replacement.text
+    assert len(replacement.json()["items"]) == 5
+
+
+def test_project_attachment_hard_limit_is_five_mb(
+    ticket_environment, monkeypatch, tmp_path
+):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(
+        "app.services.attachment_storage.get_settings",
+        lambda: SimpleNamespace(
+            upload_dir=str(tmp_path / "private-files"),
+            max_upload_size_bytes=10 * 1024 * 1024,
+        ),
+    )
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+    oversized_png = b"\x89PNG\r\n\x1a\n" + b"x" * (5 * 1024 * 1024 - 7)
+
+    response = client.post(
+        f"/api/v1/projects/{ids['project']}/attachments",
+        files=[("files", ("over-five-mb.png", oversized_png, "image/png"))],
+    )
+    assert response.status_code == 413
+    assert response.json()["detail"] == "Each attachment must be 5 MB or smaller."

@@ -92,6 +92,59 @@ export type UpdateProjectInput = {
     visibility?: string;
 };
 
+
+export type ProjectTicketDistribution = {
+    status: string;
+    count: number;
+};
+
+export type ProjectOverviewMember = {
+    user_id: string;
+    full_name: string;
+    email: string;
+    role_code: string;
+    joined_at: string;
+};
+
+export type ProjectOverviewActivity = {
+    id: string;
+    ticket_id: string;
+    ticket_key: string;
+    ticket_title: string;
+    project_id: string;
+    project_name: string;
+    actor_name: string;
+    action: string;
+    description: string | null;
+    created_at: string;
+};
+
+export type ProjectOverviewDeadline = {
+    ticket_id: string;
+    ticket_key: string;
+    title: string;
+    project_id: string;
+    project_name: string;
+    due_date: string;
+    status: string;
+    priority: string;
+    assignee_name: string | null;
+    tester_name: string | null;
+};
+
+export type ProjectOverview = {
+    project_id: string;
+    project_name: string;
+    project_key: string;
+    total_tickets: number;
+    completed_tickets: number;
+    completion_percentage: number;
+    ticket_distribution: ProjectTicketDistribution[];
+    team_members: ProjectOverviewMember[];
+    recent_activities: ProjectOverviewActivity[];
+    upcoming_deadlines: ProjectOverviewDeadline[];
+};
+
 type ApiErrorPayload = {
     detail?: unknown;
     message?: unknown;
@@ -179,6 +232,16 @@ export async function getProject(
         `/projects/${encodeURIComponent(projectId)}`,
         { method: "GET" },
         "Unable to load project details.",
+    );
+}
+
+export async function getProjectOverview(
+    projectId: string,
+): Promise<ProjectOverview> {
+    return apiRequest<ProjectOverview>(
+        `/projects/${encodeURIComponent(projectId)}/overview`,
+        { method: "GET" },
+        "Unable to load project overview.",
     );
 }
 

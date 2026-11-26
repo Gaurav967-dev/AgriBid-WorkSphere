@@ -9,7 +9,6 @@ import {
     AlertCircle,
     ArrowLeft,
     CalendarDays,
-    CheckCircle2,
     FileText,
     Menu,
     PanelLeft,
@@ -460,19 +459,6 @@ export default function CreateTicketPage() {
                             </p>
                         </div>
 
-                        <div className="mt-3 flex items-start gap-2 rounded-lg border border-sky-200 bg-sky-50 p-3 dark:border-sky-900 dark:bg-sky-950/30">
-                            <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-sky-600 dark:text-sky-400" />
-                            <div className="text-xs leading-5 text-sky-800 dark:text-sky-200">
-                                <p className="font-semibold">
-                                    Ticket defaults
-                                </p>
-                                <p className="mt-1">
-                                    The ticket ID will be generated automatically.
-                                    The reporter will be your account, and the
-                                    initial status will be Backlog.
-                                </p>
-                            </div>
-                        </div>
 
                         {projectsQuery.isError && (
                             <div className="mt-5 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200">

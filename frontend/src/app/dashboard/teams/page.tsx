@@ -597,7 +597,7 @@ export default function TeamsPage() {
                                     </span>
                                 </div>
 
-<WorkspaceActions
+                                <WorkspaceActions
                                     user={user}
                                     lastUpdated={relativeUpdate(latestTeamUpdate)}
                                     onSignOut={handleSignOut}

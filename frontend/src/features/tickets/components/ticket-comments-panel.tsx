@@ -441,6 +441,7 @@ export function TicketCommentsPanel({
         await Promise.all([
             queryClient.invalidateQueries({ queryKey: ["ticket-comments", ticketId] }),
             queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] }),
+            queryClient.invalidateQueries({ queryKey: ["ticket-kanban-card-counts", ticketId] }),
         ]);
     }
 

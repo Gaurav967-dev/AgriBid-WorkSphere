@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -13,11 +13,8 @@ import {
     FolderKanban,
     Menu,
     Plus,
-    RefreshCw,
-    Search,
     Users,
     PanelLeft,
-    X,
 } from "lucide-react";
 
 import {
@@ -31,20 +28,13 @@ import {
     type ProjectListStatus,
     type ProjectStatus,
 } from "@/features/projects/api/projects-api";
+import { ProjectsToolbar, type ProjectSort } from "@/features/projects/components/projects-toolbar";
 import { WorkspaceActions } from "@/components/workspace-actions";
 import { WorkspaceSidebar } from "@/components/workspace-sidebar";
 import { useWorkspaceSidebarState } from "@/components/workspace-sidebar-state";
 
 const PAGE_SIZE = 9;
 
-const STATUS_OPTIONS: { label: string; value: ProjectListStatus }[] = [
-    { label: "All projects", value: "ALL" },
-    { label: "Planning", value: "PLANNING" },
-    { label: "Active", value: "ACTIVE" },
-    { label: "On hold", value: "ON_HOLD" },
-    { label: "Completed", value: "COMPLETED" },
-    { label: "Archived", value: "ARCHIVED" },
-];
 
 const STATUS_STYLES: Record<ProjectStatus, string> = {
     PLANNING: "border-sky-200 bg-sky-50 text-sky-700",
@@ -166,6 +156,7 @@ export default function ProjectsPage() {
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState("");
     const [status, setStatus] = useState<ProjectListStatus>("ALL");
+    const [sort, setSort] = useState<ProjectSort>("updated-desc");
     const { collapsed, toggleCollapsed } = useWorkspaceSidebarState();
 
     useEffect(() => {
@@ -225,6 +216,40 @@ export default function ProjectsPage() {
         setPage(1);
     }
 
+    const projects = useMemo(
+        () => projectsQuery.data?.items ?? [],
+        [projectsQuery.data?.items],
+    );
+    const displayedProjects = useMemo(() => {
+        const items = [...projects];
+        const timestamp = (value: string | null) =>
+            value ? new Date(value).getTime() : Number.NEGATIVE_INFINITY;
+
+        items.sort((a, b) => {
+            switch (sort) {
+                case "updated-asc":
+                    return timestamp(a.updated_at) - timestamp(b.updated_at);
+                case "created-desc":
+                    return timestamp(b.created_at) - timestamp(a.created_at);
+                case "created-asc":
+                    return timestamp(a.created_at) - timestamp(b.created_at);
+                case "name-asc":
+                    return a.name.localeCompare(b.name);
+                case "name-desc":
+                    return b.name.localeCompare(a.name);
+                case "start-asc":
+                    return timestamp(a.start_date) - timestamp(b.start_date);
+                case "start-desc":
+                    return timestamp(b.start_date) - timestamp(a.start_date);
+                case "updated-desc":
+                default:
+                    return timestamp(b.updated_at) - timestamp(a.updated_at);
+            }
+        });
+
+        return items;
+    }, [projects, sort]);
+
     if (isCheckingAuth || !user) {
         return (
             <main className="workspace-shell flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
@@ -239,7 +264,6 @@ export default function ProjectsPage() {
         );
     }
 
-    const projects = projectsQuery.data?.items ?? [];
     const totalProjects = projectsQuery.data?.total ?? 0;
     const totalPages = Math.max(1, projectsQuery.data?.total_pages ?? 1);
 
@@ -308,75 +332,19 @@ export default function ProjectsPage() {
                             )}
                         </div>
 
-                        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                                <FolderKanban className="size-4 text-violet-600" />
-                                <span>
-                                    <strong className="font-semibold text-slate-900 dark:text-white">
-                                        {totalProjects}
-                                    </strong>{" "}
-                                    {totalProjects === 1 ? "project" : "projects"}
-                                </span>
-                            </div>
+                        <div className="-mt-3">
+                            <ProjectsToolbar
+                                totalProjects={totalProjects}
+                                search={search}
+                                onSearchChange={handleSearchChange}
+                                status={status}
+                                onStatusChange={handleStatusChange}
+                                sort={sort}
+                                onSortChange={setSort}
+                            />
 
-                            <div className="flex flex-col gap-2 sm:flex-row">
-                                <div className="relative">
-                                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                                    <input
-                                        type="search"
-                                        value={search}
-                                        onChange={(event) =>
-                                            handleSearchChange(event.target.value)
-                                        }
-                                        placeholder="Search projects..."
-                                        aria-label="Search projects"
-                                        className="h-9 w-full rounded-md border border-slate-200 bg-white pl-9 pr-9 text-sm outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100 sm:w-60 dark:border-slate-700 dark:bg-slate-950 dark:focus:ring-violet-950"
-                                    />
-                                    {search && (
-                                        <button
-                                            type="button"
-                                            onClick={() => handleSearchChange("")}
-                                            aria-label="Clear search"
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                        >
-                                            <X className="size-3.5" />
-                                        </button>
-                                    )}
-                                </div>
 
-                                <select
-                                    value={status}
-                                    onChange={(event) =>
-                                        handleStatusChange(
-                                            event.target.value as ProjectListStatus,
-                                        )
-                                    }
-                                    aria-label="Filter projects by status"
-                                    className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:ring-violet-950"
-                                >
-                                    {STATUS_OPTIONS.map((option) => (
-                                        <option key={option.value} value={option.value}>
-                                            {option.label}
-                                        </option>
-                                    ))}
-                                </select>
-
-                                <button
-                                    type="button"
-                                    onClick={() => projectsQuery.refetch()}
-                                    disabled={projectsQuery.isFetching}
-                                    aria-label="Refresh projects"
-                                    className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-slate-200 px-3 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                                >
-                                    <RefreshCw
-                                        className={`size-3.5 ${projectsQuery.isFetching ? "animate-spin" : ""}`}
-                                    />
-                                    <span className="sm:hidden">Refresh</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        {projectsQuery.isError && (
+                        </div>{projectsQuery.isError && (
                             <div className="mt-4 flex items-start gap-3 rounded-lg border border-rose-200 bg-rose-50 p-4 text-rose-800 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200">
                                 <AlertCircle className="mt-0.5 size-5 shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -441,7 +409,7 @@ export default function ProjectsPage() {
                         ) : (
                             <>
                                 <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                                    {projects.map((project) => (
+                                    {displayedProjects.map((project) => (
                                         <ProjectCard
                                             key={project.id}
                                             project={project}
