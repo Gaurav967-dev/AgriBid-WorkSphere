@@ -13,7 +13,16 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from app.api.v1.dependencies.auth import get_current_user
 from app.core.database import get_db
 from app.core.rate_limit import limiter
-from app.models import Project, ProjectMember, Sprint, Team, Ticket, TicketActivity, TicketComment, User
+from app.models import (
+    Project,
+    ProjectMember,
+    Sprint,
+    Team,
+    Ticket,
+    TicketActivity,
+    TicketComment,
+    User,
+)
 from app.schemas.ticket import (
     TicketActivityResponse,
     TicketCommentCreateRequest,
@@ -23,11 +32,11 @@ from app.schemas.ticket import (
     TicketCreateRequest,
     TicketDeleteResponse,
     TicketDetailsResponse,
-    TicketListResponse,
     TicketFilterOptionsResponse,
-    TicketFilterUserOption,
-    TicketFilterTeamOption,
     TicketFilterSprintOption,
+    TicketFilterTeamOption,
+    TicketFilterUserOption,
+    TicketListResponse,
     TicketProjectSummaryResponse,
     TicketResponse,
     TicketStatusUpdateRequest,
