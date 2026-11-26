@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import String, cast, func, or_, select
+from sqlalchemy import String, case, cast, func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models import (
@@ -473,17 +473,26 @@ def list_tickets(
         or 0
     )
 
+    priority_order = case(
+        (Ticket.priority == "LOW", 1),
+        (Ticket.priority == "MEDIUM", 2),
+        (Ticket.priority == "HIGH", 3),
+        (Ticket.priority == "CRITICAL", 4),
+        else_=0,
+    )
     sort_columns = {
         "created_at": Ticket.created_at,
         "updated_at": Ticket.updated_at,
         "due_date": Ticket.due_date,
-        "priority": Ticket.priority,
+        "priority": priority_order,
         "title": Ticket.title,
         "number": Ticket.number,
     }
 
     sort_column = sort_columns.get(sort_by, Ticket.updated_at)
     ordering = sort_column.asc() if sort_order == "asc" else sort_column.desc()
+    if sort_by == "due_date":
+        ordering = ordering.nullslast()
 
     tickets = list(
         db.scalars(
