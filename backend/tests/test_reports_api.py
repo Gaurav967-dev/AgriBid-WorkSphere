@@ -414,6 +414,17 @@ def test_report_csv_export_is_authorized_and_contains_report_data(
     assert "Total tickets" in response.text
     assert "Completed tickets" in response.text
 
+    for report_type, report_id in (
+        ("team", ids["team"]),
+        ("sprint", ids["sprint"]),
+    ):
+        exported = client.get(
+            f"/api/v1/reports/{report_type}/{report_id}/export.csv"
+        )
+        assert exported.status_code == 200, exported.text
+        assert exported.headers["content-type"].startswith("text/csv")
+        assert "section,name,value,details" in exported.text
+
     sign_in_as(client, "OUTSIDER")
     denied = client.get(
         f"/api/v1/reports/project/{ids['project']}/export.csv"
