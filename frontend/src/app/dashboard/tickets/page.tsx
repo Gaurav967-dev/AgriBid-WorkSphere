@@ -476,40 +476,6 @@ export default function TicketsPage() {
     }, [filterOpen, sortOpen, calendarPickerOpen, importExportOpen]);
 
     useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const initialView = params.get("view");
-        if (initialView === "board" || initialView === "list" || initialView === "calendar" || initialView === "backlog") {
-            setView(initialView);
-        }
-        setSearch((params.get("q") ?? "").slice(0, 100));
-        setPage(Math.max(1, Number.parseInt(params.get("page") ?? "1", 10) || 1));
-
-        const initialStatus = params.get("status") as TicketStatus | null;
-        if (initialStatus && STATUS_OPTIONS.some((option) => option.value === initialStatus)) setStatus(initialStatus);
-        const initialPriority = params.get("priority") as TicketPriority | null;
-        if (initialPriority && PRIORITY_OPTIONS.some((option) => option.value === initialPriority)) setPriority(initialPriority);
-        const initialType = params.get("type") as TicketType | null;
-        if (initialType && TYPE_OPTIONS.some((option) => option.value === initialType)) setTicketType(initialType);
-
-        setProjectId(params.get("project") || "ALL");
-        setAssigneeId(params.get("assignee") || "ALL");
-        setReporterId(params.get("reporter") || "ALL");
-        setTeamId(params.get("team") || "ALL");
-        setDueDateFrom(params.get("due_from") || "");
-        setDueDateTo(params.get("due_to") || "");
-        setCreatedDateFrom(params.get("created_from") || "");
-        setCreatedDateTo(params.get("created_to") || "");
-        setLabelFilter((params.get("label") ?? "").slice(0, 100));
-        setSprintId(params.get("sprint") || "ALL");
-
-        const initialSort = params.get("sort") as SortField | null;
-        if (initialSort && SORT_OPTIONS.some((option) => option.sortBy === initialSort)) setSortBy(initialSort);
-        const initialOrder = params.get("order");
-        if (initialOrder === "asc" || initialOrder === "desc") setSortOrder(initialOrder);
-        setFiltersInitialized(true);
-    }, []);
-
-    useEffect(() => {
         const timeout = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
         return () => window.clearTimeout(timeout);
     }, [search]);
@@ -550,6 +516,38 @@ export default function TicketsPage() {
         verifyToken()
             .then(({ user: verifiedUser }) => {
                 if (!active) return;
+                const params = new URLSearchParams(window.location.search);
+                const initialView = params.get("view");
+                if (initialView === "board" || initialView === "list" || initialView === "calendar" || initialView === "backlog") {
+                    setView(initialView);
+                }
+                setSearch((params.get("q") ?? "").slice(0, 100));
+                setPage(Math.max(1, Number.parseInt(params.get("page") ?? "1", 10) || 1));
+
+                const initialStatus = params.get("status") as TicketStatus | null;
+                if (initialStatus && STATUS_OPTIONS.some((option) => option.value === initialStatus)) setStatus(initialStatus);
+                const initialPriority = params.get("priority") as TicketPriority | null;
+                if (initialPriority && PRIORITY_OPTIONS.some((option) => option.value === initialPriority)) setPriority(initialPriority);
+                const initialType = params.get("type") as TicketType | null;
+                if (initialType && TYPE_OPTIONS.some((option) => option.value === initialType)) setTicketType(initialType);
+
+                setProjectId(params.get("project") || "ALL");
+                setAssigneeId(params.get("assignee") || "ALL");
+                setReporterId(params.get("reporter") || "ALL");
+                setTeamId(params.get("team") || "ALL");
+                setDueDateFrom(params.get("due_from") || "");
+                setDueDateTo(params.get("due_to") || "");
+                setCreatedDateFrom(params.get("created_from") || "");
+                setCreatedDateTo(params.get("created_to") || "");
+                setLabelFilter((params.get("label") ?? "").slice(0, 100));
+                setSprintId(params.get("sprint") || "ALL");
+
+                const initialSort = params.get("sort") as SortField | null;
+                if (initialSort && SORT_OPTIONS.some((option) => option.sortBy === initialSort)) setSortBy(initialSort);
+                const initialOrder = params.get("order");
+                if (initialOrder === "asc" || initialOrder === "desc") setSortOrder(initialOrder);
+                setFiltersInitialized(true);
+
                 setUser(verifiedUser);
                 setIsCheckingAuth(false);
             })
