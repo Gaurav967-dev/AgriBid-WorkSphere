@@ -245,6 +245,9 @@ def update_sprint(
         raise SprintServiceError("Only planned sprints can be edited.", 409)
 
     changes = data.model_dump(exclude_unset=True)
+    if any(value is None for value in changes.values()):
+        raise SprintServiceError("Sprint fields cannot be cleared.", 400)
+
     start_date = changes.get("start_date", sprint.start_date)
     end_date = changes.get("end_date", sprint.end_date)
     if start_date is None or end_date is None or end_date < start_date:
