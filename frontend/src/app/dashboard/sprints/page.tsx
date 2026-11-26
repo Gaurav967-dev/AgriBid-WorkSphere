@@ -373,7 +373,7 @@ export default function SprintsPage() {
                             <Link href="/dashboard/projects" className="mt-4 inline-flex text-sm font-semibold text-violet-700 hover:underline dark:text-violet-300">View projects</Link>
                         </div>
                     ) : (
-                        <div className="grid min-w-0 gap-3 xl:min-h-0 xl:flex-1 xl:overflow-hidden xl:grid-cols-[280px_minmax(0,1fr)]">
+                        <div className="grid min-w-0 gap-3 xl:min-h-0 xl:flex-1 xl:overflow-hidden xl:grid-rows-1 xl:grid-cols-[280px_minmax(0,1fr)]">
                             <aside className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 xl:flex xl:min-h-0 xl:flex-col xl:overflow-hidden">
                                 <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3 dark:border-slate-800">
                                     <div>
@@ -422,7 +422,8 @@ export default function SprintsPage() {
                                 ) : (
                                     <>
                                         <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-4 xl:shrink-0">
-                                            <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">                                                <div className="min-w-0">
+                                            <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
+                                                <div className="min-w-0">
                                                     <div className="flex flex-wrap items-center gap-2">
                                                         <SprintStatusBadge status={selectedSprint.status} />
                                                         <span className="text-xs text-slate-400">{selectedSprint.project_key}</span>
