@@ -58,7 +58,7 @@ const MANAGEMENT_NAVIGATION: NavigationItem[] = [
         icon: ShieldCheck,
         adminOnly: true,
     },
-    { label: "Reports", icon: Activity, disabled: true },
+    { label: "Reports", href: "/dashboard/reports", icon: Activity },
     { label: "GitHub Activity", icon: FolderKanban, disabled: true },
     { label: "Settings", icon: Settings, disabled: true },
 ];
