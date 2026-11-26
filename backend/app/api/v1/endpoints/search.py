@@ -3,7 +3,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
-from sqlalchemy import String, cast, or_, select
+from sqlalchemy import String, cast, or_, select, union
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.v1.dependencies.auth import get_current_user
@@ -41,43 +41,32 @@ def _visible_project_ids(db: Session, actor: User) -> list[UUID]:
 
 
 def _visible_user_ids_query(project_ids: list[UUID]):
-    return (
-        select(Project.project_manager_id).where(Project.id.in_(project_ids))
-        .union(
-            select(ProjectMember.user_id).where(
-                ProjectMember.project_id.in_(project_ids),
-                ProjectMember.removed_at.is_(None),
-            )
-        )
-        .union(
-            select(Ticket.reporter_id).where(
-                Ticket.project_id.in_(project_ids),
-                Ticket.deleted_at.is_(None),
-            )
-        )
-        .union(
-            select(Ticket.assignee_id).where(
-                Ticket.project_id.in_(project_ids),
-                Ticket.deleted_at.is_(None),
-                Ticket.assignee_id.is_not(None),
-            )
-        )
-        .union(
-            select(Ticket.reviewer_id).where(
-                Ticket.project_id.in_(project_ids),
-                Ticket.deleted_at.is_(None),
-                Ticket.reviewer_id.is_not(None),
-            )
-        )
-        .union(
-            select(Ticket.tester_id).where(
-                Ticket.project_id.in_(project_ids),
-                Ticket.deleted_at.is_(None),
-                Ticket.tester_id.is_not(None),
-            )
-        )
+    return union(
+        select(Project.project_manager_id).where(Project.id.in_(project_ids)),
+        select(ProjectMember.user_id).where(
+            ProjectMember.project_id.in_(project_ids),
+            ProjectMember.removed_at.is_(None),
+        ),
+        select(Ticket.reporter_id).where(
+            Ticket.project_id.in_(project_ids),
+            Ticket.deleted_at.is_(None),
+        ),
+        select(Ticket.assignee_id).where(
+            Ticket.project_id.in_(project_ids),
+            Ticket.deleted_at.is_(None),
+            Ticket.assignee_id.is_not(None),
+        ),
+        select(Ticket.reviewer_id).where(
+            Ticket.project_id.in_(project_ids),
+            Ticket.deleted_at.is_(None),
+            Ticket.reviewer_id.is_not(None),
+        ),
+        select(Ticket.tester_id).where(
+            Ticket.project_id.in_(project_ids),
+            Ticket.deleted_at.is_(None),
+            Ticket.tester_id.is_not(None),
+        ),
     )
-
 
 @router.get("", response_model=GlobalSearchResponse)
 @limiter.limit("60/minute")
