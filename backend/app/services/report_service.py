@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime
 from io import StringIO
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, union
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models import (
@@ -290,6 +290,13 @@ def get_team_report(
         Ticket.status.not_in(TERMINAL_STATUSES),
     )
 
+    visible_team_member_ids = union(
+        select(Project.project_manager_id).where(Project.id.in_(project_ids)),
+        select(ProjectMember.user_id).where(
+            ProjectMember.project_id.in_(project_ids),
+            ProjectMember.removed_at.is_(None),
+        ),
+    )
     members = list(
         db.scalars(
             select(TeamMember)
@@ -297,6 +304,7 @@ def get_team_report(
             .where(
                 TeamMember.team_id == team_id,
                 TeamMember.removed_at.is_(None),
+                TeamMember.user_id.in_(visible_team_member_ids),
             )
             .order_by(TeamMember.joined_at.asc(), TeamMember.id.asc())
         )
