@@ -1,16 +1,21 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import {
     Activity,
+    ArrowUpRight,
     CalendarDays,
     CircleHelp,
     FileText,
     FolderKanban,
     LayoutDashboard,
     ListTodo,
+    Loader2,
     Search,
+    X,
     Settings,
     ShieldCheck,
     Users,
@@ -19,6 +24,7 @@ import {
 } from "lucide-react";
 
 import type { AuthUser } from "@/features/auth/api/auth-api";
+import { searchWorkspace } from "@/features/search/api/search-api";
 
 type WorkspaceSidebarProps = {
     user: AuthUser | null;
@@ -157,10 +163,12 @@ function SidebarPanel({
     user,
     collapsed,
     onNavigate,
+    onOpenSearch,
 }: {
     user: AuthUser | null;
     collapsed: boolean;
     onNavigate: () => void;
+    onOpenSearch: () => void;
 }) {
     const pathname = usePathname();
     const isAdmin = user?.role_code === "ADMIN";
@@ -192,23 +200,29 @@ function SidebarPanel({
 
             <div className={collapsed ? "px-2 py-3" : "px-3 pb-3 pt-3"}>
                 {collapsed ? (
-                    <div
-                        className="flex h-9 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-400 dark:border-slate-700 dark:bg-slate-800"
+                    <button
+                        type="button"
+                        onClick={onOpenSearch}
+                        className="flex h-9 w-full items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-400 hover:border-violet-300 hover:text-violet-700 dark:border-slate-700 dark:bg-slate-800 dark:hover:text-violet-300"
                         title="Search workspace"
                         aria-label="Search workspace"
                     >
                         <Search className="size-4" />
-                    </div>
+                    </button>
                 ) : (
-                    <div className="flex h-8 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 dark:border-slate-700 dark:bg-slate-800">
+                    <button
+                        type="button"
+                        onClick={onOpenSearch}
+                        className="flex h-8 w-full items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 text-left hover:border-violet-300 dark:border-slate-700 dark:bg-slate-800"
+                    >
                         <Search className="size-3.5 text-slate-400" />
-                        <span className="text-[11px] text-slate-400">
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
                             Search workspace
                         </span>
                         <span className="ml-auto rounded border border-slate-200 bg-white px-1 py-0.5 text-[9px] text-slate-400 dark:border-slate-700 dark:bg-slate-900">
                             Ctrl K
                         </span>
-                    </div>
+                    </button>
                 )}
             </div>
 
@@ -282,12 +296,149 @@ function SidebarPanel({
     );
 }
 
+function GlobalSearchDialog({
+    user,
+    onClose,
+}: {
+    user: AuthUser | null;
+    onClose: () => void;
+}) {
+    const router = useRouter();
+    const [query, setQuery] = useState("");
+    const trimmedQuery = query.trim();
+    const searchQuery = useQuery({
+        queryKey: ["workspace-global-search", trimmedQuery],
+        queryFn: () => searchWorkspace(trimmedQuery),
+        enabled: trimmedQuery.length >= 2,
+        staleTime: 10_000,
+        retry: false,
+    });
+    const results = searchQuery.data;
+    const isAdmin = user?.role_code === "ADMIN";
+
+    function navigate(href: string) {
+        router.push(href);
+        onClose();
+    }
+
+    const resultClass = "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left hover:bg-violet-50 dark:hover:bg-violet-950/30";
+    const metaClass = "truncate text-[10px] text-slate-400";
+
+    return (
+        <div
+            className="fixed inset-0 z-[70] flex items-start justify-center bg-slate-950/45 px-3 pt-[12vh] backdrop-blur-[2px]"
+            role="presentation"
+            onMouseDown={(event) => {
+                if (event.target === event.currentTarget) onClose();
+            }}
+        >
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="workspace-search-title"
+                className="flex max-h-[76vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+            >
+                <div className="flex shrink-0 items-center gap-3 border-b border-slate-100 px-4 dark:border-slate-800">
+                    <Search className="size-5 shrink-0 text-slate-400" />
+                    <label htmlFor="workspace-global-search" className="sr-only" id="workspace-search-title">Search workspace</label>
+                    <input
+                        id="workspace-global-search"
+                        autoFocus
+                        type="search"
+                        value={query}
+                        onChange={(event) => setQuery(event.target.value)}
+                        placeholder="Search projects, tickets, users and teams..."
+                        className="h-14 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
+                    />
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        aria-label="Close search"
+                        className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                        <X className="size-4" />
+                    </button>
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto p-3">
+                    {trimmedQuery.length < 2 ? (
+                        <p className="px-3 py-8 text-center text-xs text-slate-400">Enter at least 2 characters to search the workspace.</p>
+                    ) : searchQuery.isFetching ? (
+                        <div className="flex items-center justify-center gap-2 py-10 text-xs text-slate-500"><Loader2 className="size-4 animate-spin" /> Searching workspace...</div>
+                    ) : searchQuery.isError ? (
+                        <p role="alert" className="px-3 py-8 text-center text-xs text-rose-600">{searchQuery.error.message}</p>
+                    ) : !results || (!results.projects.length && !results.tickets.length && !results.users.length && !results.teams.length) ? (
+                        <p className="px-3 py-8 text-center text-xs text-slate-400">No matching workspace records found.</p>
+                    ) : (
+                        <div className="space-y-4">
+                            {results.projects.length > 0 && <section>
+                                <h3 className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Projects</h3>
+                                {results.projects.map((project) => (
+                                    <button key={project.id} type="button" onClick={() => navigate(`/dashboard/projects/${project.id}`)} className={resultClass}>
+                                        <span className="min-w-0"><span className="block truncate text-xs font-semibold">{project.key} · {project.name}</span><span className={metaClass}>{project.status.replaceAll("_", " ")}</span></span><ArrowUpRight className="size-3.5 shrink-0 text-slate-400" />
+                                    </button>
+                                ))}
+                            </section>}
+                            {results.tickets.length > 0 && <section>
+                                <h3 className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Tickets</h3>
+                                {results.tickets.map((ticket) => (
+                                    <button key={ticket.id} type="button" onClick={() => navigate(`/dashboard/tickets/${ticket.id}`)} className={resultClass}>
+                                        <span className="min-w-0"><span className="block truncate text-xs font-semibold">{ticket.ticket_key} · {ticket.title}</span><span className={metaClass}>{ticket.project_key} · {ticket.status.replaceAll("_", " ")} · {ticket.priority}</span></span><ArrowUpRight className="size-3.5 shrink-0 text-slate-400" />
+                                    </button>
+                                ))}
+                            </section>}
+                            {results.users.length > 0 && <section>
+                                <h3 className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Users</h3>
+                                {results.users.map((person) => isAdmin ? (
+                                    <button key={person.id} type="button" onClick={() => navigate(`/dashboard/users/${person.id}`)} className={resultClass}>
+                                        <span className="min-w-0"><span className="block truncate text-xs font-semibold">{person.full_name}</span><span className={metaClass}>{person.email} · {person.role_code}</span></span><ArrowUpRight className="size-3.5 shrink-0 text-slate-400" />
+                                    </button>
+                                ) : (
+                                    <div key={person.id} className={resultClass}><span className="min-w-0"><span className="block truncate text-xs font-semibold">{person.full_name}</span><span className={metaClass}>{person.email} · {person.role_code}</span></span></div>
+                                ))}
+                            </section>}
+                            {results.teams.length > 0 && <section>
+                                <h3 className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Teams</h3>
+                                {results.teams.map((team) => isAdmin ? (
+                                    <button key={team.id} type="button" onClick={() => navigate("/dashboard/teams")} className={resultClass}>
+                                        <span className="block truncate text-xs font-semibold">{team.name}</span><ArrowUpRight className="size-3.5 shrink-0 text-slate-400" />
+                                    </button>
+                                ) : (
+                                    <div key={team.id} className={resultClass}><span className="block truncate text-xs font-semibold">{team.name}</span></div>
+                                ))}
+                            </section>}
+                        </div>
+                    )}
+                </div>
+                <div className="flex shrink-0 items-center justify-between border-t border-slate-100 px-4 py-2 text-[10px] text-slate-400 dark:border-slate-800">
+                    <span>Search is restricted to records you can access.</span>
+                    <span>Esc to close</span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export function WorkspaceSidebar({
     user,
     collapsed = false,
     mobileOpen,
     onMobileClose,
 }: WorkspaceSidebarProps) {
+    const [searchOpen, setSearchOpen] = useState(false);
+
+    useEffect(() => {
+        const handleShortcut = (event: KeyboardEvent) => {
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+                event.preventDefault();
+                setSearchOpen(true);
+            }
+            if (event.key === "Escape") setSearchOpen(false);
+        };
+        window.addEventListener("keydown", handleShortcut);
+        return () => window.removeEventListener("keydown", handleShortcut);
+    }, []);
+
     return (
         <>
             <div className="sticky top-0 hidden h-screen shrink-0 self-start md:block">
@@ -295,6 +446,7 @@ export function WorkspaceSidebar({
                     user={user}
                     collapsed={collapsed}
                     onNavigate={onMobileClose}
+                    onOpenSearch={() => setSearchOpen(true)}
                 />
             </div>
 
@@ -312,10 +464,16 @@ export function WorkspaceSidebar({
                             user={user}
                             collapsed={false}
                             onNavigate={onMobileClose}
+                            onOpenSearch={() => {
+                                setSearchOpen(true);
+                                onMobileClose();
+                            }}
                         />
                     </div>
                 </div>
             )}
+
+            {searchOpen && <GlobalSearchDialog user={user} onClose={() => setSearchOpen(false)} />}
         </>
     );
 }
