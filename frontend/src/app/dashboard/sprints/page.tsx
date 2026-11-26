@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -8,9 +8,6 @@ import {
     AlertCircle,
     CalendarDays,
     CheckCircle2,
-    ChevronLeft,
-    ChevronRight,
-    CircleAlert,
     Clock3,
     FolderKanban,
     Loader2,
@@ -177,7 +174,7 @@ export default function SprintsPage() {
     const backlogQuery = useQuery({
         queryKey: ["project-sprint-backlog", projectId, backlogSearch],
         queryFn: () => getProjectBacklog(projectId, backlogSearch, 1, 100),
-        enabled: backlogOpen && Boolean(projectId) && Boolean(selectedSprint) && selectedSprint.status === "PLANNED",
+        enabled: backlogOpen && Boolean(projectId) && selectedSprint?.status === "PLANNED",
     });
 
     const canManage = Boolean(
