@@ -7,7 +7,6 @@ import {
     Activity,
     ArrowDownToLine,
     BarChart3,
-    CalendarDays,
     CheckCircle2,
     Clock3,
     FolderKanban,
