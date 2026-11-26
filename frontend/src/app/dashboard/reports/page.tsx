@@ -87,17 +87,17 @@ function MetricCard({
     };
 
     return (
-        <article className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <article className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-start justify-between gap-2">
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
                 <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${tones[tone]}`}>
                     <Icon className="size-4" />
                 </span>
             </div>
-            <p className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <p className="mt-1.5 text-xl font-bold tracking-tight text-slate-900 dark:text-white">
                 {typeof value === "number" ? value.toLocaleString("en-IN") : value}
             </p>
-            <p className="mt-1 text-[10px] leading-4 text-slate-500 dark:text-slate-400">{description}</p>
+            <p className="mt-0.5 text-[10px] leading-4 text-slate-500 dark:text-slate-400">{description}</p>
         </article>
     );
 }
@@ -113,17 +113,17 @@ function DistributionCard({
 }) {
     const total = items.reduce((sum, item) => sum + item.count, 0);
     return (
-        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="mb-3 flex items-center justify-between gap-2">
+        <section className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:h-[220px]">
+            <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
                 <span className="text-[10px] text-slate-400">{total.toLocaleString("en-IN")} tickets</span>
             </div>
-            <div className="space-y-3">
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                 {items.map((item) => {
                     const percentage = total > 0 ? (item.count / total) * 100 : 0;
                     return (
                         <div key={item.key}>
-                            <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+                            <div className="mb-0.5 flex items-center justify-between gap-3 text-[11px]">
                                 <span className="truncate text-slate-600 dark:text-slate-300">{item.label}</span>
                                 <span className="shrink-0 font-semibold tabular-nums text-slate-800 dark:text-slate-100">{item.count}</span>
                             </div>
@@ -140,7 +140,7 @@ function DistributionCard({
 
 function ProjectReportView({ report }: { report: ProjectReport }) {
     return (
-        <div className="space-y-4">
+        <div className="space-y-2">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricCard label="Total tickets" value={report.total_tickets} description="Non-deleted tickets in this project" icon={Ticket} />
                 <MetricCard label="Completed tickets" value={report.completed_tickets} description="Tickets in Completed status" icon={CheckCircle2} tone="emerald" />
@@ -148,15 +148,15 @@ function ProjectReportView({ report }: { report: ProjectReport }) {
                 <MetricCard label="Overdue tickets" value={report.overdue_tickets} description="Open tickets past their due date" icon={AlertTriangle} tone="amber" />
             </div>
 
-            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                     <div>
                         <h2 className="text-sm font-semibold">Project completion</h2>
                         <p className="text-[11px] text-slate-500">{report.project_key} · {report.team_name}</p>
                     </div>
                     <p className="text-xl font-bold tabular-nums text-violet-700 dark:text-violet-300">{report.completion_percentage.toFixed(1)}%</p>
                 </div>
-                <div className="h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                     <div className="h-full rounded-full bg-violet-600" style={{ width: `${Math.min(100, report.completion_percentage)}%` }} />
                 </div>
             </section>
@@ -180,25 +180,25 @@ function TeamReportView({ report }: { report: TeamReport }) {
                 <MetricCard label="Overdue tickets" value={report.overdue_tickets} description="Open assigned tickets past due" icon={AlertTriangle} tone="amber" />
             </div>
 
-            <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+            <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:h-[210px]">
+                <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-2 dark:border-slate-800">
                     <div>
                         <h2 className="text-sm font-semibold">Workload by team member</h2>
                         <p className="text-[11px] text-slate-500">{report.project_count} visible project(s) · {report.workload_by_member.length} active team members</p>
                     </div>
                     <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">{report.completion_percentage.toFixed(1)}% completed</span>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full min-w-[760px] text-left text-xs">
-                        <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-400 dark:bg-slate-950/50">
+                <div className="min-h-0 flex-1 overflow-auto">
+                    <table className="w-full min-w-[760px] text-left text-[11px]">
+                        <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-400 dark:bg-slate-950/50">
                             <tr>
-                                <th className="px-4 py-3 font-semibold">Team member</th>
-                                <th className="px-3 py-3 text-right font-semibold">Assigned</th>
+                                <th className="px-3 py-2 font-semibold">Team member</th>
+                                <th className="px-2 py-2 text-right font-semibold">Assigned</th>
                                 <th className="px-3 py-3 text-right font-semibold">Completed</th>
                                 <th className="px-3 py-3 text-right font-semibold">Pending</th>
                                 <th className="px-3 py-3 text-right font-semibold">In progress</th>
                                 <th className="px-3 py-3 text-right font-semibold">Overdue</th>
-                                <th className="px-4 py-3 text-right font-semibold">Completion</th>
+                                <th className="px-3 py-2 text-right font-semibold">Completion</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -206,22 +206,22 @@ function TeamReportView({ report }: { report: TeamReport }) {
                                 <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">No active team members found.</td></tr>
                             ) : report.workload_by_member.map((member) => (
                                 <tr key={member.user_id}>
-                                    <td className="px-4 py-3">
+                                    <td className="px-3 py-2">
                                         <p className="font-semibold text-slate-800 dark:text-slate-100">{member.full_name}</p>
                                         <p className="mt-0.5 text-[10px] text-slate-400">{member.role_code.replaceAll("_", " ")}</p>
                                     </td>
-                                    <td className="px-3 py-3 text-right tabular-nums">{member.assigned_tickets}</td>
+                                    <td className="px-2 py-2 text-right tabular-nums">{member.assigned_tickets}</td>
                                     <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-300">{member.completed_tickets}</td>
                                     <td className="px-3 py-3 text-right tabular-nums">{member.pending_tickets}</td>
                                     <td className="px-3 py-3 text-right tabular-nums">{member.in_progress_tickets}</td>
                                     <td className="px-3 py-3 text-right tabular-nums text-amber-700 dark:text-amber-300">{member.overdue_tickets}</td>
-                                    <td className="px-4 py-3 text-right font-semibold tabular-nums">{member.completion_percentage.toFixed(1)}%</td>
+                                    <td className="px-3 py-2 text-right font-semibold tabular-nums">{member.completion_percentage.toFixed(1)}%</td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
-                <div className="border-t border-slate-100 px-4 py-3 text-[10px] leading-5 text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                <div className="shrink-0 border-t border-slate-100 px-3 py-2 text-[10px] leading-4 text-slate-500 dark:border-slate-800 dark:text-slate-400">
                     {report.interpretation_note}
                 </div>
             </section>
@@ -247,20 +247,20 @@ function SprintReportView({ report }: { report: SprintReport }) {
                 <MetricCard label="Removed after start" value={report.tickets_removed_after_start} description="Tickets removed before sprint close" icon={AlertTriangle} tone="amber" />
             </div>
 
-            <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+            <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:h-[205px]">
+                <div className="shrink-0 border-b border-slate-100 px-3 py-2 dark:border-slate-800">
                     <h2 className="text-sm font-semibold">Sprint work</h2>
                     <p className="text-[11px] text-slate-500">{report.project_key} · {report.sprint_name} · {formatDate(report.start_date)} – {formatDate(report.end_date)}</p>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-[660px] text-left text-xs">
+                    <table className="w-full min-w-[660px] text-left text-[11px]">
                         <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-400 dark:bg-slate-950/50">
                             <tr>
-                                <th className="px-4 py-3 font-semibold">Ticket</th>
-                                <th className="px-3 py-3 font-semibold">Status at close</th>
-                                <th className="px-3 py-3 font-semibold">Priority</th>
-                                <th className="px-3 py-3 font-semibold">Type</th>
-                                <th className="px-4 py-3 font-semibold">Assignee</th>
+                                <th className="px-3 py-2 font-semibold">Ticket</th>
+                                <th className="px-2 py-2 font-semibold">Status at close</th>
+                                <th className="px-2 py-2 font-semibold">Priority</th>
+                                <th className="px-2 py-2 font-semibold">Type</th>
+                                <th className="px-3 py-2 font-semibold">Assignee</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -268,14 +268,14 @@ function SprintReportView({ report }: { report: SprintReport }) {
                                 <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">No tickets in the sprint scope.</td></tr>
                             ) : report.tickets.map((ticket) => (
                                 <tr key={ticket.ticket_id}>
-                                    <td className="px-4 py-3">
+                                    <td className="px-3 py-2">
                                         <p className="font-semibold text-violet-700 dark:text-violet-300">{ticket.ticket_key}</p>
                                         <p className="mt-0.5 text-slate-600 dark:text-slate-300">{ticket.title}</p>
                                     </td>
-                                    <td className="px-3 py-3">{ticket.status.replaceAll("_", " ")}</td>
+                                    <td className="px-2 py-2">{ticket.status.replaceAll("_", " ")}</td>
                                     <td className="px-3 py-3">{ticket.priority}</td>
                                     <td className="px-3 py-3">{ticket.type.replaceAll("_", " ")}</td>
-                                    <td className="px-4 py-3">{ticket.assignee_name ?? "Unassigned"}</td>
+                                    <td className="px-3 py-2">{ticket.assignee_name ?? "Unassigned"}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -283,8 +283,8 @@ function SprintReportView({ report }: { report: SprintReport }) {
                 </div>
             </section>
 
-            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <div className="mb-3 flex items-center justify-between gap-2">
+            <section className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:h-[145px]">
+                <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
                     <div>
                         <h2 className="text-sm font-semibold">Sprint scope changes</h2>
                         <p className="text-[11px] text-slate-500">Recorded ticket additions and removals after sprint start</p>
@@ -294,9 +294,9 @@ function SprintReportView({ report }: { report: SprintReport }) {
                 {report.scope_changes.length === 0 ? (
                     <p className="py-5 text-center text-xs text-slate-400">No scope changes recorded after sprint start.</p>
                 ) : (
-                    <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                    <div className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto pr-1 dark:divide-slate-800">
                         {report.scope_changes.map((change, index) => (
-                            <div key={`${change.ticket_id}-${change.change_type}-${index}`} className="flex flex-wrap items-center justify-between gap-2 py-2.5 first:pt-0 last:pb-0">
+                            <div key={`${change.ticket_id}-${change.change_type}-${index}`} className="flex flex-wrap items-center justify-between gap-2 py-1.5 first:pt-0 last:pb-0">
                                 <div className="min-w-0">
                                     <p className="text-xs font-semibold">{change.ticket_key} · {change.title}</p>
                                     <p className="mt-0.5 text-[10px] text-slate-400">{formatDateTime(change.occurred_at)}</p>
@@ -437,27 +437,26 @@ export default function ReportsPage() {
                     <WorkspaceActions user={user} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
                 </header>
 
-                <section className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5 lg:px-6">
-                    <div className="mx-auto max-w-[1440px] space-y-4">
-                        <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-end">
+                <section className="min-h-0 flex-1 overflow-y-auto px-3 py-2 sm:px-4 lg:overflow-hidden lg:px-5 lg:py-2">
+                    <div className="mx-auto flex min-h-full max-w-[1440px] flex-col gap-2 lg:h-full lg:min-h-0">
+                        <div className="flex shrink-0 flex-col justify-between gap-2 lg:flex-row lg:items-center">
                             <div>
-                                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-600 dark:text-violet-300">Workspace insights</p>
-                                <h1 className="mt-1 text-2xl font-bold tracking-tight">Reports &amp; Analytics</h1>
-                                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Understand project delivery, team workload and sprint outcomes.</p>
+                                <h1 className="text-xl font-bold tracking-tight">Reports &amp; Analytics</h1>
+                                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Understand project delivery, team workload and sprint outcomes.</p>
                             </div>
-                            <button type="button" onClick={handleExport} disabled={!hasActiveReport || isExporting} className="inline-flex h-9 items-center justify-center gap-2 self-start rounded-lg bg-violet-700 px-3.5 text-xs font-semibold text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50 lg:self-auto">
+                            <button type="button" onClick={handleExport} disabled={!hasActiveReport || isExporting} className="inline-flex h-8 items-center justify-center gap-2 self-start rounded-lg bg-violet-700 px-3 text-[11px] font-semibold text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50 lg:self-auto">
                                 <ArrowDownToLine className="size-4" />
                                 {isExporting ? "Preparing CSV..." : "Export CSV"}
                             </button>
                         </div>
 
-                        <div className="flex flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:flex-row md:items-center">
+                        <div className="flex shrink-0 flex-col justify-between gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:flex-row md:items-center">
                             <div className="flex flex-wrap items-center gap-1.5">
                                 {REPORT_TABS.map((tab) => {
                                     const Icon = tab.icon;
                                     const selected = activeType === tab.id;
                                     return (
-                                        <button key={tab.id} type="button" onClick={() => { setActiveType(tab.id); setExportError(null); }} className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-semibold transition ${selected ? "bg-violet-700 text-white" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"}`}>
+                                        <button key={tab.id} type="button" onClick={() => { setActiveType(tab.id); setExportError(null); }} className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-semibold transition ${selected ? "bg-violet-700 text-white" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"}`}>
                                             <Icon className="size-3.5" />{tab.label}
                                         </button>
                                     );
@@ -472,7 +471,7 @@ export default function ReportsPage() {
                                         else if (activeType === "team") setTeamId(event.target.value);
                                         else setSprintId(event.target.value);
                                     }}
-                                    className="h-9 min-w-0 max-w-[min(70vw,380px)] rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-700 outline-none focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                                    className="h-8 min-w-0 max-w-[min(70vw,380px)] rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-700 outline-none focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
                                 >
                                     {activeType === "project" && options?.projects.map((item) => <option key={item.id} value={item.id}>{item.key} · {item.name}</option>)}
                                     {activeType === "team" && options?.teams.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.project_count} projects</option>)}
