@@ -259,6 +259,32 @@ class TicketListResponse(BaseModel):
     total_pages: int
 
 
+class TicketFilterUserOption(BaseModel):
+    id: UUID
+    full_name: str
+    email: str
+    role_code: str
+
+
+class TicketFilterTeamOption(BaseModel):
+    id: UUID
+    name: str
+
+
+class TicketFilterSprintOption(BaseModel):
+    id: UUID
+    name: str
+    project_id: UUID
+    project_key: str
+    status: str
+
+
+class TicketFilterOptionsResponse(BaseModel):
+    people: list[TicketFilterUserOption] = Field(default_factory=list)
+    teams: list[TicketFilterTeamOption] = Field(default_factory=list)
+    sprints: list[TicketFilterSprintOption] = Field(default_factory=list)
+
+
 class TicketDeleteResponse(BaseModel):
     message: str
     ticket_id: UUID
