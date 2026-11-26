@@ -1024,16 +1024,28 @@ def test_global_search_returns_only_authorized_records(ticket_environment):
     sign_in_as(client, "ADMIN")
     ticket = create_ticket(client, ids)
 
-    admin_results = client.get(
+    project_results = client.get(
+        "/api/v1/search",
+        params={"q": "Ticket Test"},
+    )
+    assert project_results.status_code == 200, project_results.text
+    project_payload = project_results.json()
+    assert any(item["id"] == str(ids["project"]) for item in project_payload["projects"])
+    assert any(item["id"] == str(ids["team"]) for item in project_payload["teams"])
+
+    ticket_results = client.get(
         "/api/v1/search",
         params={"q": "Implement ticket workflow"},
     )
-    assert admin_results.status_code == 200, admin_results.text
-    payload = admin_results.json()
-    assert any(item["id"] == ticket["id"] for item in payload["tickets"])
-    assert any(item["id"] == str(ids["project"]) for item in payload["projects"])
-    assert any(item["id"] == str(ids["team"]) for item in payload["teams"])
-    assert any(item["id"] == str(ids["admin"]) for item in payload["users"])
+    assert ticket_results.status_code == 200, ticket_results.text
+    assert any(item["id"] == ticket["id"] for item in ticket_results.json()["tickets"])
+
+    user_results = client.get(
+        "/api/v1/search",
+        params={"q": "Test Admin"},
+    )
+    assert user_results.status_code == 200, user_results.text
+    assert any(item["id"] == str(ids["admin"]) for item in user_results.json()["users"])
 
     sign_in_as(client, "OUTSIDER")
     outsider_results = client.get(
@@ -1068,6 +1080,7 @@ def test_global_search_supports_visible_project_members(ticket_environment):
 def test_ticket_filter_options_follow_project_visibility(ticket_environment):
     client, _, ids = ticket_environment
     sign_in_as(client, "ADMIN")
+    create_ticket(client, ids)
 
     response = client.get(
         "/api/v1/tickets/filter-options",
@@ -1155,8 +1168,8 @@ def test_ticket_filters_combine_before_pagination(ticket_environment):
             "team_id": str(ids["team"]),
             "due_date_from": "2026-11-27",
             "due_date_to": "2026-11-27",
-            "created_date_from": "2026-11-25",
-            "created_date_to": "2026-11-28",
+            "created_date_from": (date.today() - timedelta(days=2)).isoformat(),
+            "created_date_to": (date.today() + timedelta(days=2)).isoformat(),
             "label": "module-ten",
             "sprint_id": sprint_id,
             "search": "Module 10 acceptance",
