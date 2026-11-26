@@ -358,6 +358,7 @@ def list_tickets(
     priority_filter: str | None,
     type_filter: str | None,
     assignee_id: UUID | None,
+    assignee_unassigned: bool,
     reporter_id: UUID | None,
     team_id: UUID | None,
     due_date_from: date | None,
@@ -404,7 +405,9 @@ def list_tickets(
     if type_filter:
         filters.append(Ticket.type == type_filter)
 
-    if assignee_id is not None:
+    if assignee_unassigned:
+        filters.append(Ticket.assignee_id.is_(None))
+    elif assignee_id is not None:
         filters.append(Ticket.assignee_id == assignee_id)
 
     if reporter_id is not None:
