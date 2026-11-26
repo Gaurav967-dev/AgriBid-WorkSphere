@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from app.api.v1.dependencies.auth import get_current_user
 from app.core.database import get_db
 from app.core.rate_limit import limiter
-from app.models import ProjectMember, Ticket, TicketActivity, TicketComment, User
+from app.models import Project, ProjectMember, Sprint, Team, Ticket, TicketActivity, TicketComment, User
 from app.schemas.ticket import (
     TicketActivityResponse,
     TicketCommentCreateRequest,
@@ -24,6 +24,10 @@ from app.schemas.ticket import (
     TicketDeleteResponse,
     TicketDetailsResponse,
     TicketListResponse,
+    TicketFilterOptionsResponse,
+    TicketFilterUserOption,
+    TicketFilterTeamOption,
+    TicketFilterSprintOption,
     TicketProjectSummaryResponse,
     TicketResponse,
     TicketStatusUpdateRequest,
@@ -196,6 +200,120 @@ def get_tickets(
         page=page,
         page_size=page_size,
         total_pages=ceil(total / page_size) if total else 0,
+    )
+
+
+@router.get("/filter-options", response_model=TicketFilterOptionsResponse)
+@limiter.limit("30/minute")
+def get_ticket_filter_options(
+    request: Request,
+    project_id: UUID | None = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TicketFilterOptionsResponse:
+    """Return filter choices scoped to projects the current user can access."""
+    project_filters = [Project.archived_at.is_(None)]
+    if current_user.role.code == "PM":
+        project_filters.append(Project.project_manager_id == current_user.id)
+    elif current_user.role.code != "ADMIN":
+        project_filters.append(
+            select(ProjectMember.id)
+            .where(
+                ProjectMember.project_id == Project.id,
+                ProjectMember.user_id == current_user.id,
+                ProjectMember.removed_at.is_(None),
+            )
+            .exists()
+        )
+    if project_id is not None:
+        project_filters.append(Project.id == project_id)
+
+    project_ids = list(
+        db.scalars(select(Project.id).where(*project_filters)).all()
+    )
+    if project_id is not None and not project_ids:
+        raise HTTPException(status_code=404, detail="Project not found.")
+
+    if not project_ids:
+        return TicketFilterOptionsResponse()
+
+    people_ids = (
+        select(Project.project_manager_id).where(Project.id.in_(project_ids))
+        .union(
+            select(ProjectMember.user_id).where(
+                ProjectMember.project_id.in_(project_ids),
+                ProjectMember.removed_at.is_(None),
+            )
+        )
+        .union(
+            select(Ticket.reporter_id).where(
+                Ticket.project_id.in_(project_ids),
+                Ticket.deleted_at.is_(None),
+            )
+        )
+        .union(
+            select(Ticket.assignee_id).where(
+                Ticket.project_id.in_(project_ids),
+                Ticket.deleted_at.is_(None),
+                Ticket.assignee_id.is_not(None),
+            )
+        )
+    )
+    people = list(
+        db.scalars(
+            select(User)
+            .options(joinedload(User.role))
+            .where(User.id.in_(people_ids))
+            .order_by(User.full_name.asc(), User.id.asc())
+        )
+        .unique()
+        .all()
+    )
+
+    teams = list(
+        db.scalars(
+            select(Team)
+            .join(Project, Project.team_id == Team.id)
+            .where(
+                Project.id.in_(project_ids),
+                Team.archived_at.is_(None),
+            )
+            .distinct()
+            .order_by(Team.name.asc(), Team.id.asc())
+        ).all()
+    )
+
+    sprint_rows = db.execute(
+        select(Sprint, Project.key)
+        .join(Project, Project.id == Sprint.project_id)
+        .where(Sprint.project_id.in_(project_ids))
+        .order_by(Project.key.asc(), Sprint.start_date.desc(), Sprint.name.asc())
+    ).all()
+
+    return TicketFilterOptionsResponse(
+        people=[
+            TicketFilterUserOption(
+                id=person.id,
+                full_name=person.full_name,
+                email=person.email,
+                role_code=person.role.code,
+            )
+            for person in people
+        ],
+        teams=[
+            TicketFilterTeamOption(id=team.id, name=team.name)
+            for team in teams
+        ],
+        sprints=[
+            TicketFilterSprintOption(
+                id=sprint.id,
+                name=sprint.name,
+                project_id=sprint.project_id,
+                project_key=project_key,
+                status=sprint.status,
+            )
+            for sprint, project_key in sprint_rows
+        ],
     )
 
 
