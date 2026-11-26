@@ -19,7 +19,6 @@ from app.schemas.sprint import (
     SprintListResponse,
     SprintResponse,
     SprintTicketAddRequest,
-    SprintTicketResponse,
     SprintUpdateRequest,
 )
 from app.services import sprint_service
