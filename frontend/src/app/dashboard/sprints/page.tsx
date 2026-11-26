@@ -174,7 +174,7 @@ export default function SprintsPage() {
     const backlogQuery = useQuery({
         queryKey: ["project-sprint-backlog", projectId, backlogSearch],
         queryFn: () => getProjectBacklog(projectId, backlogSearch, 1, 100),
-        enabled: backlogOpen && Boolean(projectId) && selectedSprint?.status === "PLANNED",
+        enabled: backlogOpen && Boolean(projectId) && Boolean(selectedSprint) && selectedSprint.status !== "COMPLETED",
     });
 
     const canManage = Boolean(
