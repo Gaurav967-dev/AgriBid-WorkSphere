@@ -7,7 +7,7 @@
 
 ## 1. Purpose
 
-Define the verification approach for the current authentication foundation and the next User Management, Team Management and Project Management modules. This document is a plan, not proof that all listed tests have passed.
+Define verification for the integrated application scope completed through Module 11: authentication and user management, teams, projects, tickets, comments, attachments, role-based dashboards and views, sprint management, search/filters/sorting, and reports. This document combines historical evidence with acceptance checklists; planned or unexecuted cases are not proof of a pass.
 
 ## 2. Test scope
 
@@ -16,6 +16,12 @@ Define the verification approach for the current authentication foundation and t
 - User Management: invitation creation/acceptance, employee list/detail/update, role assignment, account activation/deactivation and validation.
 - Team Management: create/update/archive, add/remove members, multiple memberships, duplicate prevention and history preservation.
 - Project Management: create/update/archive, manager/team assignment, members, dates, project access and project data validation.
+- Ticket management: create/update/delete, role-controlled status transitions, assignments, relationships, comments, replies, mentions and ticket activity.
+- File management: project/ticket uploads, MIME/content validation, 5 MB per file limit, five-file UI/API quotas, private storage, preview, download and deletion authorization.
+- Dashboards and views: Admin/PM/Developer/Tester dashboards; Kanban, list, calendar, project overview and backlog views.
+- Sprint management: create/edit, backlog assignment, start/complete, progress and incomplete-ticket handling.
+- Search/filters/sorting: global search, combined ticket filters, stable pagination and shareable URL state.
+- Reports: project/team/sprint metrics, data visibility and CSV export.
 - Cross-cutting: API validation, authorization, database transactions, pagination, frontend loading/error/empty states, responsive behavior and integration.
 
 ### Explicit exclusions
@@ -48,7 +54,7 @@ Define the verification approach for the current authentication foundation and t
 - Test all four roles: Admin, PM, Developer and Tester.
 - Seed deterministic test records; clean up created records or isolate tests in transactions.
 
-## 5. Authentication baseline — current evidence
+## 5. Historical authentication baseline — evidence from 16 November 2026
 
 The following checks were run on 16 November 2026:
 
@@ -65,6 +71,31 @@ The following checks were run on 16 November 2026:
 | Expired access refresh | Passed manually | verify 401 → refresh 200 → verify retry 200; access cookie renewed |
 
 Two deprecation warnings appeared during pytest; they did not fail the test run and should be reviewed separately.
+
+## 5.1 Integrated implementation evidence — 27 November 2026
+
+The following results were reported by the developer after integrating Module 11. They are useful regression evidence, but they do not replace a fresh run against the exact commit being demonstrated.
+
+| Check | Latest reported result | Qualification |
+|---|---|---|
+| Backend Ruff | Passed | Run after Module 11 integration |
+| Backend pytest | 115 passed | Two non-blocking Starlette/httpx deprecation warnings |
+| Frontend TypeScript | Passed | Run on the Module 11 feature branch |
+| Frontend ESLint | Passed | Run on the Module 11 feature branch |
+| Frontend production build | Passed | Run before the final Reports-only layout refinements |
+| Module 9 sprint browser checks | Passed manually | Developer confirmed the sprint UI workflow |
+| Module 10 search/filter/sort checks | Passed manually | Global search, combined filters, sorting, pagination and URL restore confirmed |
+| Module 11 report checks | Passed manually | Project/Team/Sprint views, CSV exports and role visibility confirmed; final layout screenshots reviewed |
+
+**Required before the demonstration:** re-run the backend and frontend commands in the root README on the current `main` checkout. Complete the role-by-role browser walkthrough below. Do not describe unexecuted acceptance cases as passed.
+
+### Automated coverage gaps identified in the repository
+
+- Backend test files exist for authentication/security, health, users, tickets, sprints and reports.
+- There are no dedicated API test modules named for projects, teams, dashboard aggregation or attachments.
+- No frontend Vitest/React Testing Library test suite or Playwright end-to-end suite is present in the current frontend package.
+- This is a coverage gap, not evidence that those screens are broken. They need explicit manual verification during the demonstration or separate automated tests.
+
 
 ## 6. Authentication test cases
 
@@ -85,7 +116,7 @@ Two deprecation warnings appeared during pytest; they did not fail the test run 
 | AUTH-T-013 | Cookie path and flags | ID /api/v1/auth/id-token/verify; access /; refresh /api/v1/auth/refresh-token; HttpOnly; SameSite=Lax | Browser inspected |
 | AUTH-T-014 | CORS origin not allowed | Request rejected by browser/server policy | Automated test pending |
 
-## 7. User Management test cases — planned
+## 7. User Management acceptance checklist — execution status must be recorded
 
 | ID | Test | Expected result |
 |---|---|---|
@@ -108,7 +139,7 @@ Two deprecation warnings appeared during pytest; they did not fail the test run 
 | USER-T-017 | Non-Admin lists/manages employees | 403 |
 | USER-T-018 | Admin changes role | Effective permissions use the new single role |
 
-## 8. Team Management test cases — planned
+## 8. Team Management acceptance checklist — execution status must be recorded
 
 | ID | Test | Expected result |
 |---|---|---|
@@ -125,7 +156,7 @@ Two deprecation warnings appeared during pytest; they did not fail the test run 
 | TEAM-T-011 | Non-Admin manages teams | 403 unless permission is explicitly approved |
 | TEAM-T-012 | Inactive employee added to team | Rejected unless a documented rule permits it |
 
-## 9. Project Management test cases — planned
+## 9. Project Management acceptance checklist — execution status must be recorded
 
 | ID | Test | Expected result |
 |---|---|---|
