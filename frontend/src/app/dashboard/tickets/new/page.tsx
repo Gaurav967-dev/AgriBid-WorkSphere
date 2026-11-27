@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     AlertCircle,
@@ -37,6 +37,7 @@ import {
     type CreateTicketInput,
     type TicketPriority,
     type TicketType,
+    type TicketStatus,
 } from "@/features/tickets/api/tickets-api";
 
 import { WorkspaceActions } from "@/components/workspace-actions";
@@ -58,6 +59,7 @@ type FormState = {
     estimated_effort: string;
     labels: string;
     parent_ticket_id: string;
+    status: TicketStatus;
 };
 
 const INITIAL_FORM: FormState = {
@@ -74,6 +76,7 @@ const INITIAL_FORM: FormState = {
     estimated_effort: "",
     labels: "",
     parent_ticket_id: "",
+    status: "BACKLOG",
 };
 
 const INPUT_CLASS =
@@ -84,6 +87,11 @@ const TEXTAREA_CLASS =
 
 const LABEL_CLASS =
     "text-xs font-semibold text-slate-700 dark:text-slate-300";
+
+const TICKET_STATUSES: TicketStatus[] = [
+    "BACKLOG", "TODO", "IN_PROGRESS", "IN_REVIEW", "TESTING",
+    "TESTING_DONE", "BUG_FIXED", "COMPLETED", "BLOCKED", "REOPENED", "CANCELLED",
+];
 
 const USER_ROLE_LABELS: Record<string, string> = {
     ADMIN: "Admin",
@@ -128,6 +136,7 @@ function FormSection({
 
 export default function CreateTicketPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const queryClient = useQueryClient();
 
     const [user, setUser] = useState<AuthUser | null>(null);
@@ -137,6 +146,19 @@ export default function CreateTicketPage() {
 
     const [form, setForm] = useState<FormState>(INITIAL_FORM);
     const [formError, setFormError] = useState<string | null>(null);
+    const requestedProjectId = searchParams.get("project_id");
+    const requestedStatus = searchParams.get("status");
+
+    useEffect(() => {
+        if (!requestedProjectId && !requestedStatus) return;
+        setForm((current) => ({
+            ...current,
+            project_id: current.project_id || requestedProjectId || "",
+            status: requestedStatus && TICKET_STATUSES.includes(requestedStatus as TicketStatus)
+                ? requestedStatus as TicketStatus
+                : current.status,
+        }));
+    }, [requestedProjectId, requestedStatus]);
 
     const { collapsed, toggleCollapsed } = useWorkspaceSidebarState();
 
@@ -251,7 +273,6 @@ export default function CreateTicketPage() {
             });
 
             router.push("/dashboard/tickets");
-            router.refresh();
         },
     });
 
@@ -354,6 +375,7 @@ export default function CreateTicketPage() {
             estimated_effort: effort,
             labels,
             parent_ticket_id: form.parent_ticket_id || null,
+            status: form.status,
         };
 
         createMutation.mutate(input);
