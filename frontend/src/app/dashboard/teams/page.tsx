@@ -230,7 +230,7 @@ export default function TeamsPage() {
             // The session may already have expired.
         } finally {
             router.replace("/");
-            router.refresh();
+
         }
     }
 
