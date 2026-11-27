@@ -376,12 +376,20 @@ export function TicketKanbanBoard({
                     if (!viewport || viewport.scrollWidth <= viewport.clientWidth) return;
 
                     const target = event.target;
-                    const overColumnCards =
-                        target instanceof HTMLElement &&
-                        Boolean(target.closest("[data-kanban-column-scroll]"));
+                    const columnBody =
+                        target instanceof HTMLElement
+                            ? target.closest<HTMLElement>("[data-kanban-column-scroll]")
+                            : null;
+                    const columnCanScrollVertically = Boolean(
+                        columnBody &&
+                        columnBody.scrollHeight > columnBody.clientHeight &&
+                        ((event.deltaY < 0 && columnBody.scrollTop > 0) ||
+                            (event.deltaY > 0 &&
+                                columnBody.scrollTop + columnBody.clientHeight < columnBody.scrollHeight)),
+                    );
                     const hasHorizontalWheel = Math.abs(event.deltaX) > 0;
                     const useVerticalWheelForHorizontal =
-                        event.shiftKey || !overColumnCards;
+                        event.shiftKey || !columnCanScrollVertically;
 
                     if (hasHorizontalWheel) {
                         event.preventDefault();
