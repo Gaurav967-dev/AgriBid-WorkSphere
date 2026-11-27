@@ -224,6 +224,29 @@ def test_admin_can_create_ticket_and_activity_is_recorded(ticket_environment):
         assert len(activities) >= 4
 
 
+def test_admin_can_create_ticket_in_selected_kanban_status(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+
+    response = client.post(
+        "/api/v1/tickets",
+        json={
+            "project_id": str(ids["project"]),
+            "title": "Create directly in progress",
+            "status": "IN_PROGRESS",
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    result = response.json()
+    assert result["status"] == "IN_PROGRESS"
+    created_activity = next(
+        activity for activity in result["activities"]
+        if activity["action"] == "CREATED"
+    )
+    assert created_activity["new_value"]["status"] == "IN_PROGRESS"
+
+
 def test_project_ticket_numbers_increment(ticket_environment):
     client, _, ids = ticket_environment
     sign_in_as(client, "ADMIN")
