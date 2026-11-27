@@ -284,6 +284,17 @@ export default function SprintsPage() {
             setFormError("Complete all sprint fields before saving.");
             return;
         }
+        const originalStartDate =
+            editingSprintId && selectedSprint?.id === editingSprintId
+                ? selectedSprint.start_date
+                : "";
+        if (
+            normalized.start_date < todayDateInputValue() &&
+            normalized.start_date !== originalStartDate
+        ) {
+            setFormError("Sprint start date cannot be in the past.");
+            return;
+        }
         if (normalized.end_date < normalized.start_date) {
             setFormError("Sprint end date cannot be before its start date.");
             return;
@@ -504,7 +515,7 @@ export default function SprintsPage() {
 
             {formOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/40 p-3" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setFormOpen(false); }}>
-                    <form onSubmit={submitSprintForm} role="dialog" aria-modal="true" aria-labelledby="sprint-form-title" className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+                    <form noValidate onSubmit={submitSprintForm} role="dialog" aria-modal="true" aria-labelledby="sprint-form-title" className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
                         <div className="flex items-start justify-between gap-3">
                             <div><h2 id="sprint-form-title" className="text-lg font-bold">{editingSprintId ? "Edit sprint" : "Create sprint"}</h2><p className="mt-1 text-xs text-slate-500">Set the sprint goal and planned dates.</p></div>
                             <button type="button" onClick={() => setFormOpen(false)} aria-label="Close form" className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="size-4" /></button>
