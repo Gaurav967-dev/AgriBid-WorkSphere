@@ -182,7 +182,8 @@ function CommentComposer({
     );
 
     function updateBody(value: string) {
-        setBody(value);
+        setLocalError(null);
+        setBody(value.slice(0, 250));
         requestAnimationFrame(captureSelection);
         const match = /(?:^|\s)@([^\s@]*)$/.exec(value);
         setMentionQuery(match ? match[1] : null);
@@ -193,6 +194,11 @@ function CommentComposer({
         if (marker < 0) return;
 
         const nextBody = `${body.slice(0, marker)}@${person.full_name} `;
+        if (nextBody.length > 250) {
+            setLocalError("Comments cannot exceed 250 characters.");
+            return;
+        }
+        setLocalError(null);
         setBody(nextBody);
         setMentionedIds((current) =>
             current.includes(person.id) ? current : [...current, person.id],
@@ -257,6 +263,11 @@ function CommentComposer({
             nextSelectionEnd = nextSelectionStart + content.length;
         }
 
+        if (nextBody.length > 250) {
+            setLocalError("Comments cannot exceed 250 characters.");
+            return;
+        }
+        setLocalError(null);
         setBody(nextBody);
         setMentionQuery(null);
         requestAnimationFrame(() => {
@@ -276,6 +287,10 @@ function CommentComposer({
         const normalizedBody = body.trim();
         if (!normalizedBody) {
             setLocalError("Write a comment before submitting.");
+            return;
+        }
+        if (normalizedBody.length > 250) {
+            setLocalError("Comments cannot exceed 250 characters.");
             return;
         }
 
@@ -342,7 +357,7 @@ function CommentComposer({
                     ref={textareaRef}
                     autoFocus={autoFocus}
                     value={body}
-                    maxLength={5000}
+                    maxLength={250}
                     rows={3}
                     onChange={(event) => {
                         updateBody(event.target.value);
@@ -384,7 +399,7 @@ function CommentComposer({
 
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-[10px] text-slate-400">
-                    {body.length}/5000 characters
+                    {body.length}/250 characters
                 </span>
                 <div className="flex items-center gap-2">
                     {onCancel && (
@@ -578,16 +593,18 @@ export function TicketCommentsPanel({
 
                                 {!comment.is_deleted && editingComment?.id !== comment.id && (
                                     <div className="mt-1.5 flex flex-wrap items-center gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setEditingComment(null);
-                                                setReplyTo(comment);
-                                            }}
-                                            className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-400 hover:text-violet-600 dark:hover:text-violet-300"
-                                        >
-                                            <Reply className="size-3" /> Reply
-                                        </button>
+                                        {!isAuthor && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setEditingComment(null);
+                                                    setReplyTo(comment);
+                                                }}
+                                                className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-400 hover:text-violet-600 dark:hover:text-violet-300"
+                                            >
+                                                <Reply className="size-3" /> Reply
+                                            </button>
+                                        )}
                                         {canEdit && (
                                             <button
                                                 type="button"
@@ -613,7 +630,7 @@ export function TicketCommentsPanel({
                                     </div>
                                 )}
 
-                                {replyTo?.id === comment.id && (
+                                {replyTo?.id === comment.id && !isAuthor && (
                                     <div className="mt-2 rounded-lg bg-slate-50 p-2.5 dark:bg-slate-950/60">
                                         <p className="mb-2 text-[10px] font-medium text-slate-500 dark:text-slate-400">
                                             Replying to {comment.author.full_name}
