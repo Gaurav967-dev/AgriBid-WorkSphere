@@ -411,7 +411,7 @@ export default function TicketDetailsPage() {
 
         if (isAssignedDeveloper) {
             const transitions: Partial<Record<TicketStatus, TicketStatus[]>> = {
-                TODO: ["IN_PROGRESS", "IN_REVIEW"],
+                TODO: ["IN_PROGRESS"],
                 IN_PROGRESS: ["IN_REVIEW"],
                 REOPENED: ["IN_PROGRESS"],
             };
@@ -421,8 +421,7 @@ export default function TicketDetailsPage() {
 
         if (isAssignedTester) {
             const transitions: Partial<Record<TicketStatus, TicketStatus[]>> = {
-                TESTING: ["TESTING_DONE", "BUG_FIXED"],
-                TESTING_DONE: ["REOPENED"],
+                TESTING: ["TESTING_DONE", "BUG_FIXED", "REOPENED", "IN_PROGRESS"],
             };
 
             return transitions[ticket.status] ?? [];
@@ -436,6 +435,20 @@ export default function TicketDetailsPage() {
         isAssignedDeveloper,
         isAssignedTester,
     ]);
+
+    const requiresStatusReason = Boolean(
+        ticket &&
+        nextStatus &&
+        (
+            (["BLOCKED", "REOPENED", "CANCELLED"] as TicketStatus[]).includes(nextStatus) ||
+            ticket.status === "BLOCKED" ||
+            (
+                user?.role_code === "TESTER" &&
+                ticket.status === "TESTING" &&
+                nextStatus === "IN_PROGRESS"
+            )
+        )
+    );
 
     const updateMutation = useMutation({
         mutationFn: (input: UpdateTicketInput) =>
@@ -1328,13 +1341,17 @@ export default function TicketDetailsPage() {
                                                     ))}
                                                 </select>
 
+                                                <label className="mt-2 block text-xs font-medium text-slate-700 dark:text-slate-300">
+                                                    Reason / comment {requiresStatusReason ? "(required)" : "(optional)"}
+                                                </label>
                                                 <textarea
                                                     value={statusReason}
                                                     maxLength={1000}
                                                     onChange={(event) =>
                                                         setStatusReason(event.target.value)
                                                     }
-                                                    placeholder="Reason or transition note (optional)"
+                                                    placeholder={requiresStatusReason ? "Enter a reason or comment" : "Add a reason or transition note"}
+                                                    aria-required={requiresStatusReason}
                                                     className="mt-1.5 min-h-16 w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs dark:border-slate-700 dark:bg-slate-950"
                                                 />
 
@@ -1342,7 +1359,8 @@ export default function TicketDetailsPage() {
                                                     type="button"
                                                     disabled={
                                                         !nextStatus ||
-                                                        statusMutation.isPending
+                                                        statusMutation.isPending ||
+                                                        (requiresStatusReason && !statusReason.trim())
                                                     }
                                                     onClick={() => {
                                                         if (!nextStatus) return;

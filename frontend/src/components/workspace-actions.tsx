@@ -25,7 +25,7 @@ export function WorkspaceActions({
     const isDark = resolvedTheme === "dark";
     const githubUrl =
         process.env.NEXT_PUBLIC_GITHUB_PROFILE_URL?.trim() ||
-        "https://github.com";
+        "https://github.com/Gaurav967-dev";
 
     useEffect(() => {
         if (!accountMenuOpen) return;

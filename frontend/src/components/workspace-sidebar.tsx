@@ -48,7 +48,7 @@ const MAIN_NAVIGATION: NavigationItem[] = [
     { label: "Teams", href: "/dashboard/teams", icon: Users, adminOnly: true },
     { label: "Tasks", href: "/dashboard/tickets", icon: FileText },
     { label: "Sprints & Backlog", href: "/dashboard/sprints", icon: Workflow },
-    { label: "Calendar", icon: CalendarDays, disabled: true },
+    { label: "Calendar", href: "/dashboard/tickets?view=calendar", icon: CalendarDays },
 ];
 
 const MANAGEMENT_NAVIGATION: NavigationItem[] = [
@@ -105,11 +105,12 @@ function SidebarSection({
                 {visibleItems.map((item) => {
                     const Icon = item.icon;
 
+                    const itemPath = item.href?.split("?")[0];
                     const active = Boolean(
-                        item.href &&
-                        (pathname === item.href ||
-                            (item.href !== "/dashboard" &&
-                                pathname.startsWith(`${item.href}/`))),
+                        itemPath &&
+                        (pathname === itemPath ||
+                            (itemPath !== "/dashboard" &&
+                                pathname.startsWith(`${itemPath}/`))),
                     );
 
                     const className = [
