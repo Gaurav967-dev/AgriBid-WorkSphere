@@ -45,6 +45,7 @@ function responseError(payload: ApiPayload, fallback: string): Error {
 }
 
 export async function signIn(input: { email: string; password: string }): Promise<void> {
+    clearVerifiedSessionCache();
     const response = await fetch(endpoint("/auth/sign"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -58,30 +59,21 @@ export async function signIn(input: { email: string; password: string }): Promis
     }
 }
 
-export async function verifyIdToken(): Promise<{ user: AuthUser }> {
-    const response = await fetch(endpoint("/auth/id-token/verify"), {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-    });
-    const payload = await readPayload(response);
-
-    if (!response.ok) {
-        throw responseError(payload, "Unable to verify the sign-in identity.");
-    }
-
-    const candidate = payload.user ?? payload;
-    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
-        throw new Error("The ID-token response did not include a user identity.");
-    }
-    return { user: candidate as AuthUser };
-}
-
 // Keep one refresh request in flight per browser tab. This prevents concurrent
 // 401 responses (including React Strict Mode's development effect replay) from
 // attempting to rotate the same one-time refresh token more than once.
 let refreshInFlight: Promise<void> | null = null;
 let verifyInFlight: Promise<{ user: AuthUser }> | null = null;
+let verifiedSessionCache: {
+    value: { user: AuthUser };
+    expiresAt: number;
+} | null = null;
+
+const VERIFIED_SESSION_CACHE_MS = 30_000;
+
+function clearVerifiedSessionCache() {
+    verifiedSessionCache = null;
+}
 
 async function refreshAccessToken(): Promise<void> {
     if (!refreshInFlight) {
@@ -172,16 +164,30 @@ async function verifyTokenRequest(): Promise<{ user: AuthUser }> {
 /** Share the initial verification call as well, avoiding duplicate requests
  * when a component effect is replayed during development. */
 export function verifyToken(): Promise<{ user: AuthUser }> {
+    if (verifiedSessionCache && verifiedSessionCache.expiresAt > Date.now()) {
+        return Promise.resolve(verifiedSessionCache.value);
+    }
+
     if (!verifyInFlight) {
-        verifyInFlight = verifyTokenRequest().finally(() => {
-            verifyInFlight = null;
-        });
+        verifyInFlight = verifyTokenRequest()
+            .then((result) => {
+                verifiedSessionCache = {
+                    value: result,
+                    expiresAt: Date.now() + VERIFIED_SESSION_CACHE_MS,
+                };
+                return result;
+            })
+            .finally(() => {
+                verifyInFlight = null;
+            });
     }
 
     return verifyInFlight;
 }
 
 export async function signOut(): Promise<void> {
+    // Clear the in-memory identity immediately so no later route can reuse it.
+    clearVerifiedSessionCache();
     // This path receives the scoped refresh cookie, so logout still works
     // when the access token has expired. No refresh rotation is needed first.
     const response = await fetch(endpoint("/auth/refresh-token/logout"), {
@@ -193,6 +199,7 @@ export async function signOut(): Promise<void> {
     if (!response.ok) {
         throw responseError(payload, "Unable to complete sign out.");
     }
+    clearVerifiedSessionCache();
 }
 
 
