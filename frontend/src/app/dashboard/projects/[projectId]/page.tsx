@@ -40,6 +40,7 @@ import { getTickets } from "@/features/tickets/api/tickets-api";
 import { AttachmentsPanel } from "@/features/attachments/components/attachments-panel";
 import { signOut, verifyToken, type AuthUser } from "@/features/auth/api/auth-api";
 import { WorkspaceActions } from "@/components/workspace-actions";
+import { todayDateInputValue } from "@/lib/date-utils";
 import { WorkspaceSidebar } from "@/components/workspace-sidebar";
 import { useWorkspaceSidebarState } from "@/components/workspace-sidebar-state";
 
@@ -518,6 +519,7 @@ export default function ProjectDetailsPage() {
                 Start date
                 <input
                   type="date"
+                  min={todayDateInputValue()}
                   value={form.start_date}
                   onChange={(event) => setForm({
                     ...form,
