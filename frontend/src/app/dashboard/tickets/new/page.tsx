@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     AlertCircle,
@@ -136,7 +136,6 @@ function FormSection({
 
 export default function CreateTicketPage() {
     const router = useRouter();
-    const searchParams = useSearchParams();
     const queryClient = useQueryClient();
 
     const [user, setUser] = useState<AuthUser | null>(null);
@@ -146,11 +145,12 @@ export default function CreateTicketPage() {
 
     const [form, setForm] = useState<FormState>(INITIAL_FORM);
     const [formError, setFormError] = useState<string | null>(null);
-    const requestedProjectId = searchParams.get("project_id");
-    const requestedStatus = searchParams.get("status");
-
     useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const requestedProjectId = params.get("project_id");
+        const requestedStatus = params.get("status");
         if (!requestedProjectId && !requestedStatus) return;
+
         setForm((current) => ({
             ...current,
             project_id: current.project_id || requestedProjectId || "",
@@ -158,7 +158,7 @@ export default function CreateTicketPage() {
                 ? requestedStatus as TicketStatus
                 : current.status,
         }));
-    }, [requestedProjectId, requestedStatus]);
+    }, []);
 
     const { collapsed, toggleCollapsed } = useWorkspaceSidebarState();
 
