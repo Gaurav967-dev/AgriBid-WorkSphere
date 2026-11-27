@@ -89,7 +89,7 @@ function SidebarSection({
     ticketView: string | null;
     isAdmin: boolean;
     collapsed: boolean;
-    onNavigate: () => void;
+    onNavigate: (item: NavigationItem) => void;
 }) {
     const visibleItems = items.filter(
         (item) => !item.adminOnly || isAdmin,
@@ -152,7 +152,7 @@ function SidebarSection({
                         <Link
                             key={item.label}
                             href={item.href}
-                            onClick={onNavigate}
+                            onClick={() => onNavigate(item)}
                             aria-current={active ? "page" : undefined}
                             aria-label={item.label}
                             title={collapsed ? item.label : undefined}
@@ -182,6 +182,15 @@ function SidebarPanel({
     const pathname = usePathname();
     const [ticketView, setTicketView] = useState<string | null>(null);
     const isAdmin = user?.role_code === "ADMIN";
+
+    function handleNavigation(item: NavigationItem) {
+        onNavigate();
+        if (item.href === "/dashboard/tickets?view=calendar") {
+            setTicketView("calendar");
+        } else if (item.href === "/dashboard/tickets") {
+            setTicketView(null);
+        }
+    }
 
     useEffect(() => {
         const syncView = () => {
@@ -256,7 +265,7 @@ function SidebarPanel({
                     ticketView={ticketView}
                     isAdmin={isAdmin}
                     collapsed={collapsed}
-                    onNavigate={onNavigate}
+                    onNavigate={handleNavigation}
                 />
 
                 <div className="border-t border-slate-100 dark:border-slate-800" />
@@ -265,9 +274,10 @@ function SidebarPanel({
                     title="Management"
                     items={MANAGEMENT_NAVIGATION}
                     pathname={pathname}
+                    ticketView={ticketView}
                     isAdmin={isAdmin}
                     collapsed={collapsed}
-                    onNavigate={onNavigate}
+                    onNavigate={handleNavigation}
                 />
             </nav>
 
