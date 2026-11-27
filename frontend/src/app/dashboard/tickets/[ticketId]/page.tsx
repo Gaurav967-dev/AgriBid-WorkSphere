@@ -1302,7 +1302,9 @@ export default function TicketDetailsPage() {
                                         </DetailField>
 
                                         <DetailField label="Completed date">
-                                            {formatDateTime(ticket.completed_at ?? "")}
+                                            {ticket.completed_at
+                                                ? formatDateTime(ticket.completed_at)
+                                                : "Not completed"}
                                         </DetailField>
                                     </div>
                                 </Card>
