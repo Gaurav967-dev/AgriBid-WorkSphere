@@ -412,7 +412,7 @@ export default function SprintsPage() {
                                 )}
                             </aside>
 
-                            <section className="flex min-w-0 flex-col gap-4 xl:min-h-0 xl:overflow-hidden xl:gap-3">
+                            <section className="flex min-w-0 flex-col gap-4 xl:h-full xl:min-h-0 xl:overflow-hidden xl:gap-3">
                                 {!selectedSprint ? (
                                     <div className="rounded-xl border border-dashed border-slate-300 bg-white px-5 py-16 text-center dark:border-slate-700 dark:bg-slate-900">
                                         <Target className="mx-auto size-9 text-slate-300" />
@@ -464,7 +464,7 @@ export default function SprintsPage() {
                                             </div>
                                         </div>
 
-                                        <div className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 xl:flex-1 xl:overflow-hidden">
+                                        <div className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 xl:min-h-0 xl:flex-1 xl:overflow-hidden">
                                             <div className="flex shrink-0 flex-col justify-between gap-1.5 border-b border-slate-100 px-3 py-2.5 dark:border-slate-800 sm:flex-row sm:items-center">
                                                 <div>
                                                     <h3 className="text-sm font-semibold">Sprint tickets</h3>
@@ -479,7 +479,7 @@ export default function SprintsPage() {
                                                     {canEditSelected && <button type="button" onClick={() => setBacklogOpen(true)} className="mt-3 text-xs font-semibold text-violet-700 hover:underline dark:text-violet-300">Add tickets from Backlog</button>}
                                                 </div>
                                             ) : (
-                                                <div className="divide-y divide-slate-100 dark:divide-slate-800 xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
+                                                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain divide-y divide-slate-100 pr-1 dark:divide-slate-800 xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
                                                     {selectedSprint.tickets.map((ticket) => (
                                                         <div key={ticket.id} className="flex flex-col justify-between gap-1.5 px-3 py-2.5 sm:flex-row sm:items-center">
                                                             <div className="min-w-0">
