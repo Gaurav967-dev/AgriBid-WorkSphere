@@ -556,6 +556,16 @@ export default function TicketDetailsPage() {
             return;
         }
 
+        const originalStartDate = ticket.start_date ?? "";
+        if (
+            editForm.start_date &&
+            editForm.start_date < todayDateInputValue() &&
+            editForm.start_date !== originalStartDate
+        ) {
+            setEditError("Ticket start date cannot be in the past.");
+            return;
+        }
+
         if (
             editForm.start_date &&
             editForm.due_date &&
@@ -809,6 +819,7 @@ export default function TicketDetailsPage() {
                                 icon={<Pencil className="size-4" />}
                             >
                                 <form
+                                    noValidate
                                     onSubmit={handleEditSubmit}
                                     className="space-y-3"
                                 >
