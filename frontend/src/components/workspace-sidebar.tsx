@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
     Activity,
@@ -180,9 +180,17 @@ function SidebarPanel({
     onOpenSearch: () => void;
 }) {
     const pathname = usePathname();
-    const searchParams = useSearchParams();
-    const ticketView = searchParams.get("view");
+    const [ticketView, setTicketView] = useState<string | null>(null);
     const isAdmin = user?.role_code === "ADMIN";
+
+    useEffect(() => {
+        const syncView = () => {
+            setTicketView(new URLSearchParams(window.location.search).get("view"));
+        };
+        syncView();
+        window.addEventListener("popstate", syncView);
+        return () => window.removeEventListener("popstate", syncView);
+    }, [pathname]);
 
     return (
         <aside
