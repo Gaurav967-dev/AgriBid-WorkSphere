@@ -198,17 +198,6 @@ export default function CreateProjectPage() {
         setFormError(null);
     }
 
-    function handleMemberToggle(memberId: string, checked: boolean) {
-        setForm((current) => ({
-            ...current,
-            member_ids: checked
-                ? [...current.member_ids, memberId]
-                : current.member_ids.filter((id) => id !== memberId),
-        }));
-
-        setFormError(null);
-    }
-
     function handleKeyChange(value: string) {
         updateField(
             "key",
