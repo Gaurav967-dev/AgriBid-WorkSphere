@@ -23,7 +23,6 @@ import {
     CheckCircle2,
     ChevronDown,
     Clipboard,
-    Clock,
     FileText,
     History,
     Link2,
@@ -1296,12 +1295,16 @@ export default function TicketDetailsPage() {
                                             )}
                                         </DetailField>
 
-                                        <DetailField label="Created">
-                                            {formatDate(ticket.created_at)}
+                                        <DetailField label="Created date">
+                                            {formatDateTime(ticket.created_at)}
                                         </DetailField>
 
-                                        <DetailField label="Last updated">
-                                            {formatDate(ticket.updated_at)}
+                                        <DetailField label="Updated date">
+                                            {formatDateTime(ticket.updated_at)}
+                                        </DetailField>
+
+                                        <DetailField label="Completed date">
+                                            {formatDateTime(ticket.completed_at ?? "")}
                                         </DetailField>
                                     </div>
                                 </Card>
@@ -1494,24 +1497,7 @@ export default function TicketDetailsPage() {
                                     </div>
                                 </Card>
 
-<Card
-                                    title="Record information"
-                                    icon={<Clock className="size-4" />}
-                                >
-                                    <div className="space-y-2.5">
-                                        <DetailField label="Created date">
-                                            {formatDateTime(ticket.created_at)}
-                                        </DetailField>
-                                        <DetailField label="Updated date">
-                                            {formatDateTime(ticket.updated_at)}
-                                        </DetailField>
-                                        <DetailField label="Completed date">
-                                            {formatDateTime(
-                                                ticket.completed_at ?? "",
-                                            )}
-                                        </DetailField>
-                                    </div>
-                                </Card>
+
                             </aside>
                         </div>
                     </div>
