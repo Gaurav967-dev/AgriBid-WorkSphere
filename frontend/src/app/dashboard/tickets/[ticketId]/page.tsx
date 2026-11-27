@@ -64,6 +64,7 @@ import { WorkspaceActions } from "@/components/workspace-actions";
 import { todayDateInputValue } from "@/lib/date-utils";
 import { WorkspaceSidebar } from "@/components/workspace-sidebar";
 import { useWorkspaceSidebarState } from "@/components/workspace-sidebar-state";
+import { relativeUpdateLabel } from "@/lib/date-utils";
 
 const STATUS_LABELS: Record<TicketStatus, string> = {
     BACKLOG: "Backlog",
@@ -726,7 +727,7 @@ export default function TicketDetailsPage() {
                     </div>
 
                     <div className="flex shrink-0 items-center gap-2">
-                        <WorkspaceActions user={user}  onSignOut={handleSignOut} isSigningOut={isSigningOut} />
+                        <WorkspaceActions user={user} lastUpdated={relativeUpdateLabel(ticket?.updated_at)} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
                     </div>
                 </header>
 
