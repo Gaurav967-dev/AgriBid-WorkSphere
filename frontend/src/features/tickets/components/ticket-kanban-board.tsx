@@ -31,6 +31,49 @@ const BOARD_STATUSES: { value: TicketStatus; label: string; accent: string; dot:
     { value: "CANCELLED", label: "Cancelled", accent: "border-t-slate-400", dot: "bg-slate-400" },
 ];
 
+function getAllowedTicketTransitions(
+    ticket: Ticket,
+    currentUser: AuthUser,
+): TicketStatus[] {
+    if (currentUser.role_code === "ADMIN" || currentUser.role_code === "PM") {
+        return BOARD_STATUSES
+            .map((status) => status.value)
+            .filter((status) => status !== ticket.status);
+    }
+
+    if (
+        ticket.status === "IN_REVIEW" &&
+        ticket.reviewer?.id === currentUser.id
+    ) {
+        return ["TESTING"];
+    }
+
+    if (
+        currentUser.role_code === "DEVELOPER" &&
+        ticket.assignee?.id === currentUser.id
+    ) {
+        const transitions: Partial<Record<TicketStatus, TicketStatus[]>> = {
+            TODO: ["IN_PROGRESS"],
+            IN_PROGRESS: ["IN_REVIEW"],
+            REOPENED: ["IN_PROGRESS"],
+        };
+        return transitions[ticket.status] ?? [];
+    }
+
+    if (
+        currentUser.role_code === "TESTER" &&
+        ticket.tester?.id === currentUser.id
+    ) {
+        const transitions: Partial<Record<TicketStatus, TicketStatus[]>> = {
+            TESTING: ["TESTING_DONE", "BUG_FIXED", "REOPENED", "IN_PROGRESS"],
+        };
+        return transitions[ticket.status] ?? [];
+    }
+
+    return [];
+}
+
+
 const PRIORITY_STYLES = {
     LOW: { text: "text-slate-500 dark:text-slate-400", border: "border-l-slate-300 dark:border-l-slate-600", label: "Low" },
     MEDIUM: { text: "text-sky-600 dark:text-sky-400", border: "border-l-sky-500", label: "Medium" },
@@ -81,11 +124,12 @@ type TicketCardProps = {
     ticket: Ticket;
     isMoving: boolean;
     isDragging: boolean;
+    canDrag: boolean;
     onDragStart: (event: DragEvent<HTMLElement>) => void;
     onDragEnd: () => void;
 };
 
-function TicketCard({ ticket, isMoving, isDragging, onDragStart, onDragEnd }: TicketCardProps) {
+function TicketCard({ ticket, isMoving, isDragging, canDrag, onDragStart, onDragEnd }: TicketCardProps) {
     const cardRef = useRef<HTMLElement | null>(null);
     const [loadCounts, setLoadCounts] = useState(false);
 
@@ -136,8 +180,20 @@ function TicketCard({ ticket, isMoving, isDragging, onDragStart, onDragEnd }: Ti
     return (
         <article
             ref={cardRef}
-            draggable={!isMoving}
-            onDragStart={onDragStart}
+            draggable={canDrag && !isMoving}
+            aria-label={`${ticket.ticket_key}: ${ticket.title}`}
+            title={
+                canDrag
+                    ? "Drag to a status permitted for your role."
+                    : "No status transition is available for your role or this ticket is not assigned to you."
+            }
+            onDragStart={(event) => {
+                if (!canDrag || isMoving) {
+                    event.preventDefault();
+                    return;
+                }
+                onDragStart(event);
+            }}
             onDragEnd={onDragEnd}
             className={`rounded-lg border border-l-[3px] border-slate-200 bg-white p-2.5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-700 dark:bg-slate-950 ${priority.border} ${isDragging ? "opacity-50" : ""}`}
         >
@@ -259,6 +315,16 @@ export function TicketKanbanBoard({
 
     function requestMove(ticket: Ticket, nextStatus: TicketStatus) {
         if (ticket.status === nextStatus || isMoving) return;
+
+        const allowedTransitions = getAllowedTicketTransitions(ticket, currentUser);
+        if (!allowedTransitions.includes(nextStatus)) {
+            setMoveMessage(
+                currentUser.role_code === "TESTER" && ticket.tester?.id !== currentUser.id
+                    ? "This ticket is visible to you, but it is not assigned to you as its Tester. Ask the Project Manager to assign you in the ticket details."
+                    : "That status transition is not permitted for your role and the ticket's current status."
+            );
+            return;
+        }
 
         const requiresReason =
             ["BLOCKED", "REOPENED", "CANCELLED"].includes(nextStatus) ||
@@ -385,6 +451,7 @@ export function TicketKanbanBoard({
                                                     ticket={ticket}
                                                     isMoving={isMoving}
                                                     isDragging={draggingTicketId === ticket.id}
+                                                    canDrag={getAllowedTicketTransitions(ticket, currentUser).length > 0}
                                                     onDragStart={(event) => {
                                                         event.dataTransfer.setData("text/plain", ticket.id);
                                                         event.dataTransfer.effectAllowed = "move";
