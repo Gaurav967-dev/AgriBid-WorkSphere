@@ -169,6 +169,7 @@ const SORT_OPTIONS: { label: string; sortBy: SortField; sortOrder: "asc" | "desc
     { label: "Priority · highest first", sortBy: "priority", sortOrder: "desc" },
     { label: "Priority · lowest first", sortBy: "priority", sortOrder: "asc" },
     { label: "Title · A to Z", sortBy: "title", sortOrder: "asc" },
+    { label: "Title · Z to A", sortBy: "title", sortOrder: "desc" },
 ];
 
 function dateKey(date: Date): string {
