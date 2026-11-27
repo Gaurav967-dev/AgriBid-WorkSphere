@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
     Activity,
@@ -78,6 +78,7 @@ function SidebarSection({
     title,
     items,
     pathname,
+    ticketView,
     isAdmin,
     collapsed,
     onNavigate,
@@ -85,6 +86,7 @@ function SidebarSection({
     title: string;
     items: NavigationItem[];
     pathname: string;
+    ticketView: string | null;
     isAdmin: boolean;
     collapsed: boolean;
     onNavigate: () => void;
@@ -106,11 +108,17 @@ function SidebarSection({
                     const Icon = item.icon;
 
                     const itemPath = item.href?.split("?")[0];
+                    const isTicketNavigation = itemPath === "/dashboard/tickets";
+                    const isCalendarLink = item.href?.includes("?view=calendar") ?? false;
                     const active = Boolean(
                         itemPath &&
-                        (pathname === itemPath ||
-                            (itemPath !== "/dashboard" &&
-                                pathname.startsWith(`${itemPath}/`))),
+                        (isTicketNavigation
+                            ? (isCalendarLink
+                                ? pathname === itemPath && ticketView === "calendar"
+                                : ticketView !== "calendar" &&
+                                  (pathname === itemPath || pathname.startsWith(`${itemPath}/`)))
+                            : pathname === itemPath ||
+                              (itemPath !== "/dashboard" && pathname.startsWith(`${itemPath}/`))),
                     );
 
                     const className = [
@@ -172,6 +180,8 @@ function SidebarPanel({
     onOpenSearch: () => void;
 }) {
     const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const ticketView = searchParams.get("view");
     const isAdmin = user?.role_code === "ADMIN";
 
     return (
@@ -235,6 +245,7 @@ function SidebarPanel({
                     title="Workspace"
                     items={MAIN_NAVIGATION}
                     pathname={pathname}
+                    ticketView={ticketView}
                     isAdmin={isAdmin}
                     collapsed={collapsed}
                     onNavigate={onNavigate}
