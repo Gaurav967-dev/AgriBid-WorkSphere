@@ -40,6 +40,7 @@ import {
 } from "@/features/tickets/api/tickets-api";
 
 import { WorkspaceActions } from "@/components/workspace-actions";
+import { todayDateInputValue } from "@/lib/date-utils";
 import { WorkspaceSidebar } from "@/components/workspace-sidebar";
 import { useWorkspaceSidebarState } from "@/components/workspace-sidebar-state";
 
@@ -720,6 +721,7 @@ export default function CreateTicketPage() {
                                         onChange={(event) =>
                                             updateField("start_date", event.target.value)
                                         }
+                                        min={todayDateInputValue()}
                                         max={form.due_date || undefined}
                                         className={INPUT_CLASS}
                                     />
