@@ -143,22 +143,20 @@ export default function CreateTicketPage() {
     const [isSigningOut, setIsSigningOut] = useState(false);
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-    const [form, setForm] = useState<FormState>(INITIAL_FORM);
-    const [formError, setFormError] = useState<string | null>(null);
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const requestedProjectId = params.get("project_id");
-        const requestedStatus = params.get("status");
-        if (!requestedProjectId && !requestedStatus) return;
+    const [form, setForm] = useState<FormState>(() => {
+        if (typeof window === "undefined") return INITIAL_FORM;
 
-        setForm((current) => ({
-            ...current,
-            project_id: current.project_id || requestedProjectId || "",
+        const params = new URLSearchParams(window.location.search);
+        const requestedStatus = params.get("status");
+        return {
+            ...INITIAL_FORM,
+            project_id: params.get("project_id") ?? "",
             status: requestedStatus && TICKET_STATUSES.includes(requestedStatus as TicketStatus)
                 ? requestedStatus as TicketStatus
-                : current.status,
-        }));
-    }, []);
+                : "BACKLOG",
+        };
+    });
+    const [formError, setFormError] = useState<string | null>(null);
 
     const { collapsed, toggleCollapsed } = useWorkspaceSidebarState();
 
