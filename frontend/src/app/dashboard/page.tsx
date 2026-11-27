@@ -634,7 +634,7 @@ export default function DashboardPage() {
             // The session may already have expired.
         } finally {
             router.replace("/");
-            router.refresh();
+
         }
     }
 
