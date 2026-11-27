@@ -374,7 +374,19 @@ export function TicketKanbanBoard({
                 onWheel={(event) => {
                     const viewport = boardViewportRef.current;
                     if (!viewport || viewport.scrollWidth <= viewport.clientWidth) return;
-                    if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+
+                    const target = event.target;
+                    const overColumnCards =
+                        target instanceof HTMLElement &&
+                        Boolean(target.closest("[data-kanban-column-scroll]"));
+                    const hasHorizontalWheel = Math.abs(event.deltaX) > 0;
+                    const useVerticalWheelForHorizontal =
+                        event.shiftKey || !overColumnCards;
+
+                    if (hasHorizontalWheel) {
+                        event.preventDefault();
+                        viewport.scrollLeft += event.deltaX;
+                    } else if (useVerticalWheelForHorizontal && event.deltaY !== 0) {
                         event.preventDefault();
                         viewport.scrollLeft += event.deltaY;
                     }
@@ -427,7 +439,7 @@ export function TicketKanbanBoard({
                                     )}
                                 </header>
 
-                                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 pb-5">
+                                <div data-kanban-column-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 pb-5">
                                     <div className="flex min-h-full flex-col gap-2">
                                         {columnTickets.length === 0 ? (
                                             <div className={`flex min-h-28 items-center justify-center rounded-lg border border-dashed px-3 text-center text-xs text-slate-400 dark:border-slate-700 ${isTarget ? "border-violet-400 bg-violet-50/70 dark:bg-violet-950/20" : "border-slate-300"}`}>
