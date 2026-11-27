@@ -504,7 +504,6 @@ export default function TicketDetailsPage() {
             });
 
             router.push("/dashboard/tickets");
-            router.refresh();
         },
     });
 
@@ -517,7 +516,6 @@ export default function TicketDetailsPage() {
             // The session may already have expired.
         } finally {
             router.replace("/");
-            router.refresh();
         }
     }
 
