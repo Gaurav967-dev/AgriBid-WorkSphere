@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
-import { Link2, Sun } from "lucide-react";
+import { Link2, Moon, Sun } from "lucide-react";
 import type { AuthUser } from "@/features/auth/api/auth-api";
 
 type WorkspaceActionsProps = {
@@ -14,7 +14,7 @@ type WorkspaceActionsProps = {
 
 export function WorkspaceActions({
     user,
-    lastUpdated = "—",
+    lastUpdated,
     onSignOut,
     isSigningOut = false,
 }: WorkspaceActionsProps) {
@@ -24,8 +24,8 @@ export function WorkspaceActions({
     const accountMenuRef = useRef<HTMLDivElement>(null);
     const isDark = resolvedTheme === "dark";
     const githubUrl =
-        process.env.NEXT_PUBLIC_GITHUB_REPOSITORY_URL?.trim() ||
-        "https://github.com/Gaurav967-dev/AgriBid-WorkSphere";
+        process.env.NEXT_PUBLIC_GITHUB_PROFILE_URL?.trim() ||
+        "https://github.com/Gaurav967-dev";
 
     useEffect(() => {
         if (!accountMenuOpen) return;
@@ -95,12 +95,14 @@ export function WorkspaceActions({
                 title={isDark ? "Switch to light mode" : "Switch to dark mode"}
                 className="inline-flex size-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
             >
-                <Sun className="size-4" />
+                {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </button>
 
-            <span className="hidden whitespace-nowrap text-xs text-slate-500 xl:inline">
-                Last update <span className="font-medium text-slate-700 dark:text-slate-300">{lastUpdated}</span>
-            </span>
+            {lastUpdated && lastUpdated !== "—" && (
+                <span className="hidden whitespace-nowrap text-xs text-slate-500 xl:inline">
+                    Last update <span className="font-medium text-slate-700 dark:text-slate-300">{lastUpdated}</span>
+                </span>
+            )}
 
             {user && (
                 <div ref={accountMenuRef} className="relative">
