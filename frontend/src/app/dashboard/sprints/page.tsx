@@ -45,6 +45,7 @@ import { WorkspaceActions } from "@/components/workspace-actions";
 import { todayDateInputValue } from "@/lib/date-utils";
 import { WorkspaceSidebar } from "@/components/workspace-sidebar";
 import { useWorkspaceSidebarState } from "@/components/workspace-sidebar-state";
+import { relativeUpdateLabel } from "@/lib/date-utils";
 
 const EMPTY_FORM: SprintInput = {
     name: "",
@@ -162,6 +163,11 @@ export default function SprintsPage() {
     });
 
     const sprints = sprintsQuery.data?.items ?? [];
+    const latestSprintUpdate = sprints
+        .map((sprint) => sprint.updated_at)
+        .filter((value): value is string => Boolean(value))
+        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0]
+        ?? selectedProject?.updated_at;
     const selectedSprint =
         sprints.find((sprint) => sprint.id === selectedSprintId) ?? sprints[0] ?? null;
 
@@ -354,7 +360,7 @@ export default function SprintsPage() {
                             <p className="truncate text-sm font-semibold">Sprints &amp; Backlog</p>
                         </div>
                     </div>
-                    <WorkspaceActions user={user} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
+                    <WorkspaceActions user={user} lastUpdated={relativeUpdateLabel(latestSprintUpdate)} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
                 </header>
 
                 <section className="flex-1 space-y-3 px-3 pb-3 pt-2 sm:px-5 lg:px-6 xl:flex xl:min-h-0 xl:flex-col xl:overflow-hidden">
