@@ -185,7 +185,6 @@ export default function CreateProjectPage() {
             });
 
             router.push("/dashboard/projects");
-            router.refresh();
         },
     });
 
@@ -301,7 +300,6 @@ export default function CreateProjectPage() {
             // The session may already have expired.
         } finally {
             router.replace("/");
-            router.refresh();
         }
     }
 
