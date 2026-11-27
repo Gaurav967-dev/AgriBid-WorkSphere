@@ -654,6 +654,7 @@ def test_comment_replies_and_edit_ownership(ticket_environment):
     assert parent.status_code == 201, parent.text
     parent_data = parent.json()
 
+    sign_in_as(client, "DEVELOPER")
     reply = client.post(
         f"/api/v1/tickets/{ticket['id']}/comments",
         json={"body": "A reply", "parent_comment_id": parent_data["id"]},
