@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type DragEvent } from "react";
+import { useRef, useState, type DragEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
     CalendarDays,
@@ -130,32 +130,11 @@ type TicketCardProps = {
 };
 
 function TicketCard({ ticket, isMoving, isDragging, canDrag, onDragStart, onDragEnd }: TicketCardProps) {
-    const cardRef = useRef<HTMLElement | null>(null);
     const [loadCounts, setLoadCounts] = useState(false);
 
-    // Fetch counts only when a card approaches the visible viewport. The query
-    // cache prevents repeat requests when changing views or revisiting columns.
-    useEffect(() => {
-        const element = cardRef.current;
-        if (!element) return;
-        if (typeof IntersectionObserver === "undefined") {
-            // Use an asynchronous fallback when IntersectionObserver is not
-            // available. This avoids a synchronous state update in the effect.
-            const timeoutId = globalThis.setTimeout(() => {
-                setLoadCounts(true);
-            }, 0);
-            return () => globalThis.clearTimeout(timeoutId);
-        }
-        const observer = new IntersectionObserver((entries) => {
-            if (entries.some((entry) => entry.isIntersecting)) {
-                setLoadCounts(true);
-                observer.disconnect();
-            }
-        }, { root: null, rootMargin: "140px" });
-        observer.observe(element);
-        return () => observer.disconnect();
-    }, []);
-
+    // Counts are secondary card metadata. Request them only after the user
+    // interacts with a card so initial board navigation is not flooded with
+    // per-ticket comments and attachment requests.
     const countsQuery = useQuery({
         queryKey: ["ticket-kanban-card-counts", ticket.id],
         enabled: loadCounts,
@@ -179,7 +158,8 @@ function TicketCard({ ticket, isMoving, isDragging, canDrag, onDragStart, onDrag
 
     return (
         <article
-            ref={cardRef}
+            onMouseEnter={() => setLoadCounts(true)}
+            onFocusCapture={() => setLoadCounts(true)}
             draggable={canDrag && !isMoving}
             aria-label={`${ticket.ticket_key}: ${ticket.title}`}
             title={
@@ -198,7 +178,7 @@ function TicketCard({ ticket, isMoving, isDragging, canDrag, onDragStart, onDrag
             className={`rounded-lg border border-l-[3px] border-slate-200 bg-white p-2.5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-700 dark:bg-slate-950 ${priority.border} ${isDragging ? "opacity-50" : ""}`}
         >
             <div className="flex items-start justify-between gap-2">
-                <Link href={`/dashboard/tickets/${ticket.id}`} className="min-w-0 truncate text-[10px] font-bold text-violet-700 hover:underline dark:text-violet-300">{ticket.ticket_key}</Link>
+                <span className="min-w-0 truncate text-[10px] font-bold text-violet-700 dark:text-violet-300">{ticket.ticket_key}</span>
                 <span className={`shrink-0 text-[10px] font-semibold ${priority.text}`}>{priority.label}</span>
             </div>
             <Link href={`/dashboard/tickets/${ticket.id}`} className="mt-1 block line-clamp-2 text-[12px] font-semibold leading-4 text-slate-800 hover:text-violet-700 dark:text-slate-100 dark:hover:text-violet-300">{ticket.title}</Link>
