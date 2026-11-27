@@ -307,4 +307,4 @@ The following clarifications supersede the pending draft statements above where 
 - Notifications and Automate Pro are excluded.
 - The GitHub toolbar button opens the developer's personal GitHub account/repository; application GitHub activity remains mock data.
 
-For the implemented authentication cookie/token contract, see `../architecture/technology-decisions.md` and `../api/api-specification.md`. For invitation pending-profile and selected-team persistence, see `../database/database-design.md`; this requires a migration and is not yet implemented.
+For the implemented authentication cookie/token contract, see `../architecture/technology-decisions.md` and `../api/api-specification.md`. Invitation details (name, email, employee ID, role and selected teams) are persisted in `user_invitations` and `user_invitation_teams` by migration `b8def47f2061`; on acceptance, the service creates the employee account and materializes the selected active team memberships. This is implemented in `backend/app/services/user_invitation_service.py`.
