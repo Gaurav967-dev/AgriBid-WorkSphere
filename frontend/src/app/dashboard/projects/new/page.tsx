@@ -32,6 +32,7 @@ import {
     type ProjectStatus,
 } from "@/features/projects/api/projects-api";
 
+import { MultiSelectDropdown } from "@/components/multi-select-dropdown";
 import { WorkspaceActions } from "@/components/workspace-actions";
 import { WorkspaceSidebar } from "@/components/workspace-sidebar";
 import { useWorkspaceSidebarState } from "@/components/workspace-sidebar-state";
@@ -611,47 +612,29 @@ export default function CreateProjectPage() {
                                             No active members are currently available for this team.
                                         </p>
                                     ) : (
-                                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                                            {teamMembers.map((member) => {
-                                                const checked =
-                                                    form.member_ids.includes(member.id);
-
-                                                return (
-                                                    <label
-                                                        key={member.id}
-                                                        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition ${checked
-                                                            ? "border-violet-300 bg-violet-50 dark:border-violet-800 dark:bg-violet-950/30"
-                                                            : "border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
-                                                            }`}
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={checked}
-                                                            onChange={(event) =>
-                                                                handleMemberToggle(
-                                                                    member.id,
-                                                                    event.target.checked,
-                                                                )
-                                                            }
-                                                            className="size-4 accent-violet-700"
-                                                        />
-                                                        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-800 dark:bg-violet-950 dark:text-violet-200">
-                                                            {member.full_name
-                                                                .trim()
-                                                                .charAt(0)
-                                                                .toUpperCase()}
+                                        <div className="mt-2">
+                                            <MultiSelectDropdown
+                                                id="project-members"
+                                                label="Project members"
+                                                placeholder="Select multiple project members"
+                                                selectedValues={form.member_ids}
+                                                onChange={(memberIds) => updateField("member_ids", memberIds)}
+                                                options={teamMembers.map((member) => ({
+                                                    value: member.id,
+                                                    label: member.full_name,
+                                                    description: `${ROLE_LABELS[member.role_code]} · ${member.email}`,
+                                                }))}
+                                                emptyMessage="No active members are available for the selected team."
+                                            />
+                                            {form.member_ids.length > 0 && (
+                                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                                    {teamMembers.filter((member) => form.member_ids.includes(member.id)).map((member) => (
+                                                        <span key={member.id} className="inline-flex items-center rounded-full bg-violet-50 px-2 py-1 text-[10px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
+                                                            {member.full_name}
                                                         </span>
-                                                        <span className="min-w-0">
-                                                            <span className="block truncate text-xs font-semibold text-slate-800 dark:text-slate-200">
-                                                                {member.full_name}
-                                                            </span>
-                                                            <span className="mt-0.5 block truncate text-[10px] text-slate-400">
-                                                                {ROLE_LABELS[member.role_code]} · {member.email}
-                                                            </span>
-                                                        </span>
-                                                    </label>
-                                                );
-                                            })}
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
