@@ -582,6 +582,11 @@ def create_ticket_comment(
             raise HTTPException(
                 status_code=400, detail="Reply target must be an existing comment on this ticket."
             )
+        if parent.author_user_id == actor.id:
+            raise HTTPException(
+                status_code=400,
+                detail="You cannot reply to your own comment.",
+            )
 
     mentioned_users = _validated_mentioned_users(
         db, ticket=ticket, user_ids=data.mentioned_user_ids
