@@ -32,6 +32,7 @@ import { ProjectsToolbar, type ProjectSort } from "@/features/projects/component
 import { WorkspaceActions } from "@/components/workspace-actions";
 import { WorkspaceSidebar } from "@/components/workspace-sidebar";
 import { useWorkspaceSidebarState } from "@/components/workspace-sidebar-state";
+import { relativeUpdateLabel } from "@/lib/date-utils";
 
 const PAGE_SIZE = 9;
 
@@ -220,6 +221,10 @@ export default function ProjectsPage() {
         () => projectsQuery.data?.items ?? [],
         [projectsQuery.data?.items],
     );
+    const latestProjectUpdate = projects
+        .map((project) => project.updated_at)
+        .filter((value): value is string => Boolean(value))
+        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
     const displayedProjects = useMemo(() => {
         const items = [...projects];
         const timestamp = (value: string | null) =>
@@ -305,7 +310,7 @@ export default function ProjectsPage() {
                     </div>
 
                     <div className="flex shrink-0 items-center gap-2">
-                        <WorkspaceActions user={user}  onSignOut={handleSignOut} isSigningOut={isSigningOut} />
+                        <WorkspaceActions user={user} lastUpdated={relativeUpdateLabel(latestProjectUpdate)} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
                     </div>
                 </header>
 
