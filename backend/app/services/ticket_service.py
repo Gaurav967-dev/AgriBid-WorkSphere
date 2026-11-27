@@ -310,6 +310,8 @@ def create_ticket(
         start_date=data.start_date,
         due_date=data.due_date,
         estimated_effort=data.estimated_effort,
+        completed_at=datetime.now(UTC) if data.status == "COMPLETED" else None,
+        completed_by_user_id=actor.id if data.status == "COMPLETED" else None,
         labels=data.labels,
         parent_ticket_id=data.parent_ticket_id,
     )
