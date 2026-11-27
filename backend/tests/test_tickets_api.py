@@ -246,6 +246,19 @@ def test_admin_can_create_ticket_in_selected_kanban_status(ticket_environment):
     )
     assert created_activity["new_value"]["status"] == "IN_PROGRESS"
 
+    completed = client.post(
+        "/api/v1/tickets",
+        json={
+            "project_id": str(ids["project"]),
+            "title": "Create completed ticket from board",
+            "status": "COMPLETED",
+        },
+    )
+    assert completed.status_code == 201, completed.text
+    assert completed.json()["status"] == "COMPLETED"
+    assert completed.json()["completed_at"] is not None
+    assert completed.json()["completed_by"]["id"] == str(ids["admin"])
+
 
 def test_project_ticket_numbers_increment(ticket_environment):
     client, _, ids = ticket_environment
