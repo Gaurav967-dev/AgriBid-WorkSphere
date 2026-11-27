@@ -544,6 +544,58 @@ def test_legacy_done_status_is_rejected(ticket_environment):
     assert response.status_code == 422
 
 
+def test_comments_are_limited_to_250_characters(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+    ticket = create_ticket(client, ids)
+
+    accepted = client.post(
+        f"/api/v1/tickets/{ticket['id']}/comments",
+        json={"body": "a" * 250},
+    )
+    assert accepted.status_code == 201, accepted.text
+    assert len(accepted.json()["body"]) == 250
+
+    rejected = client.post(
+        f"/api/v1/tickets/{ticket['id']}/comments",
+        json={"body": "a" * 251},
+    )
+    assert rejected.status_code == 422
+
+
+def test_users_cannot_reply_to_their_own_comment(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+    ticket = create_ticket(client, ids)
+
+    sign_in_as(client, "DEVELOPER")
+    parent = client.post(
+        f"/api/v1/tickets/{ticket['id']}/comments",
+        json={"body": "Developer comment"},
+    )
+    assert parent.status_code == 201, parent.text
+
+    self_reply = client.post(
+        f"/api/v1/tickets/{ticket['id']}/comments",
+        json={
+            "body": "A reply to my own comment",
+            "parent_comment_id": parent.json()["id"],
+        },
+    )
+    assert self_reply.status_code == 400
+    assert self_reply.json()["detail"] == "You cannot reply to your own comment."
+
+    sign_in_as(client, "TESTER")
+    other_user_reply = client.post(
+        f"/api/v1/tickets/{ticket['id']}/comments",
+        json={
+            "body": "A reply from another project member",
+            "parent_comment_id": parent.json()["id"],
+        },
+    )
+    assert other_user_reply.status_code == 201, other_user_reply.text
+
+
 def test_project_member_can_create_comment_and_mention_project_member(ticket_environment):
     client, _, ids = ticket_environment
     sign_in_as(client, "ADMIN")
