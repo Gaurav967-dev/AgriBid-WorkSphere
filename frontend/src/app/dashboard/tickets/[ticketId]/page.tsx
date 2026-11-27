@@ -411,7 +411,7 @@ export default function TicketDetailsPage() {
 
         if (isAssignedDeveloper) {
             const transitions: Partial<Record<TicketStatus, TicketStatus[]>> = {
-                TODO: ["IN_PROGRESS", "IN_REVIEW"],
+                TODO: ["IN_PROGRESS"],
                 IN_PROGRESS: ["IN_REVIEW"],
                 REOPENED: ["IN_PROGRESS"],
             };
