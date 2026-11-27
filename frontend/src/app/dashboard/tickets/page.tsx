@@ -58,6 +58,7 @@ import { TicketKanbanBoard } from "@/features/tickets/components/ticket-kanban-b
 import { WorkspaceActions } from "@/components/workspace-actions";
 import { WorkspaceSidebar } from "@/components/workspace-sidebar";
 import { useWorkspaceSidebarState } from "@/components/workspace-sidebar-state";
+import { relativeUpdateLabel } from "@/lib/date-utils";
 
 const PAGE_SIZE = 12;
 const BOARD_PAGE_SIZE = 40;
@@ -618,6 +619,10 @@ export default function TicketsPage() {
 
     const boardTickets = boardQuery.data?.pages.flatMap((item) => item.items) ?? [];
     const tickets = view === "list" ? ticketsQuery.data?.items ?? [] : boardTickets;
+    const latestTicketUpdate = tickets
+        .map((ticket) => (ticket as TicketMetadata).updated_at)
+        .filter((value): value is string => Boolean(value))
+        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
     const visibleTickets = tickets;
     const visibleBoardTickets = boardTickets;
     const totalPages = Math.max(1, ticketsQuery.data?.total_pages ?? 1);
@@ -852,7 +857,7 @@ export default function TicketsPage() {
                         <button type="button" aria-label="Open navigation" onClick={() => setMobileNavOpen(true)} className="rounded-md p-2 text-slate-500 hover:bg-slate-100 md:hidden dark:hover:bg-slate-800"><Menu className="size-5" /></button>
                         <p className="truncate text-sm font-semibold">Tasks</p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2"><WorkspaceActions user={user} onSignOut={handleSignOut} isSigningOut={isSigningOut} /></div>
+                    <div className="flex shrink-0 items-center gap-2"><WorkspaceActions user={user} lastUpdated={relativeUpdateLabel(latestTicketUpdate)} onSignOut={handleSignOut} isSigningOut={isSigningOut} /></div>
                 </header>
 
                 <section className="flex h-full w-full max-w-full min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden px-3 pb-2 pt-2 sm:px-4 lg:px-5">
