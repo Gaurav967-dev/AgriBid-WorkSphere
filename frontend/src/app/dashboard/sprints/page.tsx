@@ -374,7 +374,7 @@ export default function SprintsPage() {
                         </div>
                     ) : (
                         <div className="grid min-w-0 gap-3 xl:min-h-0 xl:flex-1 xl:overflow-hidden xl:grid-rows-1 xl:grid-cols-[280px_minmax(0,1fr)]">
-                            <aside className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 xl:flex xl:min-h-0 xl:flex-col xl:overflow-hidden">
+                            <aside className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 xl:h-full xl:min-h-0 xl:flex xl:flex-col xl:overflow-hidden">
                                 <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3 dark:border-slate-800">
                                     <div>
                                         <h2 className="text-sm font-semibold">Project sprints</h2>
@@ -391,7 +391,7 @@ export default function SprintsPage() {
                                         <p className="mt-1 text-xs text-slate-500">Create a sprint to begin planning tickets.</p>
                                     </div>
                                 ) : (
-                                    <div className="mt-3 min-h-0 space-y-2 xl:flex-1 xl:overflow-y-auto xl:pr-1">
+                                    <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
                                         {sprints.map((sprint) => {
                                             const active = sprint.id === selectedSprint?.id;
                                             return (
