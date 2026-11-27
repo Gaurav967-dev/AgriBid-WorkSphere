@@ -307,15 +307,21 @@ All endpoints must enforce role and project-level authorization.
   "project_id": "project-id",
   "title": "Implement employee dashboard",
   "description": "Ticket description",
+  "type": "TASK",
   "priority": "HIGH",
+  "status": "IN_PROGRESS",
   "assignee_id": "user-id",
-  "label_ids": [
-    "label-id"
-  ]
+  "reviewer_id": "reviewer-id",
+  "tester_id": "tester-id",
+  "start_date": "2026-11-28",
+  "due_date": "2026-12-04",
+  "estimated_effort": 8,
+  "labels": ["frontend", "dashboard"],
+  "parent_ticket_id": null
 }
 ```
 
-The final required fields and initial status must match the approved requirements.
+The `status` field is optional and defaults to `BACKLOG`. Project Managers and Administrators may supply an initial configured ticket status; this supports creating a ticket directly from the matching Kanban column's add action. The backend continues to enforce the existing role and project authorization rules.
 
 ### 7.3 Ticket Assignment Request
 
@@ -390,31 +396,30 @@ Only approved filters should be supported.
 
 ## 8. Comments and Mentions APIs
 
-### 8.1 Proposed Endpoints
+### 8.1 Implemented Endpoints
 
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | /tickets/{ticket_id}/comments | List comments |
-| POST | /tickets/{ticket_id}/comments | Create comment |
-| PATCH | /comments/{comment_id} | Edit comment |
-| DELETE | /comments/{comment_id} | Delete comment |
+| POST | /tickets/{ticket_id}/comments | Create a comment or reply |
+| PATCH | /tickets/{ticket_id}/comments/{comment_id} | Edit a comment |
+| DELETE | /tickets/{ticket_id}/comments/{comment_id} | Soft-delete a comment |
 
 ### 8.2 Comment Request
 
 ```json
 {
   "body": "Implementation is ready for review.",
+  "parent_comment_id": null,
   "mentioned_user_ids": [
     "user-id"
   ]
 }
 ```
 
-The backend validates the comment body and mentioned employee IDs.
+Comment bodies are limited to 250 characters for both creation and editing. A reply supplies the parent comment ID. A user cannot reply to their own comment; replies must target another user's comment. The backend validates the comment body, reply target and mentioned employee IDs.
 
 Mention records may be stored for application functionality. This does not authorize implementation of the excluded Notifications module.
-
-Comment editing, deletion and mention visibility permissions require confirmation if not already specified.
 
 ## 9. Attachment APIs
 
