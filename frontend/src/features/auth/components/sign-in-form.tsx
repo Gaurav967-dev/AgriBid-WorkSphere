@@ -4,7 +4,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signIn, signOut, verifyIdToken } from "@/features/auth/api/auth-api";
+import { signIn } from "@/features/auth/api/auth-api";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -172,14 +172,10 @@ export function SignInForm() {
                 email: values.email,
                 password: values.password,
             });
-            try {
-                await verifyIdToken();
-            } catch (verificationError) {
-                await signOut();
-                throw verificationError;
-            }
+            // The destination dashboard performs the single /auth/verify-token
+            // session check after it mounts. Avoid a second identity-verification
+            // request here and avoid a duplicate RSC refresh after navigation.
             router.replace("/dashboard");
-            router.refresh();
         } catch (error) {
             const message =
                 error instanceof Error
