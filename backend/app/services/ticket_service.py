@@ -302,7 +302,7 @@ def create_ticket(
         description=data.description,
         type=data.type,
         priority=data.priority,
-        status="BACKLOG",
+        status=data.status,
         reporter_id=actor.id,
         assignee_id=data.assignee_id,
         reviewer_id=data.reviewer_id,
@@ -324,7 +324,7 @@ def create_ticket(
         action="CREATED",
         new_value={
             "ticket_key": ticket_key,
-            "status": "BACKLOG",
+            "status": data.status,
             "title": ticket.title,
         },
         description=f"Ticket {ticket_key} created.",
