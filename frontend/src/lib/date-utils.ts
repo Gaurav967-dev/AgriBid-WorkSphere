@@ -15,3 +15,24 @@ export function todayDateInputValue(): string {
 
     return `${value("year")}-${value("month")}-${value("day")}`;
 }
+
+/**
+ * Format a server-provided update timestamp for the workspace header.
+ * Uses elapsed calendar-day intervals and never substitutes the current time
+ * when the source timestamp is missing or invalid.
+ */
+export function relativeUpdateLabel(value?: string | null): string {
+    if (!value) return "—";
+
+    const timestamp = new Date(value).getTime();
+    if (Number.isNaN(timestamp)) return "—";
+
+    const elapsedDays = Math.max(
+        0,
+        Math.floor((Date.now() - timestamp) / 86_400_000),
+    );
+
+    if (elapsedDays === 0) return "Today";
+    if (elapsedDays === 1) return "1 day ago";
+    return `${elapsedDays} days ago`;
+}
