@@ -562,6 +562,19 @@ def test_comments_are_limited_to_250_characters(ticket_environment):
     )
     assert rejected.status_code == 422
 
+    update_accepted = client.patch(
+        f"/api/v1/tickets/{ticket['id']}/comments/{accepted.json()['id']}",
+        json={"body": "b" * 250},
+    )
+    assert update_accepted.status_code == 200, update_accepted.text
+    assert len(update_accepted.json()["body"]) == 250
+
+    update_rejected = client.patch(
+        f"/api/v1/tickets/{ticket['id']}/comments/{accepted.json()['id']}",
+        json={"body": "b" * 251},
+    )
+    assert update_rejected.status_code == 422
+
 
 def test_users_cannot_reply_to_their_own_comment(ticket_environment):
     client, _, ids = ticket_environment
