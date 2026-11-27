@@ -4,7 +4,6 @@ import {
     useEffect,
     useMemo,
     useState,
-    type ChangeEvent,
     type FormEvent,
 } from "react";
 import Link from "next/link";
@@ -53,6 +52,7 @@ import { TeamsFilter } from "@/features/teams/components/teams-filter";
 import { TeamsDisplayOptions } from "@/features/teams/components/teams-display-options";
 import { WorkspaceSidebar } from "@/components/workspace-sidebar";
 import { useWorkspaceSidebarState } from "@/components/workspace-sidebar-state";
+import { MultiSelectDropdown } from "@/components/multi-select-dropdown";
 import { WorkspaceActions } from "@/components/workspace-actions";
 
 import {
@@ -452,14 +452,6 @@ export default function TeamsPage() {
         setFormMode("edit");
     }
 
-    function handleMemberSelection(event: ChangeEvent<HTMLSelectElement>) {
-        const values = Array.from(
-            event.currentTarget.selectedOptions,
-            (option) => option.value,
-        );
-        setSelectedMemberIds(values);
-    }
-
     function handleSaveTeam(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
@@ -816,22 +808,21 @@ export default function TeamsPage() {
                                             <label htmlFor="team-members" className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
                                                 Initial members
                                             </label>
-                                            <select
+                                            <MultiSelectDropdown
                                                 id="team-members"
-                                                multiple
-                                                value={selectedMemberIds}
-                                                onChange={handleMemberSelection}
-                                                size={Math.min(Math.max(employees.length, 3), 6)}
-                                                className="w-full rounded-lg border border-slate-200 bg-white p-2 text-sm outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                                            >
-                                                {employees.map((employee) => (
-                                                    <option key={employee.id} value={employee.id}>
-                                                        {employee.full_name} · {roleLabel(employee.role_code)}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                                label="Initial members"
+                                                placeholder="Choose initial team members"
+                                                selectedValues={selectedMemberIds}
+                                                onChange={setSelectedMemberIds}
+                                                options={employees.map((employee) => ({
+                                                    value: employee.id,
+                                                    label: employee.full_name,
+                                                    description: `${roleLabel(employee.role_code)} · ${employee.email}`,
+                                                }))}
+                                                emptyMessage="No active employees are available."
+                                            />
                                             <p className="mt-1.5 text-xs text-slate-400">
-                                                Use Ctrl (Windows) or Command (Mac) to select multiple employees.
+                                                Select or deselect multiple employees with checkboxes. No keyboard modifier is required.
                                             </p>
                                         </div>
 
