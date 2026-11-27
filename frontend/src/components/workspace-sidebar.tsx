@@ -153,6 +153,7 @@ function SidebarSection({
                         <Link
                             key={item.label}
                             href={item.href}
+                            prefetch={false}
                             onClick={() => onNavigate(item)}
                             aria-current={active ? "page" : undefined}
                             aria-label={item.label}
