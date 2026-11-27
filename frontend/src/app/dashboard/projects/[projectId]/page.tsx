@@ -264,6 +264,18 @@ export default function ProjectDetailsPage() {
       return;
     }
 
+    const originalStartDate = project?.start_date
+      ? dateInput(project.start_date)
+      : "";
+    if (
+      form.start_date &&
+      form.start_date < todayDateInputValue() &&
+      form.start_date !== originalStartDate
+    ) {
+      setNotice("Project start date cannot be in the past.");
+      return;
+    }
+
     if (
       form.start_date &&
       form.end_date &&
@@ -468,7 +480,7 @@ export default function ProjectDetailsPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="grid gap-3 sm:grid-cols-2">
+            <form noValidate onSubmit={handleSave} className="grid gap-3 sm:grid-cols-2">
               <label className="space-y-1 text-xs font-medium">
                 Project name
                 <input
