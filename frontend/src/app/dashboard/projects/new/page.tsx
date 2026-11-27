@@ -33,6 +33,7 @@ import {
 } from "@/features/projects/api/projects-api";
 
 import { MultiSelectDropdown } from "@/components/multi-select-dropdown";
+import { todayDateInputValue } from "@/lib/date-utils";
 import { WorkspaceActions } from "@/components/workspace-actions";
 import { WorkspaceSidebar } from "@/components/workspace-sidebar";
 import { useWorkspaceSidebarState } from "@/components/workspace-sidebar-state";
@@ -650,6 +651,7 @@ export default function CreateProjectPage() {
                                         onChange={(event) =>
                                             updateField("start_date", event.target.value)
                                         }
+                                        min={todayDateInputValue()}
                                         max={form.end_date || undefined}
                                         className={INPUT_CLASS}
                                     />
