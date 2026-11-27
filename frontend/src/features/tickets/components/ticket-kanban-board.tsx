@@ -181,12 +181,12 @@ function TicketCard({ ticket, isMoving, isDragging, canDrag, onDragStart, onDrag
                 <span className="min-w-0 truncate text-[10px] font-bold text-violet-700 dark:text-violet-300">{ticket.ticket_key}</span>
                 <span className={`shrink-0 text-[10px] font-semibold ${priority.text}`}>{priority.label}</span>
             </div>
-            <Link href={`/dashboard/tickets/${ticket.id}`} className="mt-1 block line-clamp-2 text-[12px] font-semibold leading-4 text-slate-800 hover:text-violet-700 dark:text-slate-100 dark:hover:text-violet-300">{ticket.title}</Link>
+            <Link prefetch={false} href={`/dashboard/tickets/${ticket.id}`} className="mt-1 block line-clamp-2 text-[12px] font-semibold leading-4 text-slate-800 hover:text-violet-700 dark:text-slate-100 dark:hover:text-violet-300">{ticket.title}</Link>
             {ticket.description && <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-slate-500 dark:text-slate-400">{ticket.description}</p>}
 
             <div className="mt-1.5 flex flex-wrap items-center gap-1">
                 <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{TYPE_LABELS[ticket.type]}</span>
-                <Link href={`/dashboard/tickets/${ticket.id}`} className="rounded-full bg-violet-50 px-1.5 py-0.5 text-[9px] font-medium text-violet-700 hover:underline dark:bg-violet-950/50 dark:text-violet-300">{ticket.project.key}</Link>
+                <Link prefetch={false} href={`/dashboard/tickets/${ticket.id}`} className="rounded-full bg-violet-50 px-1.5 py-0.5 text-[9px] font-medium text-violet-700 hover:underline dark:bg-violet-950/50 dark:text-violet-300">{ticket.project.key}</Link>
                 {ticket.labels.slice(0, 2).map((label) => <span key={label} className="max-w-full truncate rounded-full bg-slate-50 px-1.5 py-0.5 text-[9px] text-slate-500 dark:bg-slate-900 dark:text-slate-400">{label}</span>)}
                 {ticket.labels.length > 2 && <span className="text-[9px] text-slate-400">+{ticket.labels.length - 2}</span>}
             </div>
