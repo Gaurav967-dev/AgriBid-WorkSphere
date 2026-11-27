@@ -62,6 +62,7 @@ import { TicketCommentsPanel } from "@/features/tickets/components/ticket-commen
 import { AttachmentsPanel } from "@/features/attachments/components/attachments-panel";
 
 import { WorkspaceActions } from "@/components/workspace-actions";
+import { todayDateInputValue } from "@/lib/date-utils";
 import { WorkspaceSidebar } from "@/components/workspace-sidebar";
 import { useWorkspaceSidebarState } from "@/components/workspace-sidebar-state";
 
@@ -970,6 +971,7 @@ export default function TicketDetailsPage() {
                                             </label>
                                             <input
                                                 type="date"
+                                                min={todayDateInputValue()}
                                                 value={editForm.start_date}
                                                 max={editForm.due_date || undefined}
                                                 onChange={(event) =>
