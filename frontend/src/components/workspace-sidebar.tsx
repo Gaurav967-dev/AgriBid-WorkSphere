@@ -116,6 +116,7 @@ function SidebarSection({
                             ? (isCalendarLink
                                 ? pathname === itemPath && ticketView === "calendar"
                                 : ticketView !== "calendar" &&
+                                  ticketView !== "pending" &&
                                   (pathname === itemPath || pathname.startsWith(`${itemPath}/`)))
                             : pathname === itemPath ||
                               (itemPath !== "/dashboard" && pathname.startsWith(`${itemPath}/`))),
@@ -180,7 +181,7 @@ function SidebarPanel({
     onOpenSearch: () => void;
 }) {
     const pathname = usePathname();
-    const [ticketView, setTicketView] = useState<string | null>(null);
+    const [ticketView, setTicketView] = useState<string | null>("pending");
     const isAdmin = user?.role_code === "ADMIN";
 
     function handleNavigation(item: NavigationItem) {
