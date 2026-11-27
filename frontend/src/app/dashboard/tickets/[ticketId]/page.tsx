@@ -440,7 +440,7 @@ export default function TicketDetailsPage() {
         ticket &&
         nextStatus &&
         (
-            ["BLOCKED", "REOPENED", "CANCELLED"].includes(nextStatus) ||
+            (["BLOCKED", "REOPENED", "CANCELLED"] as TicketStatus[]).includes(nextStatus) ||
             ticket.status === "BLOCKED" ||
             (
                 user?.role_code === "TESTER" &&
