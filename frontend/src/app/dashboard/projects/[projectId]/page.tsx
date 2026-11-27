@@ -43,6 +43,7 @@ import { WorkspaceActions } from "@/components/workspace-actions";
 import { todayDateInputValue } from "@/lib/date-utils";
 import { WorkspaceSidebar } from "@/components/workspace-sidebar";
 import { useWorkspaceSidebarState } from "@/components/workspace-sidebar-state";
+import { relativeUpdateLabel } from "@/lib/date-utils";
 
 const statuses: ProjectStatus[] = [
   "PLANNING",
@@ -404,7 +405,7 @@ export default function ProjectDetailsPage() {
             <p className="truncate text-sm font-semibold">{project.key}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <WorkspaceActions user={user} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
+            <WorkspaceActions user={user} lastUpdated={relativeUpdateLabel(project?.updated_at)} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
           </div>
         </header>
 
