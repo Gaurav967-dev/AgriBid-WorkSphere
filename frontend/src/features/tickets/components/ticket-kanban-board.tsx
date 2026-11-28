@@ -43,14 +43,20 @@ function getAllowedTicketTransitions(
 
     if (
         ticket.status === "IN_REVIEW" &&
-        (ticket.reviewer?.id === currentUser.id || ticket.reviewers?.some((reviewer) => reviewer.id === currentUser.id) === true)
+        (
+            ticket.reviewer?.id === currentUser.id ||
+            ticket.reviewers?.some((reviewer) => reviewer.id === currentUser.id) === true
+        )
     ) {
         return ["TESTING"];
     }
 
     if (
         currentUser.role_code === "DEVELOPER" &&
-        (ticket.assignee?.id === currentUser.id || ticket.assignees?.some((assignee) => assignee.id === currentUser.id) === true)
+        (
+            ticket.assignee?.id === currentUser.id ||
+            ticket.assignees?.some((assignee) => assignee.id === currentUser.id) === true
+        )
     ) {
         const transitions: Partial<Record<TicketStatus, TicketStatus[]>> = {
             TODO: ["IN_PROGRESS"],
@@ -62,7 +68,10 @@ function getAllowedTicketTransitions(
 
     if (
         currentUser.role_code === "TESTER" &&
-        (ticket.tester?.id === currentUser.id || ticket.testers?.some((tester) => tester.id === currentUser.id) === true)
+        (
+            ticket.tester?.id === currentUser.id ||
+            ticket.testers?.some((tester) => tester.id === currentUser.id) === true
+        )
     ) {
         const transitions: Partial<Record<TicketStatus, TicketStatus[]>> = {
             TESTING: ["TESTING_DONE", "BUG_FIXED", "REOPENED", "IN_PROGRESS"],
@@ -337,12 +346,14 @@ export function TicketKanbanBoard({
 
         const allowedTransitions = getAllowedTicketTransitions(ticket, currentUser);
         if (!allowedTransitions.includes(nextStatus)) {
+            const isAssignedTester =
+                ticket.tester?.id === currentUser.id ||
+                ticket.testers?.some((tester) => tester.id === currentUser.id) === true;
+
             setMoveMessage(
-                currentUser.role_code === "TESTER" &&
-                        ticket.tester?.id !== currentUser.id &&
-                        ticket.testers?.some((tester) => tester.id === currentUser.id) !== true
+                currentUser.role_code === "TESTER" && !isAssignedTester
                     ? "This ticket is visible to you, but it is not assigned to you as its Tester. Ask the Project Manager to assign you in the ticket details."
-                    : "That status transition is not permitted for your role and the ticket's current status."
+                    : "That status transition is not permitted for your role and the ticket's current status.",
             );
             return;
         }
