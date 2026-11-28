@@ -10,6 +10,7 @@ import {
     ArrowLeft,
     CalendarDays,
     CheckCircle2,
+    ChevronDown,
     FolderKanban,
     Menu,
     PanelLeft,
@@ -611,54 +612,50 @@ export default function CreateProjectPage() {
                                             No active members are currently available for this team.
                                         </p>
                                     ) : (
-                                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                                            {teamMembers.map((member) => {
-                                                const checked =
-                                                    form.member_ids.includes(member.id);
-
-                                                return (
-                                                    <label
-                                                        key={member.id}
-                                                        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition ${checked
-                                                            ? "border-violet-300 bg-violet-50 dark:border-violet-800 dark:bg-violet-950/30"
-                                                            : "border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
-                                                            }`}
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={checked}
-                                                            onChange={(event) =>
-                                                                handleMemberToggle(
-                                                                    member.id,
-                                                                    event.target.checked,
-                                                                )
-                                                            }
-                                                            className="size-4 accent-violet-700"
-                                                        />
-                                                        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-800 dark:bg-violet-950 dark:text-violet-200">
-                                                            {member.full_name
-                                                                .trim()
-                                                                .charAt(0)
-                                                                .toUpperCase()}
-                                                        </span>
-                                                        <span className="min-w-0">
-                                                            <span className="block truncate text-xs font-semibold text-slate-800 dark:text-slate-200">
-                                                                {member.full_name}
-                                                            </span>
-                                                            <span className="mt-0.5 block truncate text-[10px] text-slate-400">
-                                                                {ROLE_LABELS[member.role_code]} · {member.email}
-                                                            </span>
-                                                        </span>
-                                                    </label>
-                                                );
-                                            })}
-                                        </div>
+                                        <>
+                                            <details className="relative mt-2">
+                                                <summary className="flex h-10 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition hover:border-violet-400 focus-visible:ring-2 focus-visible:ring-violet-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 [&::-webkit-details-marker]:hidden">
+                                                    <span>{form.member_ids.length > 0 ? `${form.member_ids.length} project members selected` : "Select project members"}</span>
+                                                    <ChevronDown className="size-4 text-slate-400" />
+                                                </summary>
+                                                <div className="absolute left-0 right-0 top-11 z-30 max-h-60 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                                                    {teamMembers.map((member) => {
+                                                        const checked = form.member_ids.includes(member.id);
+                                                        return (
+                                                            <label
+                                                                key={member.id}
+                                                                className={`flex cursor-pointer items-center gap-3 rounded-md px-2.5 py-2 transition ${checked ? "bg-violet-50 dark:bg-violet-950/40" : "hover:bg-slate-50 dark:hover:bg-slate-800"}`}
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={checked}
+                                                                    onChange={(event) => handleMemberToggle(member.id, event.target.checked)}
+                                                                    className="size-4 accent-violet-700"
+                                                                />
+                                                                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-bold text-violet-800 dark:bg-violet-950 dark:text-violet-200">
+                                                                    {member.full_name.trim().split(/\\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}
+                                                                </span>
+                                                                <span className="min-w-0 flex-1">
+                                                                    <span className="block truncate text-xs font-semibold text-slate-800 dark:text-slate-200">{member.full_name}</span>
+                                                                    <span className="block text-[10px] text-slate-400">{ROLE_LABELS[member.role_code] ?? member.role_code}</span>
+                                                                </span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </details>
+                                            {form.member_ids.length > 0 && (
+                                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                                    {teamMembers.filter((member) => form.member_ids.includes(member.id)).map((member) => (
+                                                        <span key={member.id} className="rounded-md bg-violet-50 px-2 py-1 text-[10px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">{member.full_name}</span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <p className="mt-1.5 text-[11px] text-slate-400">
+                                                Select multiple active members from the assigned team.
+                                            </p>
+                                        </>
                                     )}
-
-                                    <p className="mt-2 text-[10px] text-slate-400">
-                                        You can select multiple members. They must be active
-                                        members of the assigned team.
-                                    </p>
                                 </div>
                             </FormSection>
 
