@@ -234,6 +234,18 @@ export default function CreateProjectPage() {
     }, []);
 
     useEffect(() => {
+        const handleOutsidePointerDown = (event: PointerEvent) => {
+            document.querySelectorAll<HTMLDetailsElement>('details[data-outside-dismiss="project-members"]').forEach((picker) => {
+                if (picker.open && event.target instanceof Node && !picker.contains(event.target)) {
+                    picker.open = false;
+                }
+            });
+        };
+        document.addEventListener("pointerdown", handleOutsidePointerDown);
+        return () => document.removeEventListener("pointerdown", handleOutsidePointerDown);
+    }, []);
+
+    useEffect(() => {
         let active = true;
 
         verifyToken()
