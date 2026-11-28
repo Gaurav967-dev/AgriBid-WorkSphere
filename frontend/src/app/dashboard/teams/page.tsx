@@ -4,7 +4,6 @@ import {
     useEffect,
     useMemo,
     useState,
-    type ChangeEvent,
     type FormEvent,
 } from "react";
 import Link from "next/link";
@@ -13,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     Archive,
     CircleAlert,
+    ChevronDown,
     Crown,
     Menu,
     PanelLeft,
@@ -452,14 +452,6 @@ export default function TeamsPage() {
         setFormMode("edit");
     }
 
-    function handleMemberSelection(event: ChangeEvent<HTMLSelectElement>) {
-        const values = Array.from(
-            event.currentTarget.selectedOptions,
-            (option) => option.value,
-        );
-        setSelectedMemberIds(values);
-    }
-
     function handleSaveTeam(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
@@ -816,22 +808,54 @@ export default function TeamsPage() {
                                             <label htmlFor="team-members" className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
                                                 Initial members
                                             </label>
-                                            <select
-                                                id="team-members"
-                                                multiple
-                                                value={selectedMemberIds}
-                                                onChange={handleMemberSelection}
-                                                size={Math.min(Math.max(employees.length, 3), 6)}
-                                                className="w-full rounded-lg border border-slate-200 bg-white p-2 text-sm outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                                            >
-                                                {employees.map((employee) => (
-                                                    <option key={employee.id} value={employee.id}>
-                                                        {employee.full_name} · {roleLabel(employee.role_code)}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                            <details className="relative mt-1.5">
+                                                <summary
+                                                    id="team-members"
+                                                    className="flex h-10 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition hover:border-violet-400 focus-visible:ring-2 focus-visible:ring-violet-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 [&::-webkit-details-marker]:hidden"
+                                                >
+                                                    <span>{selectedMemberIds.length > 0 ? `${selectedMemberIds.length} members selected` : "Select initial members"}</span>
+                                                    <ChevronDown className="size-4 text-slate-400" />
+                                                </summary>
+                                                <div className="absolute left-0 right-0 top-11 z-30 max-h-60 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                                                    {employees.map((employee) => {
+                                                        const checked = selectedMemberIds.includes(employee.id);
+                                                        return (
+                                                            <label
+                                                                key={employee.id}
+                                                                className={`flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition ${checked ? "bg-violet-50 text-violet-800 dark:bg-violet-950/40 dark:text-violet-200" : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"}`}
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={checked}
+                                                                    onChange={(event) => {
+                                                                        const isChecked = event.target.checked;
+                                                                        setSelectedMemberIds((current) =>
+                                                                            isChecked
+                                                                                ? [...current, employee.id]
+                                                                                : current.filter((id) => id !== employee.id),
+                                                                        );
+                                                                    }}
+                                                                    className="size-4 accent-violet-700"
+                                                                />
+                                                                <span className="min-w-0 flex-1 truncate">{employee.full_name}</span>
+                                                                <span className="text-[10px] text-slate-400">{roleLabel(employee.role_code)}</span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                    {employees.length === 0 && (
+                                                        <p className="px-2.5 py-3 text-xs text-slate-400">No active employees available.</p>
+                                                    )}
+                                                </div>
+                                            </details>
+                                            {selectedMemberIds.length > 0 && (
+                                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                                    {employees.filter((employee) => selectedMemberIds.includes(employee.id)).map((employee) => (
+                                                        <span key={employee.id} className="rounded-md bg-violet-50 px-2 py-1 text-[10px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">{employee.full_name}</span>
+                                                    ))}
+                                                </div>
+                                            )}
                                             <p className="mt-1.5 text-xs text-slate-400">
-                                                Use Ctrl (Windows) or Command (Mac) to select multiple employees.
+                                                Select or deselect multiple employees without using keyboard shortcuts.
                                             </p>
                                         </div>
 
