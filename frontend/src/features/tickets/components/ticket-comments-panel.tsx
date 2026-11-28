@@ -193,6 +193,11 @@ function CommentComposer({
         if (marker < 0) return;
 
         const nextBody = `${body.slice(0, marker)}@${person.full_name} `;
+        if (nextBody.length > 250) {
+            setLocalError("Comments cannot exceed 250 characters.");
+            return;
+        }
+        setLocalError(null);
         setBody(nextBody);
         setMentionedIds((current) =>
             current.includes(person.id) ? current : [...current, person.id],
@@ -257,6 +262,11 @@ function CommentComposer({
             nextSelectionEnd = nextSelectionStart + content.length;
         }
 
+        if (nextBody.length > 250) {
+            setLocalError("Formatting would exceed the 250 character comment limit.");
+            return;
+        }
+        setLocalError(null);
         setBody(nextBody);
         setMentionQuery(null);
         requestAnimationFrame(() => {
@@ -274,6 +284,10 @@ function CommentComposer({
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         const normalizedBody = body.trim();
+        if (normalizedBody.length > 250) {
+            setLocalError("Comments cannot exceed 250 characters.");
+            return;
+        }
         if (!normalizedBody) {
             setLocalError("Write a comment before submitting.");
             return;
