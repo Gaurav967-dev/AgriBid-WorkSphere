@@ -158,6 +158,13 @@ class TicketUpdateRequest(BaseModel):
             return None
         return value.strip() or None
 
+    @field_validator("assignee_ids", "reviewer_ids", "tester_ids")
+    @classmethod
+    def unique_assignment_ids(cls, value: list[UUID] | None) -> list[UUID] | None:
+        if value is not None and len(value) != len(set(value)):
+            raise ValueError("Duplicate ticket assignment IDs are not allowed.")
+        return value
+
     @field_validator("labels")
     @classmethod
     def normalize_labels(cls, value: list[str] | None) -> list[str] | None:
