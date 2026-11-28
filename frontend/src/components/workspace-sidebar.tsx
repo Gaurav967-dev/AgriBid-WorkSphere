@@ -250,7 +250,6 @@ function SidebarPanel({
                     pathname={pathname}
                     isAdmin={isAdmin}
                     calendarViewActive={calendarViewActive}
-                    calendarViewActive={calendarViewActive}
                     collapsed={collapsed}
                     onNavigate={onNavigate}
                 />
@@ -262,6 +261,7 @@ function SidebarPanel({
                     items={MANAGEMENT_NAVIGATION}
                     pathname={pathname}
                     isAdmin={isAdmin}
+                    calendarViewActive={calendarViewActive}
                     collapsed={collapsed}
                     onNavigate={onNavigate}
                 />
