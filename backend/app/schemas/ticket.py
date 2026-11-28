@@ -314,7 +314,7 @@ class TicketCommentCreateRequest(BaseModel):
 
 
 class TicketCommentUpdateRequest(BaseModel):
-    body: str = Field(min_length=1, max_length=5000)
+    body: str = Field(min_length=1, max_length=250)
     mentioned_user_ids: list[UUID] | None = Field(default=None, max_length=20)
 
     @field_validator("body")
