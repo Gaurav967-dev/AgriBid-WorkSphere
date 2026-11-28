@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
 
-from sqlalchemy import Text, and_, cast, distinct, func, select
+from sqlalchemy import Text, and_, cast, distinct, func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models import Project, ProjectMember, Team, Ticket, TicketActivity, User, UserInvitation
@@ -31,7 +31,13 @@ def _project_scope(current_user: User):
         Project.status != "ARCHIVED",
     ]
     if role_code == "PM":
-        return [Project.project_manager_id == current_user.id, *active_projects]
+        return [
+            or_(
+                Project.project_manager_id == current_user.id,
+                Project.project_managers.any(User.id == current_user.id),
+            ),
+            *active_projects,
+        ]
 
     member_project_ids = select(ProjectMember.project_id).where(
         ProjectMember.user_id == current_user.id,
@@ -149,8 +155,11 @@ def _serialize_project(project: Project) -> dict:
         "end_date": project.end_date,
         "created_at": project.created_at,
         "updated_at": project.updated_at,
-        "team_name": project.team.name,
-        "project_manager_name": project.project_manager.full_name,
+        "team_name": " · ".join(team.name for team in (project.teams or [project.team])),
+        "project_manager_name": " · ".join(
+            manager.full_name
+            for manager in (project.project_managers or [project.project_manager])
+        ),
         "member_count": len(active_members),
     }
 
