@@ -181,7 +181,10 @@ def create_project(
     team_ids = data.team_ids or [data.team_id]
 
     if not manager_ids or not team_ids:
-        raise ProjectServiceError("At least one project manager and one assigned team are required.", 400)
+        raise ProjectServiceError(
+            "At least one project manager and one assigned team are required.",
+            400,
+        )
 
     if actor.role.code == "PM" and any(manager_id != actor.id for manager_id in manager_ids):
         raise ProjectServiceError(
