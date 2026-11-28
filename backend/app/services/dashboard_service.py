@@ -513,7 +513,13 @@ def get_dashboard(db: Session, current_user: User) -> dict:
         upcoming_deadlines = _upcoming_deadlines(db, ticket_scope, today=today)
 
     elif role_code == "DEVELOPER":
-        assigned_scope = [*ticket_scope, or_(Ticket.assignee_id == current_user.id, Ticket.assignees.any(User.id == current_user.id))]
+        assigned_scope = [
+            *ticket_scope,
+            or_(
+                Ticket.assignee_id == current_user.id,
+                Ticket.assignees.any(User.id == current_user.id),
+            ),
+        ]
         my_assigned = _ticket_count(db, assigned_scope)
         my_pending = _ticket_count(db, assigned_scope, open_condition)
         in_progress = _ticket_count(db, assigned_scope, Ticket.status == "IN_PROGRESS")
@@ -568,7 +574,13 @@ def get_dashboard(db: Session, current_user: User) -> dict:
         ]
 
     elif role_code == "TESTER":
-        assigned_scope = [*ticket_scope, or_(Ticket.tester_id == current_user.id, Ticket.testers.any(User.id == current_user.id))]
+        assigned_scope = [
+            *ticket_scope,
+            or_(
+                Ticket.tester_id == current_user.id,
+                Ticket.testers.any(User.id == current_user.id),
+            ),
+        ]
         assigned_testing = _ticket_count(db, assigned_scope)
         testing_queue = _ticket_count(db, assigned_scope, Ticket.status == "TESTING")
         passed = _ticket_count(db, assigned_scope, Ticket.status == "TESTING_DONE")
@@ -659,9 +671,21 @@ def get_dashboard(db: Session, current_user: User) -> dict:
 
     activity_scope = ticket_scope
     if role_code == "DEVELOPER":
-        activity_scope = [*ticket_scope, or_(Ticket.assignee_id == current_user.id, Ticket.assignees.any(User.id == current_user.id))]
+        activity_scope = [
+            *ticket_scope,
+            or_(
+                Ticket.assignee_id == current_user.id,
+                Ticket.assignees.any(User.id == current_user.id),
+            ),
+        ]
     elif role_code == "TESTER":
-        activity_scope = [*ticket_scope, or_(Ticket.tester_id == current_user.id, Ticket.testers.any(User.id == current_user.id))]
+        activity_scope = [
+            *ticket_scope,
+            or_(
+                Ticket.tester_id == current_user.id,
+                Ticket.testers.any(User.id == current_user.id),
+            ),
+        ]
 
     recent_activities = _recent_activities(db, activity_scope)
     return {
