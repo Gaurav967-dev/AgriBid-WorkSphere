@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime
 from io import StringIO
 from uuid import UUID
 
-from sqlalchemy import func, select, union
+from sqlalchemy import func, or_, select, union
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models import (
@@ -51,7 +51,12 @@ def _project_visibility_conditions(current_user: User) -> list:
         return []
 
     if current_user.role.code == "PM":
-        return [Project.project_manager_id == current_user.id]
+        return [
+            or_(
+                Project.project_manager_id == current_user.id,
+                Project.project_managers.any(User.id == current_user.id),
+            )
+        ]
 
     active_membership = (
         select(ProjectMember.id)
@@ -262,7 +267,10 @@ def get_team_report(
     project_ids = list(
         db.scalars(
             select(Project.id).where(
-                Project.team_id == team_id,
+                or_(
+                    Project.team_id == team_id,
+                    Project.teams.any(Team.id == team_id),
+                ),
                 *_project_visibility_conditions(current_user),
             )
         ).all()
