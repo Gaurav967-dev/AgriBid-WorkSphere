@@ -595,54 +595,54 @@ export default function CreateProjectPage() {
                                     </div>
                                 )}
 
-                                    <div>
-                                        <label htmlFor="project_manager" className={LABEL_CLASS}>
-                                            Project managers <span className="text-rose-500">*</span>
-                                        </label>
-                                        <MultiSelectPicker
-                                            id="project_manager"
-                                            options={managers.map((manager) => ({
-                                                id: manager.id,
-                                                label: manager.full_name,
-                                                detail: ROLE_LABELS[manager.role_code],
-                                            }))}
-                                            selectedIds={selectedManagerIds}
-                                            onChange={handleManagerToggle}
-                                            placeholder="Select project managers"
-                                            disabled={optionsQuery.isLoading || user.role_code === "PM"}
-                                        />
-                                        {selectedManagerIds.length > 0 && (
-                                            <div className="mt-2 flex flex-wrap gap-1.5">
-                                                {managers.filter((manager) => selectedManagerIds.includes(manager.id)).map((manager) => (
-                                                    <span key={manager.id} className="rounded-md bg-violet-50 px-2 py-1 text-[10px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">{manager.full_name}</span>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
+                                <div>
+                                    <label htmlFor="project_manager" className={LABEL_CLASS}>
+                                        Project managers <span className="text-rose-500">*</span>
+                                    </label>
+                                    <MultiSelectPicker
+                                        id="project_manager"
+                                        options={managers.map((manager) => ({
+                                            id: manager.id,
+                                            label: manager.full_name,
+                                            detail: ROLE_LABELS[manager.role_code],
+                                        }))}
+                                        selectedIds={selectedManagerIds}
+                                        onChange={handleManagerToggle}
+                                        placeholder="Select project managers"
+                                        disabled={optionsQuery.isLoading || user.role_code === "PM"}
+                                    />
+                                    {selectedManagerIds.length > 0 && (
+                                        <div className="mt-2 flex flex-wrap gap-1.5">
+                                            {managers.filter((manager) => selectedManagerIds.includes(manager.id)).map((manager) => (
+                                                <span key={manager.id} className="rounded-md bg-violet-50 px-2 py-1 text-[10px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">{manager.full_name}</span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
 
-                                    <div>
-                                        <label htmlFor="team_ids" className={LABEL_CLASS}>
-                                            Assigned teams <span className="text-rose-500">*</span>
-                                        </label>
-                                        <MultiSelectPicker
-                                            id="team_ids"
-                                            options={teams.map((team) => ({ id: team.id, label: team.name }))}
-                                            selectedIds={form.team_ids}
-                                            onChange={handleTeamToggle}
-                                            placeholder="Select active teams"
-                                            disabled={optionsQuery.isLoading}
-                                        />
-                                        {form.team_ids.length > 0 && (
-                                            <div className="mt-2 flex flex-wrap gap-1.5">
-                                                {teams.filter((team) => form.team_ids.includes(team.id)).map((team) => (
-                                                    <span key={team.id} className="rounded-md bg-violet-50 px-2 py-1 text-[10px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">{team.name}</span>
-                                                ))}
-                                            </div>
-                                        )}
-                                        {!optionsQuery.isLoading && teams.length === 0 && (
-                                            <p className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-400">No active teams found. Create a team first.</p>
-                                        )}
-                                    </div>
+                                <div>
+                                    <label htmlFor="team_ids" className={LABEL_CLASS}>
+                                        Assigned teams <span className="text-rose-500">*</span>
+                                    </label>
+                                    <MultiSelectPicker
+                                        id="team_ids"
+                                        options={teams.map((team) => ({ id: team.id, label: team.name }))}
+                                        selectedIds={form.team_ids}
+                                        onChange={handleTeamToggle}
+                                        placeholder="Select active teams"
+                                        disabled={optionsQuery.isLoading}
+                                    />
+                                    {form.team_ids.length > 0 && (
+                                        <div className="mt-2 flex flex-wrap gap-1.5">
+                                            {teams.filter((team) => form.team_ids.includes(team.id)).map((team) => (
+                                                <span key={team.id} className="rounded-md bg-violet-50 px-2 py-1 text-[10px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">{team.name}</span>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {!optionsQuery.isLoading && teams.length === 0 && (
+                                        <p className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-400">No active teams found. Create a team first.</p>
+                                    )}
+                                </div>
 
                                 <div className="sm:col-span-2">
                                     <div className="flex items-center justify-between gap-2">
