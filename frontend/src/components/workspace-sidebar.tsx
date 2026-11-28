@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
     Activity,
@@ -80,6 +80,7 @@ function SidebarSection({
     pathname,
     isAdmin,
     collapsed,
+    calendarViewActive,
     onNavigate,
 }: {
     title: string;
@@ -87,6 +88,7 @@ function SidebarSection({
     pathname: string;
     isAdmin: boolean;
     collapsed: boolean;
+    calendarViewActive: boolean;
     onNavigate: () => void;
 }) {
     const visibleItems = items.filter(
@@ -106,12 +108,20 @@ function SidebarSection({
                     const Icon = item.icon;
 
                     const itemPath = item.href?.split("?")[0];
-                    const active = Boolean(
-                        itemPath &&
-                        (pathname === itemPath ||
-                            (itemPath !== "/dashboard" &&
-                                pathname.startsWith(`${itemPath}/`))),
-                    );
+                    const isTicketRoute =
+                        pathname === "/dashboard/tickets" ||
+                        pathname.startsWith("/dashboard/tickets/");
+                    const active =
+                        item.label === "Calendar"
+                            ? calendarViewActive
+                            : item.label === "Tasks"
+                                ? isTicketRoute && !calendarViewActive
+                                : Boolean(
+                                    itemPath &&
+                                    (pathname === itemPath ||
+                                        (itemPath !== "/dashboard" &&
+                                            pathname.startsWith(`${itemPath}/`))),
+                                );
 
                     const className = [
                         "flex min-h-9 items-center rounded-md py-1.5 text-[12px] transition-colors",
@@ -119,7 +129,7 @@ function SidebarSection({
                             ? "justify-center px-2"
                             : "gap-2.5 px-3",
                         active
-                            ? "bg-violet-50 font-semibold text-violet-800 dark:bg-violet-950/50 dark:text-violet-200"
+                            ? "bg-slate-50 font-semibold text-slate-950 dark:bg-slate-900/50 dark:text-slate-200"
                             : item.disabled
                                 ? "cursor-not-allowed text-slate-400 dark:text-slate-600"
                                 : "font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white",
@@ -172,6 +182,9 @@ function SidebarPanel({
     onOpenSearch: () => void;
 }) {
     const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const calendarViewActive =
+        pathname === "/dashboard/tickets" && searchParams.get("view") === "calendar";
     const isAdmin = user?.role_code === "ADMIN";
 
     return (
@@ -183,7 +196,7 @@ function SidebarPanel({
                 className={`flex h-12 shrink-0 items-center border-b border-slate-100 dark:border-slate-800 ${collapsed ? "justify-center px-2" : "gap-2.5 px-3"
                     }`}
             >
-                <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-violet-700 text-white">
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-slate-900 text-white">
                     <ShieldCheck className="size-4" />
                 </div>
 
@@ -204,7 +217,7 @@ function SidebarPanel({
                     <button
                         type="button"
                         onClick={onOpenSearch}
-                        className="flex h-9 w-full items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-400 hover:border-violet-300 hover:text-violet-700 dark:border-slate-700 dark:bg-slate-800 dark:hover:text-violet-300"
+                        className="flex h-9 w-full items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-400 hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:hover:text-slate-300"
                         title="Search workspace"
                         aria-label="Search workspace"
                     >
@@ -214,7 +227,7 @@ function SidebarPanel({
                     <button
                         type="button"
                         onClick={onOpenSearch}
-                        className="flex h-8 w-full items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 text-left hover:border-violet-300 dark:border-slate-700 dark:bg-slate-800"
+                        className="flex h-8 w-full items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 text-left hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800"
                     >
                         <Search className="size-3.5 text-slate-400" />
                         <span className="text-[11px] text-slate-500 dark:text-slate-400">
@@ -228,7 +241,7 @@ function SidebarPanel({
             </div>
 
             <nav
-                className={`min-h-0 flex-1 space-y-5 overflow-y-auto pb-4 ${collapsed ? "px-2" : "px-2.5"
+                className={`min-h-0 flex-1 space-y-4 overflow-hidden pb-2 ${collapsed ? "px-2" : "px-2.5"
                     }`}
             >
                 <SidebarSection
@@ -236,6 +249,7 @@ function SidebarPanel({
                     items={MAIN_NAVIGATION}
                     pathname={pathname}
                     isAdmin={isAdmin}
+                    calendarViewActive={calendarViewActive}
                     collapsed={collapsed}
                     onNavigate={onNavigate}
                 />
@@ -247,6 +261,7 @@ function SidebarPanel({
                     items={MANAGEMENT_NAVIGATION}
                     pathname={pathname}
                     isAdmin={isAdmin}
+                    calendarViewActive={calendarViewActive}
                     collapsed={collapsed}
                     onNavigate={onNavigate}
                 />
@@ -258,7 +273,7 @@ function SidebarPanel({
             >
                 {collapsed ? (
                     <div
-                        className="flex size-8 items-center justify-center rounded-full bg-violet-100 text-[11px] font-bold text-violet-800 dark:bg-violet-950 dark:text-violet-200"
+                        className="flex size-8 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-950 dark:bg-slate-900 dark:text-slate-200"
                         title={`${user?.full_name || user?.email || "Workspace user"} · ${roleLabel(user?.role_code)}`}
                     >
                         {user?.full_name?.trim().charAt(0).toUpperCase() ||
@@ -267,7 +282,7 @@ function SidebarPanel({
                 ) : (
                     <>
                         <div className="flex items-center gap-2.5 rounded-md px-1 py-1">
-                            <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-bold text-violet-800 dark:bg-violet-950 dark:text-violet-200">
+                            <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-950 dark:bg-slate-900 dark:text-slate-200">
                                 {user?.full_name
                                     ?.trim()
                                     .charAt(0)
@@ -332,7 +347,7 @@ function GlobalSearchDialog({
         onClose();
     }
 
-    const resultClass = "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left hover:bg-violet-50 dark:hover:bg-violet-950/30";
+    const resultClass = "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-900/30";
     const metaClass = "truncate text-[10px] text-slate-400";
 
     return (
@@ -452,13 +467,22 @@ export function WorkspaceSidebar({
 
     return (
         <>
-            <div className="sticky top-0 hidden h-screen shrink-0 self-start md:block">
-                <SidebarPanel
-                    user={user}
-                    collapsed={collapsed}
-                    onNavigate={onMobileClose}
-                    onOpenSearch={() => setSearchOpen(true)}
-                />
+            <div className="sticky top-0 hidden h-dvh max-h-dvh shrink-0 self-start overflow-hidden md:block">
+                <Suspense
+                    fallback={
+                        <aside
+                            aria-hidden="true"
+                            className={`h-dvh max-h-dvh shrink-0 overflow-hidden border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 ${collapsed ? "w-16" : "w-[224px]"}`}
+                        />
+                    }
+                >
+                    <SidebarPanel
+                        user={user}
+                        collapsed={collapsed}
+                        onNavigate={onMobileClose}
+                        onOpenSearch={() => setSearchOpen(true)}
+                    />
+                </Suspense>
             </div>
 
             {mobileOpen && (
@@ -471,15 +495,24 @@ export function WorkspaceSidebar({
                     />
 
                     <div className="absolute inset-y-0 left-0 shadow-xl">
-                        <SidebarPanel
-                            user={user}
-                            collapsed={false}
-                            onNavigate={onMobileClose}
-                            onOpenSearch={() => {
-                                setSearchOpen(true);
-                                onMobileClose();
-                            }}
-                        />
+                        <Suspense
+                            fallback={
+                                <aside
+                                    aria-hidden="true"
+                                    className="h-full w-[224px] border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+                                />
+                            }
+                        >
+                            <SidebarPanel
+                                user={user}
+                                collapsed={false}
+                                onNavigate={onMobileClose}
+                                onOpenSearch={() => {
+                                    setSearchOpen(true);
+                                    onMobileClose();
+                                }}
+                            />
+                        </Suspense>
                     </div>
                 </div>
             )}

@@ -1,8 +1,9 @@
 
 "use client";
 
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
+import { useTodayDate } from "@/lib/use-today-date";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -10,6 +11,7 @@ import {
     ArrowLeft,
     CalendarDays,
     CheckCircle2,
+    ChevronDown,
     FolderKanban,
     Menu,
     PanelLeft,
@@ -40,8 +42,8 @@ type FormState = {
     name: string;
     key: string;
     description: string;
-    project_manager_id: string;
-    team_id: string;
+    project_manager_ids: string[];
+    team_ids: string[];
     member_ids: string[];
     start_date: string;
     end_date: string;
@@ -53,8 +55,8 @@ const INITIAL_FORM: FormState = {
     name: "",
     key: "",
     description: "",
-    project_manager_id: "",
-    team_id: "",
+    project_manager_ids: [],
+    team_ids: [],
     member_ids: [],
     start_date: "",
     end_date: "",
@@ -63,10 +65,10 @@ const INITIAL_FORM: FormState = {
 };
 
 const INPUT_CLASS =
-    "mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:ring-violet-950 dark:disabled:bg-slate-900";
+    "mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:ring-slate-900 dark:disabled:bg-slate-900";
 
 const TEXTAREA_CLASS =
-    "mt-1.5 min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:ring-violet-950";
+    "mt-1.5 min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:ring-slate-900";
 
 const LABEL_CLASS =
     "text-xs font-semibold text-slate-700 dark:text-slate-300";
@@ -92,7 +94,7 @@ function FormSection({
     return (
         <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-3">
             <div className="mb-3 flex items-start gap-2 border-b border-slate-100 pb-2 dark:border-slate-800">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-900 dark:bg-slate-900/50 dark:text-slate-300">
                     {icon}
                 </div>
                 <div>
@@ -112,7 +114,78 @@ function FormSection({
     );
 }
 
+type MultiSelectOption = { id: string; label: string; detail?: string };
+
+function MultiSelectPicker({
+    id,
+    options,
+    selectedIds,
+    onChange,
+    placeholder,
+    disabled = false,
+}: {
+    id: string;
+    options: MultiSelectOption[];
+    selectedIds: string[];
+    onChange: (id: string, checked: boolean) => void;
+    placeholder: string;
+    disabled?: boolean;
+}) {
+    const pickerRef = useRef<HTMLDetailsElement>(null);
+
+    useEffect(() => {
+        const handleOutsidePointerDown = (event: PointerEvent) => {
+            const picker = pickerRef.current;
+            if (picker?.open && event.target instanceof Node && !picker.contains(event.target)) {
+                picker.open = false;
+            }
+        };
+
+        document.addEventListener("pointerdown", handleOutsidePointerDown);
+        return () => document.removeEventListener("pointerdown", handleOutsidePointerDown);
+    }, []);
+
+    return (
+        <details ref={pickerRef} className="relative mt-1.5">
+            <summary
+                id={id}
+                aria-label={placeholder}
+                className={`flex h-10 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition hover:border-slate-400 focus-visible:ring-2 focus-visible:ring-slate-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 [&::-webkit-details-marker]:hidden ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+                onClick={(event) => { if (disabled) event.preventDefault(); }}
+            >
+                <span className="min-w-0 truncate">
+                    {selectedIds.length ? `${selectedIds.length} selected` : placeholder}
+                </span>
+                <ChevronDown className="size-4 shrink-0 text-slate-400" />
+            </summary>
+            <div className="absolute left-0 right-0 top-11 z-40 max-h-60 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                {options.length ? options.map((option) => {
+                    const checked = selectedIds.includes(option.id);
+                    return (
+                        <label
+                            key={option.id}
+                            className={`flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-xs transition ${checked ? "bg-slate-50 text-slate-950 dark:bg-slate-900/40 dark:text-slate-200" : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"}`}
+                        >
+                            <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(event) => onChange(option.id, event.target.checked)}
+                                className="size-4 accent-slate-900"
+                            />
+                            <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                            {option.detail && <span className="shrink-0 text-[10px] text-slate-400">{option.detail}</span>}
+                        </label>
+                    );
+                }) : (
+                    <p className="px-2 py-3 text-xs text-slate-400">No options available.</p>
+                )}
+            </div>
+        </details>
+    );
+}
+
 export default function CreateProjectPage() {
+    const today = useTodayDate();
     const router = useRouter();
     const queryClient = useQueryClient();
 
@@ -129,9 +202,12 @@ export default function CreateProjectPage() {
     const canManageProjects =
         user?.role_code === "ADMIN" || user?.role_code === "PM";
 
-    const selectedManagerId =
-        form.project_manager_id ||
-        (user?.role_code === "PM" ? user.id ?? "" : "");
+    const selectedManagerIds =
+        form.project_manager_ids.length > 0
+            ? form.project_manager_ids
+            : user?.role_code === "PM" && user.id
+                ? [user.id]
+                : [];
 
     function updateField<K extends keyof FormState>(
         field: K,
@@ -146,6 +222,30 @@ export default function CreateProjectPage() {
     }
 
     useEffect(() => {
+        const handleOutsidePointerDown = (event: PointerEvent) => {
+            document.querySelectorAll<HTMLDetailsElement>('details[data-outside-dismiss="project-members"]').forEach((picker) => {
+                if (picker.open && event.target instanceof Node && !picker.contains(event.target)) {
+                    picker.open = false;
+                }
+            });
+        };
+        document.addEventListener("pointerdown", handleOutsidePointerDown);
+        return () => document.removeEventListener("pointerdown", handleOutsidePointerDown);
+    }, []);
+
+    useEffect(() => {
+        const handleOutsidePointerDown = (event: PointerEvent) => {
+            document.querySelectorAll<HTMLDetailsElement>('details[data-outside-dismiss="project-members"]').forEach((picker) => {
+                if (picker.open && event.target instanceof Node && !picker.contains(event.target)) {
+                    picker.open = false;
+                }
+            });
+        };
+        document.addEventListener("pointerdown", handleOutsidePointerDown);
+        return () => document.removeEventListener("pointerdown", handleOutsidePointerDown);
+    }, []);
+
+    useEffect(() => {
         let active = true;
 
         verifyToken()
@@ -153,6 +253,12 @@ export default function CreateProjectPage() {
                 if (!active) return;
 
                 setUser(verifiedUser);
+                if (verifiedUser.role_code === "PM" && verifiedUser.id) {
+                    setForm((current) => ({
+                        ...current,
+                        project_manager_ids: [verifiedUser.id!],
+                    }));
+                }
                 setIsCheckingAuth(false);
             })
             .catch(() => {
@@ -165,8 +271,8 @@ export default function CreateProjectPage() {
     }, [router]);
 
     const optionsQuery = useQuery({
-        queryKey: ["project-form-options", form.team_id],
-        queryFn: () => getProjectOptions(form.team_id || undefined),
+        queryKey: ["project-form-options", form.team_ids],
+        queryFn: () => getProjectOptions(form.team_ids),
         enabled: !isCheckingAuth && canManageProjects,
     });
 
@@ -183,17 +289,27 @@ export default function CreateProjectPage() {
             });
 
             router.push("/dashboard/projects");
-            router.refresh();
         },
     });
 
-    function handleTeamChange(teamId: string) {
+    function handleManagerToggle(managerId: string, checked: boolean) {
         setForm((current) => ({
             ...current,
-            team_id: teamId,
-            member_ids: [],
+            project_manager_ids: checked
+                ? Array.from(new Set([...current.project_manager_ids, managerId]))
+                : current.project_manager_ids.filter((id) => id !== managerId),
         }));
+        setFormError(null);
+    }
 
+    function handleTeamToggle(teamId: string, checked: boolean) {
+        setForm((current) => ({
+            ...current,
+            team_ids: checked
+                ? Array.from(new Set([...current.team_ids, teamId]))
+                : current.team_ids.filter((id) => id !== teamId),
+            member_ids: checked ? current.member_ids : [],
+        }));
         setFormError(null);
     }
 
@@ -234,22 +350,18 @@ export default function CreateProjectPage() {
             return;
         }
 
-        if (!form.team_id) {
-            setFormError("Please select an active team.");
+        if (!form.team_ids.length) {
+            setFormError("Please select at least one active team.");
             return;
         }
 
-        if (!selectedManagerId) {
-            setFormError("Please select a project manager.");
+        if (!selectedManagerIds.length) {
+            setFormError("Please select at least one project manager.");
             return;
         }
 
-        if (
-            !managers.some((manager) => manager.id === selectedManagerId)
-        ) {
-            setFormError(
-                "The selected project manager is not available.",
-            );
+        if (selectedManagerIds.some((id) => !managers.some((manager) => manager.id === id))) {
+            setFormError("One or more selected project managers are not available.");
             return;
         }
 
@@ -269,7 +381,7 @@ export default function CreateProjectPage() {
 
         if (form.member_ids.some((id) => !validMemberIds.has(id))) {
             setFormError(
-                "One or more selected members are not active members of this team.",
+                "One or more selected members are not active members of any selected team.",
             );
             return;
         }
@@ -289,8 +401,10 @@ export default function CreateProjectPage() {
             name,
             key,
             description: form.description.trim() || null,
-            project_manager_id: selectedManagerId,
-            team_id: form.team_id,
+            project_manager_id: selectedManagerIds[0],
+            team_id: form.team_ids[0],
+            project_manager_ids: selectedManagerIds,
+            team_ids: form.team_ids,
             member_ids: form.member_ids,
             start_date: form.start_date || null,
             end_date: form.end_date || null,
@@ -310,7 +424,6 @@ export default function CreateProjectPage() {
             // The session may already have expired.
         } finally {
             router.replace("/");
-            router.refresh();
         }
     }
 
@@ -341,7 +454,7 @@ export default function CreateProjectPage() {
                     </p>
                     <Link
                         href="/dashboard/projects"
-                        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-violet-700 px-4 py-2 text-xs font-semibold text-white hover:bg-violet-800"
+                        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-950"
                     >
                         <ArrowLeft className="size-4" />
                         Back to projects
@@ -398,7 +511,7 @@ export default function CreateProjectPage() {
                     <div className="w-full max-w-none">
                         <Link
                             href="/dashboard/projects"
-                            className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 transition hover:text-violet-700 dark:text-slate-400 dark:hover:text-violet-300"
+                            className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-300"
                         >
                             <ArrowLeft className="size-3.5" />
                             Back to projects
@@ -522,68 +635,50 @@ export default function CreateProjectPage() {
 
                                 <div>
                                     <label htmlFor="project_manager" className={LABEL_CLASS}>
-                                        Project manager <span className="text-rose-500">*</span>
+                                        Project managers <span className="text-rose-500">*</span>
                                     </label>
-                                    <select
+                                    <MultiSelectPicker
                                         id="project_manager"
-                                        required
-                                        value={selectedManagerId}
-                                        onChange={(event) =>
-                                            updateField(
-                                                "project_manager_id",
-                                                event.target.value,
-                                            )
-                                        }
-                                        disabled={
-                                            optionsQuery.isLoading ||
-                                            user.role_code === "PM"
-                                        }
-                                        className={INPUT_CLASS}
-                                    >
-                                        <option value="">
-                                            Select a project manager
-                                        </option>
-                                        {managers.map((manager) => (
-                                            <option
-                                                key={manager.id}
-                                                value={manager.id}
-                                            >
-                                                {manager.full_name} — {ROLE_LABELS[manager.role_code]}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {user.role_code === "PM" && (
-                                        <p className="mt-1.5 text-[11px] text-slate-400">
-                                            Your account will automatically be assigned as project manager.
-                                        </p>
+                                        options={managers.map((manager) => ({
+                                            id: manager.id,
+                                            label: manager.full_name,
+                                            detail: ROLE_LABELS[manager.role_code],
+                                        }))}
+                                        selectedIds={selectedManagerIds}
+                                        onChange={handleManagerToggle}
+                                        placeholder="Select project managers"
+                                        disabled={optionsQuery.isLoading || user.role_code === "PM"}
+                                    />
+                                    {selectedManagerIds.length > 0 && (
+                                        <div className="mt-2 flex flex-wrap gap-1.5">
+                                            {managers.filter((manager) => selectedManagerIds.includes(manager.id)).map((manager) => (
+                                                <span key={manager.id} className="rounded-md bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-900 dark:bg-slate-900/40 dark:text-slate-300">{manager.full_name}</span>
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
 
                                 <div>
-                                    <label htmlFor="team_id" className={LABEL_CLASS}>
-                                        Assigned team <span className="text-rose-500">*</span>
+                                    <label htmlFor="team_ids" className={LABEL_CLASS}>
+                                        Assigned teams <span className="text-rose-500">*</span>
                                     </label>
-                                    <select
-                                        id="team_id"
-                                        required
-                                        value={form.team_id}
-                                        onChange={(event) =>
-                                            handleTeamChange(event.target.value)
-                                        }
+                                    <MultiSelectPicker
+                                        id="team_ids"
+                                        options={teams.map((team) => ({ id: team.id, label: team.name }))}
+                                        selectedIds={form.team_ids}
+                                        onChange={handleTeamToggle}
+                                        placeholder="Select active teams"
                                         disabled={optionsQuery.isLoading}
-                                        className={INPUT_CLASS}
-                                    >
-                                        <option value="">Select an active team</option>
-                                        {teams.map((team) => (
-                                            <option key={team.id} value={team.id}>
-                                                {team.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    />
+                                    {form.team_ids.length > 0 && (
+                                        <div className="mt-2 flex flex-wrap gap-1.5">
+                                            {teams.filter((team) => form.team_ids.includes(team.id)).map((team) => (
+                                                <span key={team.id} className="rounded-md bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-900 dark:bg-slate-900/40 dark:text-slate-300">{team.name}</span>
+                                            ))}
+                                        </div>
+                                    )}
                                     {!optionsQuery.isLoading && teams.length === 0 && (
-                                        <p className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-400">
-                                            No active teams found. Create a team first.
-                                        </p>
+                                        <p className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-400">No active teams found. Create a team first.</p>
                                     )}
                                 </div>
 
@@ -597,68 +692,64 @@ export default function CreateProjectPage() {
                                         </span>
                                     </div>
 
-                                    {!form.team_id ? (
+                                    {!form.team_ids.length ? (
                                         <p className="mt-2 rounded-lg border border-dashed border-slate-200 p-4 text-xs text-slate-400 dark:border-slate-700">
-                                            Select a team to view its active members.
+                                            Select teams to view their active members.
                                         </p>
                                     ) : optionsQuery.isFetching ? (
                                         <div className="mt-2 flex items-center gap-2 rounded-lg border border-slate-200 p-4 text-xs text-slate-500 dark:border-slate-700">
                                             <RefreshCw className="size-4 animate-spin" />
-                                            Loading team members...
+                                            Loading selected team members...
                                         </div>
                                     ) : teamMembers.length === 0 ? (
                                         <p className="mt-2 rounded-lg border border-dashed border-slate-200 p-4 text-xs text-slate-400 dark:border-slate-700">
-                                            No active members are currently available for this team.
+                                            No active members are currently available in the selected teams.
                                         </p>
                                     ) : (
-                                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                                            {teamMembers.map((member) => {
-                                                const checked =
-                                                    form.member_ids.includes(member.id);
-
-                                                return (
-                                                    <label
-                                                        key={member.id}
-                                                        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition ${checked
-                                                            ? "border-violet-300 bg-violet-50 dark:border-violet-800 dark:bg-violet-950/30"
-                                                            : "border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
-                                                            }`}
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={checked}
-                                                            onChange={(event) =>
-                                                                handleMemberToggle(
-                                                                    member.id,
-                                                                    event.target.checked,
-                                                                )
-                                                            }
-                                                            className="size-4 accent-violet-700"
-                                                        />
-                                                        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-800 dark:bg-violet-950 dark:text-violet-200">
-                                                            {member.full_name
-                                                                .trim()
-                                                                .charAt(0)
-                                                                .toUpperCase()}
-                                                        </span>
-                                                        <span className="min-w-0">
-                                                            <span className="block truncate text-xs font-semibold text-slate-800 dark:text-slate-200">
-                                                                {member.full_name}
-                                                            </span>
-                                                            <span className="mt-0.5 block truncate text-[10px] text-slate-400">
-                                                                {ROLE_LABELS[member.role_code]} · {member.email}
-                                                            </span>
-                                                        </span>
-                                                    </label>
-                                                );
-                                            })}
-                                        </div>
+                                        <>
+                                            <details data-outside-dismiss="project-members" className="relative mt-2">
+                                                <summary className="flex h-10 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition hover:border-slate-400 focus-visible:ring-2 focus-visible:ring-slate-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 [&::-webkit-details-marker]:hidden">
+                                                    <span>{form.member_ids.length > 0 ? `${form.member_ids.length} project members selected` : "Select project members"}</span>
+                                                    <ChevronDown className="size-4 text-slate-400" />
+                                                </summary>
+                                                <div className="absolute left-0 right-0 top-11 z-30 max-h-60 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                                                    {teamMembers.map((member) => {
+                                                        const checked = form.member_ids.includes(member.id);
+                                                        return (
+                                                            <label
+                                                                key={member.id}
+                                                                className={`flex cursor-pointer items-center gap-3 rounded-md px-2.5 py-2 transition ${checked ? "bg-slate-50 dark:bg-slate-900/40" : "hover:bg-slate-50 dark:hover:bg-slate-800"}`}
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={checked}
+                                                                    onChange={(event) => handleMemberToggle(member.id, event.target.checked)}
+                                                                    className="size-4 accent-slate-900"
+                                                                />
+                                                                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-950 dark:bg-slate-900 dark:text-slate-200">
+                                                                    {member.full_name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}
+                                                                </span>
+                                                                <span className="min-w-0 flex-1">
+                                                                    <span className="block truncate text-xs font-semibold text-slate-800 dark:text-slate-200">{member.full_name}</span>
+                                                                    <span className="block text-[10px] text-slate-400">{ROLE_LABELS[member.role_code] ?? member.role_code}</span>
+                                                                </span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </details>
+                                            {form.member_ids.length > 0 && (
+                                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                                    {teamMembers.filter((member) => form.member_ids.includes(member.id)).map((member) => (
+                                                        <span key={member.id} className="rounded-md bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-900 dark:bg-slate-900/40 dark:text-slate-300">{member.full_name}</span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <p className="mt-1.5 text-[11px] text-slate-400">
+                                                Select multiple active members from the assigned team.
+                                            </p>
+                                        </>
                                     )}
-
-                                    <p className="mt-2 text-[10px] text-slate-400">
-                                        You can select multiple members. They must be active
-                                        members of the assigned team.
-                                    </p>
                                 </div>
                             </FormSection>
 
@@ -674,6 +765,7 @@ export default function CreateProjectPage() {
                                     <input
                                         id="start_date"
                                         type="date"
+                                        min={today || undefined}
                                         value={form.start_date}
                                         onChange={(event) =>
                                             updateField("start_date", event.target.value)
@@ -778,7 +870,7 @@ export default function CreateProjectPage() {
                                         teams.length === 0 ||
                                         managers.length === 0
                                     }
-                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-violet-700 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                     {createMutation.isPending ? (
                                         <>

@@ -182,9 +182,9 @@ export function verifyToken(): Promise<{ user: AuthUser }> {
 }
 
 export async function signOut(): Promise<void> {
-    // This path receives the scoped refresh cookie, so logout still works
-    // when the access token has expired. No refresh rotation is needed first.
-    const response = await fetch(endpoint("/auth/refresh-token/logout"), {
+    // The refresh cookie is scoped to /api/v1/auth, so the normal logout
+    // route receives it without using a refresh-token-specific URL.
+    const response = await fetch(endpoint("/auth/logout"), {
         method: "POST",
         credentials: "include",
         cache: "no-store",

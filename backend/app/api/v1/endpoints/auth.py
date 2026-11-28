@@ -299,9 +299,9 @@ def logout(
 ) -> dict[str, str]:
     """Revoke the current session and clear current plus legacy auth cookies.
 
-    The scoped route /refresh-token/logout shares the refresh-token cookie path,
-    allowing logout to revoke the session even when the access token has expired.
-    The legacy /logout alias remains usable with a valid access-token cookie.
+    Both routes receive the refresh cookie scoped to /api/v1/auth. The normal
+    /logout route is used by the workspace; /refresh-token/logout remains as a
+    backward-compatible alias for clients from previous releases.
     """
     now = datetime.now(UTC)
     auth_session: AuthSession | None = None

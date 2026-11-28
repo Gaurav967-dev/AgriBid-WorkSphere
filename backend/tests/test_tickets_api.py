@@ -88,17 +88,51 @@ def ticket_environment(monkeypatch):
             users["OUTSIDER"] = outsider
             session.flush()
 
-            team = Team(
-                name="Ticket Test Team",
-                status="ACTIVE",
+            manager_two = User(
+                full_name="Second Project Manager",
+                email="pm2@test.agribid.ai",
+                password_hash=hash_password(TEST_PASSWORD),
+                role=roles["PM"],
+                is_active=True,
             )
-            session.add(team)
+            developer_two = User(
+                full_name="Second Developer",
+                email="developer2@test.agribid.ai",
+                password_hash=hash_password(TEST_PASSWORD),
+                role=roles["DEVELOPER"],
+                is_active=True,
+            )
+            tester_two = User(
+                full_name="Second Tester",
+                email="tester2@test.agribid.ai",
+                password_hash=hash_password(TEST_PASSWORD),
+                role=roles["TESTER"],
+                is_active=True,
+            )
+            session.add_all([manager_two, developer_two, tester_two])
+            users["PM2"] = manager_two
+            users["DEVELOPER2"] = developer_two
+            users["TESTER2"] = tester_two
             session.flush()
 
-            for code in ("PM", "DEVELOPER", "TESTER"):
+            team = Team(name="Ticket Test Team", status="ACTIVE")
+            team_two = Team(name="Ticket Test Team Two", status="ACTIVE")
+            session.add_all([team, team_two])
+            session.flush()
+
+            for code in ("PM", "DEVELOPER", "TESTER", "PM2", "DEVELOPER2", "TESTER2"):
                 session.add(
                     TeamMember(
                         team_id=team.id,
+                        user_id=users[code].id,
+                        designation=code.title(),
+                    )
+                )
+
+            for code in ("PM2", "DEVELOPER2", "TESTER2"):
+                session.add(
+                    TeamMember(
+                        team_id=team_two.id,
                         user_id=users[code].id,
                         designation=code.title(),
                     )
@@ -115,8 +149,10 @@ def ticket_environment(monkeypatch):
             )
             session.add(project)
             session.flush()
+            project.project_managers = [users["PM"], users["PM2"]]
+            project.teams = [team]
 
-            for code in ("DEVELOPER", "TESTER"):
+            for code in ("DEVELOPER", "TESTER", "DEVELOPER2", "TESTER2"):
                 session.add(
                     ProjectMember(
                         project_id=project.id,
@@ -130,10 +166,14 @@ def ticket_environment(monkeypatch):
             ids = {
                 "project": project.id,
                 "team": team.id,
+                "team2": team_two.id,
                 "admin": users["ADMIN"].id,
                 "pm": users["PM"].id,
                 "developer": users["DEVELOPER"].id,
                 "tester": users["TESTER"].id,
+                "pm2": users["PM2"].id,
+                "developer2": users["DEVELOPER2"].id,
+                "tester2": users["TESTER2"].id,
                 "outsider": users["OUTSIDER"].id,
             }
 
@@ -222,6 +262,49 @@ def test_admin_can_create_ticket_and_activity_is_recorded(ticket_environment):
         ).all()
 
         assert len(activities) >= 4
+
+
+@pytest.mark.parametrize(
+    "initial_status",
+    [
+        "BACKLOG",
+        "TODO",
+        "IN_PROGRESS",
+        "IN_REVIEW",
+        "TESTING",
+        "TESTING_DONE",
+        "BUG_FIXED",
+        "COMPLETED",
+        "BLOCKED",
+        "REOPENED",
+        "CANCELLED",
+    ],
+)
+def test_admin_can_create_ticket_in_selected_kanban_status(
+    ticket_environment, initial_status
+):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+
+    response = client.post(
+        "/api/v1/tickets",
+        json={
+            "project_id": str(ids["project"]),
+            "title": "Created from selected Kanban column",
+            "status": initial_status,
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    ticket = response.json()
+    assert ticket["status"] == initial_status
+
+    if initial_status == "COMPLETED":
+        assert ticket["completed_at"] is not None
+        assert ticket["completed_by"]["id"] == str(ids["admin"])
+    else:
+        assert ticket["completed_at"] is None
+        assert ticket["completed_by"] is None
 
 
 def test_project_ticket_numbers_increment(ticket_environment):
@@ -409,6 +492,85 @@ def test_unassigned_developer_cannot_transition_ticket(ticket_environment):
     assert response.status_code == 403
 
 
+
+
+def test_project_can_have_multiple_project_managers_and_teams(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+
+    response = client.post(
+        "/api/v1/projects",
+        json={
+            "name": "Multi-team Project",
+            "key": "MULTI",
+            "project_manager_id": str(ids["pm"]),
+            "project_manager_ids": [str(ids["pm"]), str(ids["pm2"])],
+            "team_id": str(ids["team"]),
+            "team_ids": [str(ids["team"]), str(ids["team2"])],
+            "member_ids": [str(ids["developer"]), str(ids["developer2"])],
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    project = response.json()
+    assert {manager["id"] for manager in project["project_managers"]} == {
+        str(ids["pm"]),
+        str(ids["pm2"]),
+    }
+    assert {team["id"] for team in project["teams"]} == {
+        str(ids["team"]),
+        str(ids["team2"]),
+    }
+
+def test_multiple_project_managers_and_ticket_assignments_are_supported(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "PM2")
+
+    response = client.post(
+        "/api/v1/tickets",
+        json={
+            "project_id": str(ids["project"]),
+            "title": "Verify multi-user assignments",
+            "type": "TASK",
+            "priority": "HIGH",
+            "status": "TODO",
+            "assignee_id": str(ids["developer"]),
+            "assignee_ids": [str(ids["developer"]), str(ids["developer2"])],
+            "reviewer_id": str(ids["pm"]),
+            "reviewer_ids": [str(ids["pm"]), str(ids["pm2"])],
+            "tester_id": str(ids["tester"]),
+            "tester_ids": [str(ids["tester"]), str(ids["tester2"])],
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    ticket = response.json()
+    assert {person["id"] for person in ticket["assignees"]} == {
+        str(ids["developer"]),
+        str(ids["developer2"]),
+    }
+    assert {person["id"] for person in ticket["reviewers"]} == {
+        str(ids["pm"]),
+        str(ids["pm2"]),
+    }
+    assert {person["id"] for person in ticket["testers"]} == {
+        str(ids["tester"]),
+        str(ids["tester2"]),
+    }
+
+    # A secondary assignee and tester must be allowed to perform their role transitions.
+    sign_in_as(client, "DEVELOPER2")
+    in_progress = change_status(client, ticket["id"], "IN_PROGRESS")
+    assert in_progress.status_code == 200, in_progress.text
+
+    sign_in_as(client, "PM")
+    testing = change_status(client, ticket["id"], "TESTING")
+    assert testing.status_code == 200, testing.text
+
+    sign_in_as(client, "TESTER2")
+    tested = change_status(client, ticket["id"], "TESTING_DONE")
+    assert tested.status_code == 200, tested.text
+
 def test_soft_delete_preserves_ticket_and_history(ticket_environment):
     client, session_factory, ids = ticket_environment
     sign_in_as(client, "ADMIN")
@@ -553,6 +715,14 @@ def test_comment_replies_and_edit_ownership(ticket_environment):
     assert parent.status_code == 201, parent.text
     parent_data = parent.json()
 
+    own_reply = client.post(
+        f"/api/v1/tickets/{ticket['id']}/comments",
+        json={"body": "I cannot reply to my own comment", "parent_comment_id": parent_data["id"]},
+    )
+    assert own_reply.status_code == 403
+    assert own_reply.json()["detail"] == "You cannot reply to your own comment."
+
+    sign_in_as(client, "DEVELOPER")
     reply = client.post(
         f"/api/v1/tickets/{ticket['id']}/comments",
         json={"body": "A reply", "parent_comment_id": parent_data["id"]},
@@ -575,6 +745,32 @@ def test_comment_replies_and_edit_ownership(ticket_environment):
     assert edited.status_code == 200, edited.text
     assert edited.json()["body"] == "Edited by author"
     assert edited.json()["edited_at"] is not None
+
+
+
+def test_comment_body_is_limited_to_250_characters(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+    ticket = create_ticket(client, ids)
+
+    accepted = client.post(
+        f"/api/v1/tickets/{ticket['id']}/comments",
+        json={"body": "a" * 250},
+    )
+    assert accepted.status_code == 201, accepted.text
+    assert len(accepted.json()["body"]) == 250
+
+    rejected = client.post(
+        f"/api/v1/tickets/{ticket['id']}/comments",
+        json={"body": "a" * 251},
+    )
+    assert rejected.status_code == 422
+
+    rejected_edit = client.patch(
+        f"/api/v1/tickets/{ticket['id']}/comments/{accepted.json()['id']}",
+        json={"body": "b" * 251},
+    )
+    assert rejected_edit.status_code == 422
 
 
 def test_comment_delete_is_soft_and_keeps_thread_record(ticket_environment):
@@ -936,7 +1132,8 @@ def test_project_overview_returns_full_ticket_distribution_activity_and_deadline
     assert payload["completion_percentage"] == 50.0
     assert len(payload["ticket_distribution"]) == 11
     assert sum(item["count"] for item in payload["ticket_distribution"]) == 2
-    assert len(payload["team_members"]) == 2
+    # The fixture now includes four active project members across the expanded team setup.
+    assert len(payload["team_members"]) == 4
     assert payload["recent_activities"]
     assert len(payload["upcoming_deadlines"]) == 1
     assert payload["upcoming_deadlines"][0]["ticket_id"] == upcoming_ticket["id"]

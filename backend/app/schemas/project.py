@@ -23,6 +23,8 @@ class ProjectCreateRequest(BaseModel):
     logo_key: str | None = Field(default=None, max_length=500)
     project_manager_id: UUID
     team_id: UUID
+    project_manager_ids: list[UUID] = Field(default_factory=list)
+    team_ids: list[UUID] = Field(default_factory=list)
     start_date: date | None = None
     end_date: date | None = None
     status: ProjectStatus = "PLANNING"
@@ -77,6 +79,13 @@ class ProjectCreateRequest(BaseModel):
             raise ValueError("Duplicate project member IDs are not allowed.")
         return value
 
+    @field_validator("project_manager_ids", "team_ids")
+    @classmethod
+    def validate_assignment_ids(cls, value: list[UUID]) -> list[UUID]:
+        if len(value) != len(set(value)):
+            raise ValueError("Duplicate project assignment IDs are not allowed.")
+        return value
+
     @model_validator(mode="after")
     def validate_dates(self) -> ProjectCreateRequest:
         if (
@@ -95,6 +104,8 @@ class ProjectUpdateRequest(BaseModel):
     logo_key: str | None = Field(default=None, max_length=500)
     project_manager_id: UUID | None = None
     team_id: UUID | None = None
+    project_manager_ids: list[UUID] | None = None
+    team_ids: list[UUID] | None = None
     start_date: date | None = None
     end_date: date | None = None
     status: ProjectStatus | None = None
@@ -129,6 +140,13 @@ class ProjectUpdateRequest(BaseModel):
         if value is None:
             return None
         return value.strip() or None
+
+    @field_validator("project_manager_ids", "team_ids")
+    @classmethod
+    def validate_assignment_ids(cls, value: list[UUID] | None) -> list[UUID] | None:
+        if value is not None and len(value) != len(set(value)):
+            raise ValueError("Duplicate project assignment IDs are not allowed.")
+        return value
 
     @field_validator("visibility")
     @classmethod
@@ -188,6 +206,8 @@ class ProjectSummaryResponse(BaseModel):
     logo_key: str | None
     project_manager: ProjectUserSummaryResponse
     team: ProjectTeamSummaryResponse
+    project_managers: list[ProjectUserSummaryResponse] = Field(default_factory=list)
+    teams: list[ProjectTeamSummaryResponse] = Field(default_factory=list)
     start_date: date | None
     end_date: date | None
     status: ProjectStatus

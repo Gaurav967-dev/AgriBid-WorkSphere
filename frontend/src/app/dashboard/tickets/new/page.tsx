@@ -1,14 +1,16 @@
 
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useTodayDate } from "@/lib/use-today-date";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     AlertCircle,
     ArrowLeft,
     CalendarDays,
+    ChevronDown,
     FileText,
     Menu,
     PanelLeft,
@@ -37,6 +39,7 @@ import {
     type CreateTicketInput,
     type TicketPriority,
     type TicketType,
+    type TicketStatus,
 } from "@/features/tickets/api/tickets-api";
 
 import { WorkspaceActions } from "@/components/workspace-actions";
@@ -49,9 +52,10 @@ type FormState = {
     description: string;
     type: TicketType;
     priority: TicketPriority;
-    assignee_id: string;
-    reviewer_id: string;
-    tester_id: string;
+    status: TicketStatus;
+    assignee_ids: string[];
+    reviewer_ids: string[];
+    tester_ids: string[];
     start_date: string;
     due_date: string;
     estimated_effort: string;
@@ -65,9 +69,10 @@ const INITIAL_FORM: FormState = {
     description: "",
     type: "TASK",
     priority: "MEDIUM",
-    assignee_id: "",
-    reviewer_id: "",
-    tester_id: "",
+    status: "BACKLOG",
+    assignee_ids: [],
+    reviewer_ids: [],
+    tester_ids: [],
     start_date: "",
     due_date: "",
     estimated_effort: "",
@@ -76,10 +81,10 @@ const INITIAL_FORM: FormState = {
 };
 
 const INPUT_CLASS =
-    "mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:ring-violet-950 dark:disabled:bg-slate-900";
+    "mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:ring-slate-900 dark:disabled:bg-slate-900";
 
 const TEXTAREA_CLASS =
-    "mt-1.5 min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:ring-violet-950";
+    "mt-1.5 min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:ring-slate-900";
 
 const LABEL_CLASS =
     "text-xs font-semibold text-slate-700 dark:text-slate-300";
@@ -105,7 +110,7 @@ function FormSection({
     return (
         <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-3">
             <div className="mb-3 flex items-start gap-2 border-b border-slate-100 pb-2 dark:border-slate-800">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-900 dark:bg-slate-900/50 dark:text-slate-300">
                     {icon}
                 </div>
                 <div>
@@ -125,7 +130,65 @@ function FormSection({
     );
 }
 
+type AssignmentOption = { id: string; label: string; detail?: string };
+
+function AssignmentMultiSelect({
+    id,
+    options,
+    selectedIds,
+    onChange,
+    placeholder,
+    disabled = false,
+}: {
+    id: string;
+    options: AssignmentOption[];
+    selectedIds: string[];
+    onChange: (id: string, checked: boolean) => void;
+    placeholder: string;
+    disabled?: boolean;
+}) {
+    const pickerRef = useRef<HTMLDetailsElement>(null);
+
+    useEffect(() => {
+        const handleOutsidePointerDown = (event: PointerEvent) => {
+            const picker = pickerRef.current;
+            if (picker?.open && event.target instanceof Node && !picker.contains(event.target)) {
+                picker.open = false;
+            }
+        };
+
+        document.addEventListener("pointerdown", handleOutsidePointerDown);
+        return () => document.removeEventListener("pointerdown", handleOutsidePointerDown);
+    }, []);
+
+    return (
+        <details ref={pickerRef} className="relative mt-1.5">
+            <summary
+                id={id}
+                className={`flex h-10 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition hover:border-slate-400 focus-visible:ring-2 focus-visible:ring-slate-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 [&::-webkit-details-marker]:hidden ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+                onClick={(event) => { if (disabled) event.preventDefault(); }}
+            >
+                <span className="min-w-0 truncate">{selectedIds.length ? `${selectedIds.length} selected` : placeholder}</span>
+                <ChevronDown className="size-4 shrink-0 text-slate-400" />
+            </summary>
+            <div className="absolute left-0 right-0 top-11 z-40 max-h-60 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                {options.length ? options.map((option) => {
+                    const checked = selectedIds.includes(option.id);
+                    return (
+                        <label key={option.id} className={`flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-xs transition ${checked ? "bg-slate-50 text-slate-950 dark:bg-slate-900/40 dark:text-slate-200" : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"}`}>
+                            <input type="checkbox" checked={checked} onChange={(event) => onChange(option.id, event.target.checked)} className="size-4 accent-slate-900" />
+                            <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                            {option.detail && <span className="shrink-0 text-[10px] text-slate-400">{option.detail}</span>}
+                        </label>
+                    );
+                }) : <p className="px-2 py-3 text-xs text-slate-400">No eligible users available.</p>}
+            </div>
+        </details>
+    );
+}
+
 export default function CreateTicketPage() {
+    const today = useTodayDate();
     const router = useRouter();
     const queryClient = useQueryClient();
 
@@ -162,6 +225,22 @@ export default function CreateTicketPage() {
             .then(({ user: verifiedUser }) => {
                 if (!active) return;
 
+                const params = new URLSearchParams(window.location.search);
+                const requestedProjectId = params.get("project_id");
+                const requestedStatus = params.get("status") as TicketStatus | null;
+                const allowedStatuses: TicketStatus[] = [
+                    "BACKLOG", "TODO", "IN_PROGRESS", "IN_REVIEW", "TESTING",
+                    "TESTING_DONE", "BUG_FIXED", "COMPLETED", "BLOCKED",
+                    "REOPENED", "CANCELLED",
+                ];
+
+                setForm((current) => ({
+                    ...current,
+                    project_id: requestedProjectId || current.project_id,
+                    status: requestedStatus && allowedStatuses.includes(requestedStatus)
+                        ? requestedStatus
+                        : "BACKLOG",
+                }));
                 setUser(verifiedUser);
                 setIsCheckingAuth(false);
             })
@@ -220,10 +299,11 @@ export default function CreateTicketPage() {
 
         const uniqueUsers = new Map<string, ProjectUser>();
 
-        uniqueUsers.set(
-            projectDetails.project_manager.id,
-            projectDetails.project_manager,
-        );
+        for (const manager of (
+            projectDetails.project_managers ?? [projectDetails.project_manager]
+        )) {
+            uniqueUsers.set(manager.id, manager);
+        }
 
         for (const member of projectDetails.members) {
             uniqueUsers.set(member.user.id, member.user);
@@ -250,7 +330,6 @@ export default function CreateTicketPage() {
             });
 
             router.push("/dashboard/tickets");
-            router.refresh();
         },
     });
 
@@ -263,7 +342,6 @@ export default function CreateTicketPage() {
             // The session may already have expired.
         } finally {
             router.replace("/");
-            router.refresh();
         }
     }
 
@@ -271,9 +349,9 @@ export default function CreateTicketPage() {
         setForm((current) => ({
             ...current,
             project_id: projectId,
-            assignee_id: "",
-            reviewer_id: "",
-            tester_id: "",
+            assignee_ids: [],
+            reviewer_ids: [],
+            tester_ids: [],
             parent_ticket_id: "",
         }));
 
@@ -345,9 +423,13 @@ export default function CreateTicketPage() {
             description: form.description.trim() || null,
             type: form.type,
             priority: form.priority,
-            assignee_id: form.assignee_id || null,
-            reviewer_id: form.reviewer_id || null,
-            tester_id: form.tester_id || null,
+            status: form.status,
+            assignee_id: form.assignee_ids[0] ?? null,
+            reviewer_id: form.reviewer_ids[0] ?? null,
+            tester_id: form.tester_ids[0] ?? null,
+            assignee_ids: form.assignee_ids,
+            reviewer_ids: form.reviewer_ids,
+            tester_ids: form.tester_ids,
             start_date: form.start_date || null,
             due_date: form.due_date || null,
             estimated_effort: effort,
@@ -385,7 +467,7 @@ export default function CreateTicketPage() {
                     </p>
                     <Link
                         href="/dashboard/tickets"
-                        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-violet-700 px-4 py-2 text-xs font-semibold text-white hover:bg-violet-800"
+                        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-950"
                     >
                         <ArrowLeft className="size-4" />
                         Back to tickets
@@ -444,7 +526,7 @@ export default function CreateTicketPage() {
                     <div className="w-full max-w-none">
                         <Link
                             href="/dashboard/tickets"
-                            className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 transition hover:text-violet-700 dark:text-slate-400 dark:hover:text-violet-300"
+                            className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-300"
                         >
                             <ArrowLeft className="size-3.5" />
                             Back to tickets
@@ -633,69 +715,42 @@ export default function CreateTicketPage() {
                                 )}
 
                                 <div>
-                                    <label htmlFor="assignee_id" className={LABEL_CLASS}>
-                                        Assignee
-                                    </label>
-                                    <select
-                                        id="assignee_id"
-                                        value={form.assignee_id}
-                                        onChange={(event) =>
-                                            updateField("assignee_id", event.target.value)
-                                        }
+                                    <label htmlFor="assignee_ids" className={LABEL_CLASS}>Assignees</label>
+                                    <AssignmentMultiSelect
+                                        id="assignee_ids"
+                                        options={projectUsers.map((member) => ({id:member.id,label:member.full_name,detail:USER_ROLE_LABELS[member.role_code]}))}
+                                        selectedIds={form.assignee_ids}
+                                        onChange={(id,checked)=>updateField("assignee_ids",checked?Array.from(new Set([...form.assignee_ids,id])):form.assignee_ids.filter((item)=>item!==id))}
+                                        placeholder="Select assignees"
                                         disabled={!projectDetails}
-                                        className={INPUT_CLASS}
-                                    >
-                                        <option value="">Unassigned</option>
-                                        {projectUsers.map((member) => (
-                                            <option key={member.id} value={member.id}>
-                                                {member.full_name} — {USER_ROLE_LABELS[member.role_code]}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    />
+                                    {form.assignee_ids.length>0 && <div className="mt-2 flex flex-wrap gap-1.5">{projectUsers.filter((member)=>form.assignee_ids.includes(member.id)).map((member)=><span key={member.id} className="rounded-md bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-900 dark:bg-slate-900/40 dark:text-slate-300">{member.full_name}</span>)}</div>}
                                 </div>
 
                                 <div>
-                                    <label htmlFor="reviewer_id" className={LABEL_CLASS}>
-                                        Reviewer
-                                    </label>
-                                    <select
-                                        id="reviewer_id"
-                                        value={form.reviewer_id}
-                                        onChange={(event) =>
-                                            updateField("reviewer_id", event.target.value)
-                                        }
+                                    <label htmlFor="reviewer_ids" className={LABEL_CLASS}>Reviewers</label>
+                                    <AssignmentMultiSelect
+                                        id="reviewer_ids"
+                                        options={projectUsers.map((member) => ({id:member.id,label:member.full_name,detail:USER_ROLE_LABELS[member.role_code]}))}
+                                        selectedIds={form.reviewer_ids}
+                                        onChange={(id,checked)=>updateField("reviewer_ids",checked?Array.from(new Set([...form.reviewer_ids,id])):form.reviewer_ids.filter((item)=>item!==id))}
+                                        placeholder="Select reviewers"
                                         disabled={!projectDetails}
-                                        className={INPUT_CLASS}
-                                    >
-                                        <option value="">Not assigned</option>
-                                        {projectUsers.map((member) => (
-                                            <option key={member.id} value={member.id}>
-                                                {member.full_name} — {USER_ROLE_LABELS[member.role_code]}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    />
+                                    {form.reviewer_ids.length>0 && <div className="mt-2 flex flex-wrap gap-1.5">{projectUsers.filter((member)=>form.reviewer_ids.includes(member.id)).map((member)=><span key={member.id} className="rounded-md bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-900 dark:bg-slate-900/40 dark:text-slate-300">{member.full_name}</span>)}</div>}
                                 </div>
 
                                 <div className="sm:col-span-2">
-                                    <label htmlFor="tester_id" className={LABEL_CLASS}>
-                                        Tester
-                                    </label>
-                                    <select
-                                        id="tester_id"
-                                        value={form.tester_id}
-                                        onChange={(event) =>
-                                            updateField("tester_id", event.target.value)
-                                        }
+                                    <label htmlFor="tester_ids" className={LABEL_CLASS}>Testers</label>
+                                    <AssignmentMultiSelect
+                                        id="tester_ids"
+                                        options={testerUsers.map((member) => ({id:member.id,label:member.full_name,detail:USER_ROLE_LABELS[member.role_code]}))}
+                                        selectedIds={form.tester_ids}
+                                        onChange={(id,checked)=>updateField("tester_ids",checked?Array.from(new Set([...form.tester_ids,id])):form.tester_ids.filter((item)=>item!==id))}
+                                        placeholder="Select testers"
                                         disabled={!projectDetails}
-                                        className={INPUT_CLASS}
-                                    >
-                                        <option value="">Not assigned</option>
-                                        {testerUsers.map((member) => (
-                                            <option key={member.id} value={member.id}>
-                                                {member.full_name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    />
+                                    {form.tester_ids.length>0 && <div className="mt-2 flex flex-wrap gap-1.5">{testerUsers.filter((member)=>form.tester_ids.includes(member.id)).map((member)=><span key={member.id} className="rounded-md bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-900 dark:bg-slate-900/40 dark:text-slate-300">{member.full_name}</span>)}</div>}
                                     {projectDetails && testerUsers.length === 0 && (
                                         <p className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-400">
                                             No project member with the Tester role is currently available.
@@ -716,6 +771,7 @@ export default function CreateTicketPage() {
                                     <input
                                         id="start_date"
                                         type="date"
+                                        min={today || undefined}
                                         value={form.start_date}
                                         onChange={(event) =>
                                             updateField("start_date", event.target.value)
@@ -857,7 +913,7 @@ export default function CreateTicketPage() {
                                         projectsQuery.isLoading ||
                                         projects.length === 0
                                     }
-                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-violet-700 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                     {createMutation.isPending ? (
                                         <>

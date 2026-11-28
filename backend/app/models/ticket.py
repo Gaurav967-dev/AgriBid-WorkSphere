@@ -50,6 +50,57 @@ ticket_comment_mentions = Table(
     ),
 )
 
+ticket_assignees = Table(
+    "ticket_assignees",
+    Base.metadata,
+    Column(
+        "ticket_id",
+        Uuid(as_uuid=True),
+        ForeignKey("tickets.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "user_id",
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        primary_key=True,
+    ),
+)
+
+ticket_reviewers = Table(
+    "ticket_reviewers",
+    Base.metadata,
+    Column(
+        "ticket_id",
+        Uuid(as_uuid=True),
+        ForeignKey("tickets.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "user_id",
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        primary_key=True,
+    ),
+)
+
+ticket_testers = Table(
+    "ticket_testers",
+    Base.metadata,
+    Column(
+        "ticket_id",
+        Uuid(as_uuid=True),
+        ForeignKey("tickets.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "user_id",
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        primary_key=True,
+    ),
+)
+
 
 class Ticket(Base):
     """Store a project ticket and its current workflow state."""
@@ -220,6 +271,21 @@ class Ticket(Base):
     tester: Mapped[User | None] = relationship(
         "User",
         foreign_keys=[tester_id],
+    )
+    assignees: Mapped[list[User]] = relationship(
+        "User",
+        secondary=ticket_assignees,
+        lazy="selectin",
+    )
+    reviewers: Mapped[list[User]] = relationship(
+        "User",
+        secondary=ticket_reviewers,
+        lazy="selectin",
+    )
+    testers: Mapped[list[User]] = relationship(
+        "User",
+        secondary=ticket_testers,
+        lazy="selectin",
     )
     completed_by: Mapped[User | None] = relationship(
         "User",

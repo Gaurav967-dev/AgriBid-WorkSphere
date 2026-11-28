@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useTodayDate } from "@/lib/use-today-date";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -104,6 +105,7 @@ function SprintStatusBadge({ status }: { status: SprintStatus }) {
 }
 
 export default function SprintsPage() {
+    const today = useTodayDate();
     const router = useRouter();
     const queryClient = useQueryClient();
     const { collapsed, toggleCollapsed } = useWorkspaceSidebarState();
@@ -309,7 +311,6 @@ export default function SprintsPage() {
             // The session may already have expired.
         } finally {
             router.replace("/");
-            router.refresh();
         }
     }
 
@@ -512,7 +513,7 @@ export default function SprintsPage() {
                             <label className="block"><span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Sprint name</span><input autoFocus required maxLength={120} value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950" placeholder="e.g. Sprint 1" /></label>
                             <label className="block"><span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Sprint goal</span><textarea required maxLength={2000} rows={3} value={form.goal} onChange={(event) => setForm((current) => ({ ...current, goal: event.target.value }))} className="mt-1.5 w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950" placeholder="What should this sprint achieve?" /></label>
                             <div className="grid gap-3 sm:grid-cols-2">
-                                <label className="block"><span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Start date</span><input required type="date" value={form.start_date} onChange={(event) => setForm((current) => ({ ...current, start_date: event.target.value }))} className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950" /></label>
+                                <label className="block"><span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Start date</span><input required type="date" min={today || undefined} value={form.start_date} onChange={(event) => setForm((current) => ({ ...current, start_date: event.target.value }))} className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950" /></label>
                                 <label className="block"><span className="text-xs font-semibold text-slate-600 dark:text-slate-300">End date</span><input required type="date" min={form.start_date || undefined} value={form.end_date} onChange={(event) => setForm((current) => ({ ...current, end_date: event.target.value }))} className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950" /></label>
                             </div>
                         </div>

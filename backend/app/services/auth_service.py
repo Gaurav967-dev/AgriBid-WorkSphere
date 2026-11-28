@@ -54,11 +54,11 @@ def _create_access_token(user: User, session: AuthSession) -> str:
 
 
 def _clear_legacy_auth_cookie_paths(response: Response) -> None:
-    """Remove cookies issued by the earlier, broader auth cookie paths."""
+    """Clear existing auth cookie variants before issuing fresh credentials."""
     common = _cookie_options()
-    # Previous releases used /api/v1/auth and then /api/v1/auth/id-token.
     response.delete_cookie("id_token", path="/api/v1/auth", **common)
     response.delete_cookie("id_token", path="/api/v1/auth/id-token", **common)
+    response.delete_cookie("refresh_token", path="/api/v1/auth/refresh-token", **common)
     response.delete_cookie("refresh_token", path="/api/v1/auth", **common)
 
 
@@ -105,7 +105,7 @@ def set_auth_cookies(
         key="refresh_token",
         value=refresh_token,
         max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
-        path="/api/v1/auth/refresh-token",
+        path="/api/v1/auth",
         **common,
     )
 
@@ -121,6 +121,9 @@ def set_access_refresh_cookies(
     common = _cookie_options()
     access_token = _create_access_token(user, session)
 
+    # Remove refresh cookies from the previous narrower path before rotation.
+    response.delete_cookie("refresh_token", path="/api/v1/auth/refresh-token", **common)
+
     response.set_cookie(
         key="access_token",
         value=access_token,
@@ -132,7 +135,7 @@ def set_access_refresh_cookies(
         key="refresh_token",
         value=refresh_token,
         max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
-        path="/api/v1/auth/refresh-token",
+        path="/api/v1/auth",
         **common,
     )
 

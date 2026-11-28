@@ -4,10 +4,12 @@
 import {
     useEffect,
     useMemo,
+    useRef,
     useState,
     type FormEvent,
 } from "react";
 import Link from "next/link";
+import { useTodayDate } from "@/lib/use-today-date";
 import { useParams, useRouter } from "next/navigation";
 import {
     useMutation,
@@ -23,7 +25,6 @@ import {
     CheckCircle2,
     ChevronDown,
     Clipboard,
-    Clock,
     FileText,
     History,
     Link2,
@@ -83,7 +84,7 @@ const STATUS_STYLES: Record<TicketStatus, string> = {
     BACKLOG: "border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
     TODO: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-300",
     IN_PROGRESS: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300",
-    IN_REVIEW: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-300",
+    IN_REVIEW: "border-slate-200 bg-slate-50 text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300",
     TESTING: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300",
     TESTING_DONE: "border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-900 dark:bg-teal-950 dark:text-teal-300",
     BUG_FIXED: "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900 dark:bg-orange-950 dark:text-orange-300",
@@ -129,9 +130,9 @@ type EditForm = {
     description: string;
     type: TicketType;
     priority: TicketPriority;
-    assignee_id: string;
-    reviewer_id: string;
-    tester_id: string;
+    assignee_ids: string[];
+    reviewer_ids: string[];
+    tester_ids: string[];
     start_date: string;
     due_date: string;
     estimated_effort: string;
@@ -222,7 +223,7 @@ function Card({
     return (
         <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-3.5">
             <div className="mb-3 flex items-center gap-2 border-b border-slate-100 pb-2 dark:border-slate-800">
-                <span className="text-violet-600 dark:text-violet-300">
+                <span className="text-slate-700 dark:text-slate-300">
                     {icon}
                 </span>
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
@@ -262,7 +263,7 @@ function PersonRow({
 }) {
     return (
         <div className="flex items-center gap-2.5 py-2">
-            <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-800 dark:bg-violet-950 dark:text-violet-200">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-950 dark:bg-slate-900 dark:text-slate-200">
                 {person?.full_name.trim().charAt(0).toUpperCase() ?? "—"}
             </div>
 
@@ -281,7 +282,84 @@ function PersonRow({
     );
 }
 
+function AssignedPeopleRow({
+    label,
+    people,
+}: {
+    label: string;
+    people: Array<{ id: string; full_name: string; email: string }>;
+}) {
+    return (
+        <div className="py-2">
+            <p className="mb-1.5 text-[10px] text-slate-400">{label}</p>
+            {people.length ? (
+                <div className="flex flex-wrap gap-1.5">
+                    {people.map((person) => (
+                        <span key={person.id} className="rounded-md bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-900 dark:bg-slate-900/40 dark:text-slate-300" title={person.email}>
+                            {person.full_name}
+                        </span>
+                    ))}
+                </div>
+            ) : (
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Not assigned</p>
+            )}
+        </div>
+    );
+}
+
+function TicketAssignmentPicker({
+    label,
+    options,
+    selectedIds,
+    onChange,
+}: {
+    label: string;
+    options: ProjectUser[];
+    selectedIds: string[];
+    onChange: (id: string, checked: boolean) => void;
+}) {
+    const pickerRef = useRef<HTMLDetailsElement>(null);
+
+    useEffect(() => {
+        const handleOutsidePointerDown = (event: PointerEvent) => {
+            const picker = pickerRef.current;
+            if (picker?.open && event.target instanceof Node && !picker.contains(event.target)) {
+                picker.open = false;
+            }
+        };
+
+        document.addEventListener("pointerdown", handleOutsidePointerDown);
+        return () => document.removeEventListener("pointerdown", handleOutsidePointerDown);
+    }, []);
+
+    return (
+        <div>
+            <label className="text-xs font-semibold">{label}</label>
+            <details ref={pickerRef} className="relative mt-1.5">
+                <summary className="flex h-10 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 [&::-webkit-details-marker]:hidden">
+                    <span>{selectedIds.length ? `${selectedIds.length} selected` : "Not assigned"}</span>
+                    <ChevronDown className="size-4 text-slate-400" />
+                </summary>
+                <div className="absolute left-0 right-0 top-11 z-40 max-h-60 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                    {options.map((member) => {
+                        const checked = selectedIds.includes(member.id);
+                        return (
+                            <label key={member.id} className={`flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-xs ${checked ? "bg-slate-50 text-slate-950 dark:bg-slate-900/40 dark:text-slate-200" : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"}`}>
+                                <input type="checkbox" checked={checked} onChange={(event) => onChange(member.id, event.target.checked)} className="size-4 accent-slate-900" />
+                                <span className="min-w-0 flex-1 truncate">{member.full_name}</span>
+                                <span className="shrink-0 text-[10px] text-slate-400">{member.role_code}</span>
+                            </label>
+                        );
+                    })}
+                    {!options.length && <p className="px-2 py-3 text-xs text-slate-400">No eligible users available.</p>}
+                </div>
+            </details>
+        </div>
+    );
+}
+
 export default function TicketDetailsPage() {
+    const today = useTodayDate();
     const router = useRouter();
     const params = useParams<{ ticketId: string }>();
     const queryClient = useQueryClient();
@@ -366,7 +444,9 @@ export default function TicketDetailsPage() {
 
         const uniqueUsers = new Map<string, ProjectUser>();
 
-        uniqueUsers.set(project.project_manager.id, project.project_manager);
+        for (const manager of (project.project_managers ?? [project.project_manager])) {
+            uniqueUsers.set(manager.id, manager);
+        }
 
         for (const membership of project.members) {
             uniqueUsers.set(membership.user.id, membership.user);
@@ -388,17 +468,20 @@ export default function TicketDetailsPage() {
     const isAssignedProjectManager =
         user?.role_code === "PM" &&
         Boolean(user.id) &&
-        project?.project_manager.id === user?.id;
+        (project?.project_manager.id === user?.id ||
+            project?.project_managers?.some((manager) => manager.id === user?.id) === true);
 
     const canManage = isAdmin || isAssignedProjectManager;
 
     const isAssignedDeveloper =
         user?.role_code === "DEVELOPER" &&
-        ticket?.assignee?.id === user?.id;
+        (ticket?.assignee?.id === user?.id ||
+            ticket?.assignees?.some((assignee) => assignee.id === user?.id) === true);
 
     const isAssignedTester =
         user?.role_code === "TESTER" &&
-        ticket?.tester?.id === user?.id;
+        (ticket?.tester?.id === user?.id ||
+            ticket?.testers?.some((tester) => tester.id === user?.id) === true);
 
     const availableTransitions = useMemo((): TicketStatus[] => {
         if (!ticket || !user) return [];
@@ -504,7 +587,6 @@ export default function TicketDetailsPage() {
             });
 
             router.push("/dashboard/tickets");
-            router.refresh();
         },
     });
 
@@ -517,7 +599,6 @@ export default function TicketDetailsPage() {
             // The session may already have expired.
         } finally {
             router.replace("/");
-            router.refresh();
         }
     }
 
@@ -529,9 +610,9 @@ export default function TicketDetailsPage() {
             description: ticket.description ?? "",
             type: ticket.type,
             priority: ticket.priority,
-            assignee_id: ticket.assignee?.id ?? "",
-            reviewer_id: ticket.reviewer?.id ?? "",
-            tester_id: ticket.tester?.id ?? "",
+            assignee_ids: ticket.assignees?.map((person) => person.id) ?? (ticket.assignee ? [ticket.assignee.id] : []),
+            reviewer_ids: ticket.reviewers?.map((person) => person.id) ?? (ticket.reviewer ? [ticket.reviewer.id] : []),
+            tester_ids: ticket.testers?.map((person) => person.id) ?? (ticket.tester ? [ticket.tester.id] : []),
             start_date: ticket.start_date ?? "",
             due_date: ticket.due_date ?? "",
             estimated_effort:
@@ -603,9 +684,12 @@ export default function TicketDetailsPage() {
             description: editForm.description.trim() || null,
             type: editForm.type,
             priority: editForm.priority,
-            assignee_id: editForm.assignee_id || null,
-            reviewer_id: editForm.reviewer_id || null,
-            tester_id: editForm.tester_id || null,
+            assignee_id: editForm.assignee_ids[0] ?? null,
+            reviewer_id: editForm.reviewer_ids[0] ?? null,
+            tester_id: editForm.tester_ids[0] ?? null,
+            assignee_ids: editForm.assignee_ids,
+            reviewer_ids: editForm.reviewer_ids,
+            tester_ids: editForm.tester_ids,
             start_date: editForm.start_date || null,
             due_date: editForm.due_date || null,
             estimated_effort: effort,
@@ -656,7 +740,7 @@ export default function TicketDetailsPage() {
                     </p>
                     <Link
                         href="/dashboard/tickets"
-                        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800"
+                        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-950"
                     >
                         <ArrowLeft className="size-4" />
                         Back to tickets
@@ -726,7 +810,7 @@ export default function TicketDetailsPage() {
                     <div className="w-full max-w-none">
                         <Link
                             href="/dashboard/tickets"
-                            className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-violet-700 dark:text-slate-400 dark:hover:text-violet-300"
+                            className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-300"
                         >
                             <ArrowLeft className="size-3.5" />
                             Back to tickets
@@ -735,7 +819,7 @@ export default function TicketDetailsPage() {
                         <div className="mt-2.5 flex flex-col justify-between gap-2.5 lg:flex-row lg:items-start">
                             <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <span className="rounded-md bg-violet-50 px-2.5 py-1 font-mono text-xs font-semibold text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+                                    <span className="rounded-md bg-slate-50 px-2.5 py-1 font-mono text-xs font-semibold text-slate-900 dark:bg-slate-900 dark:text-slate-300">
                                         {ticket.ticket_key}
                                     </span>
                                     <StatusBadge status={ticket.status} />
@@ -895,74 +979,35 @@ export default function TicketDetailsPage() {
                                             </select>
                                         </div>
 
-                                        <div>
-                                            <label className="text-xs font-semibold">
-                                                Assignee
-                                            </label>
-                                            <select
-                                                value={editForm.assignee_id}
-                                                onChange={(event) =>
-                                                    setEditForm({
-                                                        ...editForm,
-                                                        assignee_id: event.target.value,
-                                                    })
-                                                }
-                                                className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950"
-                                            >
-                                                <option value="">Unassigned</option>
-                                                {projectUsers.map((member) => (
-                                                    <option key={member.id} value={member.id}>
-                                                        {member.full_name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
+                                        <TicketAssignmentPicker
+                                            label="Assignees"
+                                            options={projectUsers}
+                                            selectedIds={editForm.assignee_ids}
+                                            onChange={(id, checked) => setEditForm({
+                                                ...editForm,
+                                                assignee_ids: checked ? Array.from(new Set([...editForm.assignee_ids, id])) : editForm.assignee_ids.filter((value) => value !== id),
+                                            })}
+                                        />
 
-                                        <div>
-                                            <label className="text-xs font-semibold">
-                                                Reviewer
-                                            </label>
-                                            <select
-                                                value={editForm.reviewer_id}
-                                                onChange={(event) =>
-                                                    setEditForm({
-                                                        ...editForm,
-                                                        reviewer_id: event.target.value,
-                                                    })
-                                                }
-                                                className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950"
-                                            >
-                                                <option value="">Not assigned</option>
-                                                {projectUsers.map((member) => (
-                                                    <option key={member.id} value={member.id}>
-                                                        {member.full_name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
+                                        <TicketAssignmentPicker
+                                            label="Reviewers"
+                                            options={projectUsers}
+                                            selectedIds={editForm.reviewer_ids}
+                                            onChange={(id, checked) => setEditForm({
+                                                ...editForm,
+                                                reviewer_ids: checked ? Array.from(new Set([...editForm.reviewer_ids, id])) : editForm.reviewer_ids.filter((value) => value !== id),
+                                            })}
+                                        />
 
-                                        <div>
-                                            <label className="text-xs font-semibold">
-                                                Tester
-                                            </label>
-                                            <select
-                                                value={editForm.tester_id}
-                                                onChange={(event) =>
-                                                    setEditForm({
-                                                        ...editForm,
-                                                        tester_id: event.target.value,
-                                                    })
-                                                }
-                                                className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950"
-                                            >
-                                                <option value="">Not assigned</option>
-                                                {testerUsers.map((member) => (
-                                                    <option key={member.id} value={member.id}>
-                                                        {member.full_name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
+                                        <TicketAssignmentPicker
+                                            label="Testers"
+                                            options={testerUsers}
+                                            selectedIds={editForm.tester_ids}
+                                            onChange={(id, checked) => setEditForm({
+                                                ...editForm,
+                                                tester_ids: checked ? Array.from(new Set([...editForm.tester_ids, id])) : editForm.tester_ids.filter((value) => value !== id),
+                                            })}
+                                        />
 
                                         <div>
                                             <label className="text-xs font-semibold">
@@ -970,6 +1015,7 @@ export default function TicketDetailsPage() {
                                             </label>
                                             <input
                                                 type="date"
+                                                min={today || undefined}
                                                 value={editForm.start_date}
                                                 max={editForm.due_date || undefined}
                                                 onChange={(event) =>
@@ -1104,7 +1150,7 @@ export default function TicketDetailsPage() {
                                         <button
                                             type="submit"
                                             disabled={updateMutation.isPending}
-                                            className="inline-flex items-center gap-2 rounded-lg bg-violet-700 px-4 py-2 text-xs font-semibold text-white hover:bg-violet-800 disabled:opacity-50"
+                                            className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-950 disabled:opacity-50"
                                         >
                                             {updateMutation.isPending && (
                                                 <RefreshCw className="size-3.5 animate-spin" />
@@ -1194,7 +1240,7 @@ export default function TicketDetailsPage() {
                                                         key={activity.id}
                                                         className="relative flex gap-2.5"
                                                     >
-                                                        <div className="relative z-10 flex size-7 shrink-0 items-center justify-center rounded-full border border-violet-100 bg-violet-50 text-violet-700 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-300">
+                                                        <div className="relative z-10 flex size-7 shrink-0 items-center justify-center rounded-full border border-slate-100 bg-slate-50 text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
                                                             <Activity className="size-3.5" />
                                                         </div>
 
@@ -1261,7 +1307,7 @@ export default function TicketDetailsPage() {
                                         <DetailField label="Project">
                                             <Link
                                                 href="/dashboard/projects"
-                                                className="font-semibold text-violet-700 hover:underline dark:text-violet-300"
+                                                className="font-semibold text-slate-900 hover:underline dark:text-slate-300"
                                             >
                                                 {ticket.project.key}
                                             </Link>
@@ -1300,6 +1346,9 @@ export default function TicketDetailsPage() {
 
                                         <DetailField label="Last updated">
                                             {formatDate(ticket.updated_at)}
+                                        </DetailField>
+                                        <DetailField label="Completed date">
+                                            {formatDate(ticket.completed_at)}
                                         </DetailField>
                                     </div>
                                 </Card>
@@ -1371,7 +1420,7 @@ export default function TicketDetailsPage() {
                                                                 statusReason.trim() || undefined,
                                                         });
                                                     }}
-                                                    className="mt-1.5 inline-flex h-8 w-full items-center justify-center gap-2 rounded-lg bg-violet-700 px-3 text-xs font-semibold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                                    className="mt-1.5 inline-flex h-8 w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
                                                 >
                                                     {statusMutation.isPending ? (
                                                         <RefreshCw className="size-3.5 animate-spin" />
@@ -1398,21 +1447,21 @@ export default function TicketDetailsPage() {
                                     title="People"
                                     icon={<Users className="size-4" />}
                                 >
-                                    <PersonRow
-                                        label="Assignee"
-                                        person={ticket.assignee}
+                                    <AssignedPeopleRow
+                                        label="Assignees"
+                                        people={ticket.assignees?.length ? ticket.assignees : ticket.assignee ? [ticket.assignee] : []}
                                     />
                                     <PersonRow
                                         label="Reporter"
                                         person={ticket.reporter}
                                     />
-                                    <PersonRow
-                                        label="Reviewer"
-                                        person={ticket.reviewer}
+                                    <AssignedPeopleRow
+                                        label="Reviewers"
+                                        people={ticket.reviewers?.length ? ticket.reviewers : ticket.reviewer ? [ticket.reviewer] : []}
                                     />
-                                    <PersonRow
-                                        label="Tester"
-                                        person={ticket.tester}
+                                    <AssignedPeopleRow
+                                        label="Testers"
+                                        people={ticket.testers?.length ? ticket.testers : ticket.tester ? [ticket.tester] : []}
                                     />
                                 </Card>
 
@@ -1428,9 +1477,9 @@ export default function TicketDetailsPage() {
                                         ) : parentQuery.data ? (
                                             <Link
                                                 href={`/dashboard/tickets/${parentQuery.data.id}`}
-                                                className="block rounded-lg border border-slate-200 p-2.5 hover:border-violet-300 dark:border-slate-700 dark:hover:border-violet-700"
+                                                className="block rounded-lg border border-slate-200 p-2.5 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-900"
                                             >
-                                                <p className="text-[10px] font-semibold text-violet-700 dark:text-violet-300">
+                                                <p className="text-[10px] font-semibold text-slate-900 dark:text-slate-300">
                                                     Parent ticket
                                                 </p>
                                                 <p className="mt-1 text-xs font-semibold text-slate-800 dark:text-slate-200">
@@ -1474,9 +1523,9 @@ export default function TicketDetailsPage() {
                                                     <Link
                                                         key={child.id}
                                                         href={`/dashboard/tickets/${child.id}`}
-                                                        className="block rounded-lg border border-slate-200 p-2.5 hover:border-violet-300 dark:border-slate-700 dark:hover:border-violet-700"
+                                                        className="block rounded-lg border border-slate-200 p-2.5 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-900"
                                                     >
-                                                        <p className="text-[10px] font-semibold text-violet-700 dark:text-violet-300">
+                                                        <p className="text-[10px] font-semibold text-slate-900 dark:text-slate-300">
                                                             {child.ticket_key}
                                                         </p>
                                                         <p className="mt-1 truncate text-xs font-medium text-slate-800 dark:text-slate-200">
@@ -1492,24 +1541,7 @@ export default function TicketDetailsPage() {
                                     </div>
                                 </Card>
 
-<Card
-                                    title="Record information"
-                                    icon={<Clock className="size-4" />}
-                                >
-                                    <div className="space-y-2.5">
-                                        <DetailField label="Created date">
-                                            {formatDateTime(ticket.created_at)}
-                                        </DetailField>
-                                        <DetailField label="Updated date">
-                                            {formatDateTime(ticket.updated_at)}
-                                        </DetailField>
-                                        <DetailField label="Completed date">
-                                            {formatDateTime(
-                                                ticket.completed_at ?? "",
-                                            )}
-                                        </DetailField>
-                                    </div>
-                                </Card>
+
                             </aside>
                         </div>
                     </div>

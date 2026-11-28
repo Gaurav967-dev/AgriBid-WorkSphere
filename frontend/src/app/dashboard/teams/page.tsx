@@ -4,7 +4,7 @@ import {
     useEffect,
     useMemo,
     useState,
-    type ChangeEvent,
+    useRef,
     type FormEvent,
 } from "react";
 import Link from "next/link";
@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     Archive,
     CircleAlert,
+    ChevronDown,
     Crown,
     Menu,
     PanelLeft,
@@ -154,7 +155,7 @@ function TeamAvatar({
 
     return (
         <span
-            className={`inline-flex shrink-0 items-center justify-center rounded-full border-2 border-white bg-violet-100 font-bold text-violet-800 dark:border-slate-900 dark:bg-violet-950 dark:text-violet-200 ${sizeClass}`}
+            className={`inline-flex shrink-0 items-center justify-center rounded-full border-2 border-white bg-slate-100 font-bold text-slate-950 dark:border-slate-900 dark:bg-slate-900 dark:text-slate-200 ${sizeClass}`}
             title={user.full_name}
         >
             {getInitials(user.full_name)}
@@ -173,6 +174,7 @@ export default function TeamsPage() {
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
     const { collapsed, toggleCollapsed } = useWorkspaceSidebarState();
+    const initialMembersDropdownRef = useRef<HTMLDetailsElement>(null);
 
     const [page, setPage] = useState(1);
     const [statusFilter, setStatusFilter] = useState<TeamListStatus>("ACTIVE");
@@ -200,6 +202,22 @@ export default function TeamsPage() {
         useState<TeamDisplayProperties>({
             ...DEFAULT_TEAM_DISPLAY_PROPERTIES,
         });
+
+    useEffect(() => {
+        const handleOutsidePointerDown = (event: PointerEvent) => {
+            const dropdown = initialMembersDropdownRef.current;
+            if (
+                dropdown?.open &&
+                event.target instanceof Node &&
+                !dropdown.contains(event.target)
+            ) {
+                dropdown.open = false;
+            }
+        };
+
+        document.addEventListener("pointerdown", handleOutsidePointerDown);
+        return () => document.removeEventListener("pointerdown", handleOutsidePointerDown);
+    }, []);
 
     useEffect(() => {
         let active = true;
@@ -230,7 +248,6 @@ export default function TeamsPage() {
             // The session may already have expired.
         } finally {
             router.replace("/");
-            router.refresh();
         }
     }
 
@@ -452,14 +469,6 @@ export default function TeamsPage() {
         setFormMode("edit");
     }
 
-    function handleMemberSelection(event: ChangeEvent<HTMLSelectElement>) {
-        const values = Array.from(
-            event.currentTarget.selectedOptions,
-            (option) => option.value,
-        );
-        setSelectedMemberIds(values);
-    }
-
     function handleSaveTeam(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
@@ -534,7 +543,7 @@ export default function TeamsPage() {
                     </p>
                     <Link
                         href="/dashboard"
-                        className="mt-4 inline-flex rounded-lg bg-violet-700 px-5 py-2 text-xs font-semibold text-white hover:bg-violet-800"
+                        className="mt-4 inline-flex rounded-lg bg-slate-900 px-5 py-2 text-xs font-semibold text-white hover:bg-slate-950"
                     >
                         Return to dashboard
                     </Link>
@@ -722,7 +731,7 @@ export default function TeamsPage() {
                                             <button
                                                 type="button"
                                                 onClick={openCreateForm}
-                                                className="mt-1 text-xs font-medium text-violet-700 hover:text-violet-900 dark:text-violet-300"
+                                                className="mt-1 text-xs font-medium text-slate-900 hover:text-slate-800 dark:text-slate-300"
                                             >
                                                 + Add team
                                             </button>
@@ -791,7 +800,7 @@ export default function TeamsPage() {
                                         required
                                         maxLength={100}
                                         placeholder="e.g. Backend Engineering"
-                                        className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-violet-500 focus:ring-3 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-violet-950"
+                                        className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-600 focus:ring-3 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-slate-900"
                                     />
                                 </div>
 
@@ -806,7 +815,7 @@ export default function TeamsPage() {
                                         maxLength={2000}
                                         rows={3}
                                         placeholder="Describe the team's responsibilities..."
-                                        className="w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-violet-500 focus:ring-3 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-violet-950"
+                                        className="w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-slate-600 focus:ring-3 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-slate-900"
                                     />
                                 </div>
 
@@ -816,23 +825,52 @@ export default function TeamsPage() {
                                             <label htmlFor="team-members" className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
                                                 Initial members
                                             </label>
-                                            <select
-                                                id="team-members"
-                                                multiple
-                                                value={selectedMemberIds}
-                                                onChange={handleMemberSelection}
-                                                size={Math.min(Math.max(employees.length, 3), 6)}
-                                                className="w-full rounded-lg border border-slate-200 bg-white p-2 text-sm outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                                            >
-                                                {employees.map((employee) => (
-                                                    <option key={employee.id} value={employee.id}>
-                                                        {employee.full_name} · {roleLabel(employee.role_code)}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <p className="mt-1.5 text-xs text-slate-400">
-                                                Use Ctrl (Windows) or Command (Mac) to select multiple employees.
-                                            </p>
+                                            <details ref={initialMembersDropdownRef} className="relative mt-1.5">
+                                                <summary
+                                                    id="team-members"
+                                                    className="flex h-10 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition hover:border-slate-400 focus-visible:ring-2 focus-visible:ring-slate-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 [&::-webkit-details-marker]:hidden"
+                                                >
+                                                    <span>{selectedMemberIds.length > 0 ? `${selectedMemberIds.length} members selected` : "Select initial members"}</span>
+                                                    <ChevronDown className="size-4 text-slate-400" />
+                                                </summary>
+                                                <div className="absolute left-0 right-0 top-11 z-30 max-h-60 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                                                    {employees.map((employee) => {
+                                                        const checked = selectedMemberIds.includes(employee.id);
+                                                        return (
+                                                            <label
+                                                                key={employee.id}
+                                                                className={`flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition ${checked ? "bg-slate-50 text-slate-950 dark:bg-slate-900/40 dark:text-slate-200" : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"}`}
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={checked}
+                                                                    onChange={(event) => {
+                                                                        const isChecked = event.target.checked;
+                                                                        setSelectedMemberIds((current) =>
+                                                                            isChecked
+                                                                                ? [...current, employee.id]
+                                                                                : current.filter((id) => id !== employee.id),
+                                                                        );
+                                                                    }}
+                                                                    className="size-4 accent-slate-900"
+                                                                />
+                                                                <span className="min-w-0 flex-1 truncate">{employee.full_name}</span>
+                                                                <span className="text-[10px] text-slate-400">{roleLabel(employee.role_code)}</span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                    {employees.length === 0 && (
+                                                        <p className="px-2.5 py-3 text-xs text-slate-400">No active employees available.</p>
+                                                    )}
+                                                </div>
+                                            </details>
+                                            {selectedMemberIds.length > 0 && (
+                                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                                    {employees.filter((employee) => selectedMemberIds.includes(employee.id)).map((employee) => (
+                                                        <span key={employee.id} className="rounded-md bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-900 dark:bg-slate-900/40 dark:text-slate-300">{employee.full_name}</span>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div>
@@ -843,7 +881,7 @@ export default function TeamsPage() {
                                                 id="team-lead"
                                                 value={leadUserId}
                                                 onChange={(event) => setLeadUserId(event.target.value)}
-                                                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                                                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                                             >
                                                 <option value="">No team lead</option>
                                                 {employees.map((employee) => (
@@ -852,9 +890,6 @@ export default function TeamsPage() {
                                                     </option>
                                                 ))}
                                             </select>
-                                            <p className="mt-1 text-xs text-slate-400">
-                                                A selected lead will automatically be added as a team member.
-                                            </p>
                                         </div>
                                     </>
                                 )}
@@ -886,7 +921,7 @@ export default function TeamsPage() {
                                             createMutation.isPending ||
                                             updateMutation.isPending
                                         }
-                                        className="inline-flex items-center gap-2 rounded-lg bg-violet-700 px-4 py-2 text-xs font-semibold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                        className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         {(createMutation.isPending || updateMutation.isPending) && (
                                             <RefreshCw className="size-4 animate-spin" />
@@ -978,7 +1013,7 @@ export default function TeamsPage() {
                                                                     userId: event.target.value || null,
                                                                 })
                                                             }
-                                                            className="h-10 w-full rounded-lg border border-slate-200 bg-white pr-3 pl-9 text-sm outline-none focus:border-violet-500 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                                                            className="h-10 w-full rounded-lg border border-slate-200 bg-white pr-3 pl-9 text-sm outline-none focus:border-slate-600 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                                                         >
                                                             <option value="">No team lead</option>
                                                             {detailTeam.members.map((member) => (
@@ -996,7 +1031,7 @@ export default function TeamsPage() {
                                                 </div>
 
                                                 <div className="flex items-end">
-                                                    <div className="rounded-lg bg-violet-50 px-3 py-2.5 text-xs text-violet-800 dark:bg-violet-950/50 dark:text-violet-200">
+                                                    <div className="rounded-lg bg-slate-50 px-3 py-2.5 text-xs text-slate-950 dark:bg-slate-900/50 dark:text-slate-200">
                                                         <Users className="mr-1 inline size-3.5" />
                                                         {detailTeam.member_count} active members
                                                     </div>
@@ -1076,7 +1111,7 @@ export default function TeamsPage() {
                                                 className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950"
                                             >
                                                 <div className="mb-3 flex items-center gap-2">
-                                                    <UserPlus className="size-4 text-violet-700 dark:text-violet-300" />
+                                                    <UserPlus className="size-4 text-slate-900 dark:text-slate-300" />
                                                     <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
                                                         Add team member
                                                     </h3>
@@ -1092,7 +1127,7 @@ export default function TeamsPage() {
                                                             value={newMemberId}
                                                             onChange={(event) => setNewMemberId(event.target.value)}
                                                             required
-                                                            className="h-10 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                                                            className="h-10 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                                                         >
                                                             <option value="">Select employee</option>
                                                             {availableEmployees.map((employee) => (
@@ -1106,12 +1141,12 @@ export default function TeamsPage() {
                                                             onChange={(event) => setNewMemberDesignation(event.target.value)}
                                                             maxLength={100}
                                                             placeholder="Designation (optional)"
-                                                            className="h-10 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                                                            className="h-10 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                                                         />
                                                         <button
                                                             type="submit"
                                                             disabled={!newMemberId || addMemberMutation.isPending}
-                                                            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-violet-700 px-3 text-xs font-semibold text-white hover:bg-violet-800 disabled:opacity-50"
+                                                            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-950 disabled:opacity-50"
                                                         >
                                                             {addMemberMutation.isPending ? (
                                                                 <RefreshCw className="size-3.5 animate-spin" />

@@ -56,6 +56,40 @@ user_invitation_teams = Table(
     ),
 )
 
+project_project_managers = Table(
+    "project_project_managers",
+    Base.metadata,
+    Column(
+        "project_id",
+        Uuid(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "user_id",
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        primary_key=True,
+    ),
+)
+
+project_teams = Table(
+    "project_teams",
+    Base.metadata,
+    Column(
+        "project_id",
+        Uuid(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "team_id",
+        Uuid(as_uuid=True),
+        ForeignKey("teams.id", ondelete="RESTRICT"),
+        primary_key=True,
+    ),
+)
+
 
 class Role(Base):
     __tablename__ = "roles"
@@ -433,6 +467,14 @@ class Project(Base):
         foreign_keys=[project_manager_id],
     )
     team: Mapped[Team] = relationship()
+    project_managers: Mapped[list[User]] = relationship(
+        secondary=project_project_managers,
+        lazy="selectin",
+    )
+    teams: Mapped[list[Team]] = relationship(
+        secondary=project_teams,
+        lazy="selectin",
+    )
     created_by: Mapped[User] = relationship(
         foreign_keys=[created_by_user_id],
     )

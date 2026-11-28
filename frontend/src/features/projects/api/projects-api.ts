@@ -34,6 +34,8 @@ export type Project = {
     logo_key: string | null;
     project_manager: ProjectUser;
     team: ProjectTeam;
+    project_managers?: ProjectUser[];
+    teams?: ProjectTeam[];
     start_date: string | null;
     end_date: string | null;
     status: ProjectStatus;
@@ -72,6 +74,8 @@ export type CreateProjectInput = {
     logo_key?: string | null;
     project_manager_id: string;
     team_id: string;
+    project_manager_ids: string[];
+    team_ids: string[];
     start_date?: string | null;
     end_date?: string | null;
     status?: ProjectStatus;
@@ -86,6 +90,8 @@ export type UpdateProjectInput = {
     logo_key?: string | null;
     project_manager_id?: string;
     team_id?: string;
+    project_manager_ids?: string[];
+    team_ids?: string[];
     start_date?: string | null;
     end_date?: string | null;
     status?: ProjectStatus;
@@ -345,15 +351,16 @@ export type ProjectOptionsResponse = {
 };
 
 export async function getProjectOptions(
-    teamId?: string,
+    teamIds: string[] = [],
 ): Promise<ProjectOptionsResponse> {
-    const query = teamId
-        ? `?team_id=${encodeURIComponent(teamId)}`
-        : "";
+    const query = new URLSearchParams();
+    teamIds.forEach((teamId) => query.append("team_ids", teamId));
+    const queryString = query.toString();
+    const suffix = queryString ? `?${queryString}` : "";
 
     return apiRequest<ProjectOptionsResponse>(
-        `/projects/options${query}`,
+        `/projects/options${suffix}`,
         { method: "GET" },
-        "Unable to load project form options.",
+        "Unable to load project options.",
     );
 }

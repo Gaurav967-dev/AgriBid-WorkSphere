@@ -51,6 +51,9 @@ export type Ticket = {
     assignee: TicketUser | null;
     reviewer: TicketUser | null;
     tester: TicketUser | null;
+    assignees?: TicketUser[];
+    reviewers?: TicketUser[];
+    testers?: TicketUser[];
     start_date: string | null;
     due_date: string | null;
     estimated_effort: string | number | null;
@@ -118,9 +121,13 @@ export type CreateTicketInput = {
     description?: string | null;
     type: TicketType;
     priority: TicketPriority;
+    status?: TicketStatus;
     assignee_id?: string | null;
     reviewer_id?: string | null;
     tester_id?: string | null;
+    assignee_ids?: string[];
+    reviewer_ids?: string[];
+    tester_ids?: string[];
     start_date?: string | null;
     due_date?: string | null;
     estimated_effort?: number | null;
@@ -136,6 +143,9 @@ export type UpdateTicketInput = {
     assignee_id?: string | null;
     reviewer_id?: string | null;
     tester_id?: string | null;
+    assignee_ids?: string[];
+    reviewer_ids?: string[];
+    tester_ids?: string[];
     start_date?: string | null;
     due_date?: string | null;
     estimated_effort?: number | null;
