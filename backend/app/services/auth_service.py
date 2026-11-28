@@ -105,7 +105,7 @@ def set_auth_cookies(
         key="refresh_token",
         value=refresh_token,
         max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
-        path="/api/v1/auth/refresh-token",
+        path="/api/v1/auth",
         **common,
     )
 
@@ -146,4 +146,5 @@ def clear_auth_cookies(response: Response) -> None:
     response.delete_cookie("id_token", path="/api/v1/auth", **common)
     response.delete_cookie("access_token", path="/", **common)
     response.delete_cookie("refresh_token", path="/api/v1/auth/refresh-token", **common)
+    response.delete_cookie("refresh_token", path="/api/v1/auth", **common)
     response.delete_cookie("refresh_token", path="/api/v1/auth", **common)
