@@ -42,8 +42,8 @@ type FormState = {
     name: string;
     key: string;
     description: string;
-    project_manager_id: string;
-    team_id: string;
+    project_manager_ids: string[];
+    team_ids: string[];
     member_ids: string[];
     start_date: string;
     end_date: string;
@@ -55,8 +55,8 @@ const INITIAL_FORM: FormState = {
     name: "",
     key: "",
     description: "",
-    project_manager_id: "",
-    team_id: "",
+    project_manager_ids: [],
+    team_ids: [],
     member_ids: [],
     start_date: "",
     end_date: "",
@@ -114,6 +114,63 @@ function FormSection({
     );
 }
 
+type MultiSelectOption = { id: string; label: string; detail?: string };
+
+function MultiSelectPicker({
+    id,
+    options,
+    selectedIds,
+    onChange,
+    placeholder,
+    disabled = false,
+}: {
+    id: string;
+    options: MultiSelectOption[];
+    selectedIds: string[];
+    onChange: (id: string, checked: boolean) => void;
+    placeholder: string;
+    disabled?: boolean;
+}) {
+    const selectedLabels = options.filter((option) => selectedIds.includes(option.id));
+    return (
+        <details className="relative mt-1.5">
+            <summary
+                id={id}
+                aria-label={placeholder}
+                className={`flex h-10 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition hover:border-violet-400 focus-visible:ring-2 focus-visible:ring-violet-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 [&::-webkit-details-marker]:hidden ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+                onClick={(event) => { if (disabled) event.preventDefault(); }}
+            >
+                <span className="min-w-0 truncate">
+                    {selectedIds.length ? `${selectedIds.length} selected` : placeholder}
+                </span>
+                <ChevronDown className="size-4 shrink-0 text-slate-400" />
+            </summary>
+            <div className="absolute left-0 right-0 top-11 z-40 max-h-60 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                {options.length ? options.map((option) => {
+                    const checked = selectedIds.includes(option.id);
+                    return (
+                        <label
+                            key={option.id}
+                            className={`flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-xs transition ${checked ? "bg-violet-50 text-violet-800 dark:bg-violet-950/40 dark:text-violet-200" : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"}`}
+                        >
+                            <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(event) => onChange(option.id, event.target.checked)}
+                                className="size-4 accent-violet-700"
+                            />
+                            <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                            {option.detail && <span className="shrink-0 text-[10px] text-slate-400">{option.detail}</span>}
+                        </label>
+                    );
+                }) : (
+                    <p className="px-2 py-3 text-xs text-slate-400">No options available.</p>
+                )}
+            </div>
+        </details>
+    );
+}
+
 export default function CreateProjectPage() {
     const today = useTodayDate();
     const router = useRouter();
@@ -132,9 +189,12 @@ export default function CreateProjectPage() {
     const canManageProjects =
         user?.role_code === "ADMIN" || user?.role_code === "PM";
 
-    const selectedManagerId =
-        form.project_manager_id ||
-        (user?.role_code === "PM" ? user.id ?? "" : "");
+    const selectedManagerIds =
+        form.project_manager_ids.length > 0
+            ? form.project_manager_ids
+            : user?.role_code === "PM" && user.id
+                ? [user.id]
+                : [];
 
     function updateField<K extends keyof FormState>(
         field: K,
@@ -156,6 +216,12 @@ export default function CreateProjectPage() {
                 if (!active) return;
 
                 setUser(verifiedUser);
+                if (verifiedUser.role_code === "PM" && verifiedUser.id) {
+                    setForm((current) => ({
+                        ...current,
+                        project_manager_ids: [verifiedUser.id!],
+                    }));
+                }
                 setIsCheckingAuth(false);
             })
             .catch(() => {
@@ -168,8 +234,8 @@ export default function CreateProjectPage() {
     }, [router]);
 
     const optionsQuery = useQuery({
-        queryKey: ["project-form-options", form.team_id],
-        queryFn: () => getProjectOptions(form.team_id || undefined),
+        queryKey: ["project-form-options", form.team_ids],
+        queryFn: () => getProjectOptions(form.team_ids),
         enabled: !isCheckingAuth && canManageProjects,
     });
 
@@ -189,13 +255,24 @@ export default function CreateProjectPage() {
         },
     });
 
-    function handleTeamChange(teamId: string) {
+    function handleManagerToggle(managerId: string, checked: boolean) {
         setForm((current) => ({
             ...current,
-            team_id: teamId,
+            project_manager_ids: checked
+                ? Array.from(new Set([...current.project_manager_ids, managerId]))
+                : current.project_manager_ids.filter((id) => id !== managerId),
+        }));
+        setFormError(null);
+    }
+
+    function handleTeamToggle(teamId: string, checked: boolean) {
+        setForm((current) => ({
+            ...current,
+            team_ids: checked
+                ? Array.from(new Set([...current.team_ids, teamId]))
+                : current.team_ids.filter((id) => id !== teamId),
             member_ids: [],
         }));
-
         setFormError(null);
     }
 
@@ -236,22 +313,18 @@ export default function CreateProjectPage() {
             return;
         }
 
-        if (!form.team_id) {
-            setFormError("Please select an active team.");
+        if (!form.team_ids.length) {
+            setFormError("Please select at least one active team.");
             return;
         }
 
-        if (!selectedManagerId) {
-            setFormError("Please select a project manager.");
+        if (!selectedManagerIds.length) {
+            setFormError("Please select at least one project manager.");
             return;
         }
 
-        if (
-            !managers.some((manager) => manager.id === selectedManagerId)
-        ) {
-            setFormError(
-                "The selected project manager is not available.",
-            );
+        if (selectedManagerIds.some((id) => !managers.some((manager) => manager.id === id))) {
+            setFormError("One or more selected project managers are not available.");
             return;
         }
 
@@ -271,7 +344,7 @@ export default function CreateProjectPage() {
 
         if (form.member_ids.some((id) => !validMemberIds.has(id))) {
             setFormError(
-                "One or more selected members are not active members of this team.",
+                "One or more selected members are not active members of any selected team.",
             );
             return;
         }
@@ -291,8 +364,10 @@ export default function CreateProjectPage() {
             name,
             key,
             description: form.description.trim() || null,
-            project_manager_id: selectedManagerId,
-            team_id: form.team_id,
+            project_manager_id: selectedManagerIds[0],
+            team_id: form.team_ids[0],
+            project_manager_ids: selectedManagerIds,
+            team_ids: form.team_ids,
             member_ids: form.member_ids,
             start_date: form.start_date || null,
             end_date: form.end_date || null,
@@ -522,71 +597,54 @@ export default function CreateProjectPage() {
                                 )}
 
                                 <div>
-                                    <label htmlFor="project_manager" className={LABEL_CLASS}>
-                                        Project manager <span className="text-rose-500">*</span>
-                                    </label>
-                                    <select
-                                        id="project_manager"
-                                        required
-                                        value={selectedManagerId}
-                                        onChange={(event) =>
-                                            updateField(
-                                                "project_manager_id",
-                                                event.target.value,
-                                            )
-                                        }
-                                        disabled={
-                                            optionsQuery.isLoading ||
-                                            user.role_code === "PM"
-                                        }
-                                        className={INPUT_CLASS}
-                                    >
-                                        <option value="">
-                                            Select a project manager
-                                        </option>
-                                        {managers.map((manager) => (
-                                            <option
-                                                key={manager.id}
-                                                value={manager.id}
-                                            >
-                                                {manager.full_name} — {ROLE_LABELS[manager.role_code]}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {user.role_code === "PM" && (
-                                        <p className="mt-1.5 text-[11px] text-slate-400">
-                                            Your account will automatically be assigned as project manager.
-                                        </p>
-                                    )}
-                                </div>
+                                    <div>
+                                        <label htmlFor="project_manager" className={LABEL_CLASS}>
+                                            Project managers <span className="text-rose-500">*</span>
+                                        </label>
+                                        <MultiSelectPicker
+                                            id="project_manager"
+                                            options={managers.map((manager) => ({
+                                                id: manager.id,
+                                                label: manager.full_name,
+                                                detail: ROLE_LABELS[manager.role_code],
+                                            }))}
+                                            selectedIds={selectedManagerIds}
+                                            onChange={handleManagerToggle}
+                                            placeholder="Select project managers"
+                                            disabled={optionsQuery.isLoading || user.role_code === "PM"}
+                                        />
+                                        {selectedManagerIds.length > 0 && (
+                                            <div className="mt-2 flex flex-wrap gap-1.5">
+                                                {managers.filter((manager) => selectedManagerIds.includes(manager.id)).map((manager) => (
+                                                    <span key={manager.id} className="rounded-md bg-violet-50 px-2 py-1 text-[10px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">{manager.full_name}</span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
 
-                                <div>
-                                    <label htmlFor="team_id" className={LABEL_CLASS}>
-                                        Assigned team <span className="text-rose-500">*</span>
-                                    </label>
-                                    <select
-                                        id="team_id"
-                                        required
-                                        value={form.team_id}
-                                        onChange={(event) =>
-                                            handleTeamChange(event.target.value)
-                                        }
-                                        disabled={optionsQuery.isLoading}
-                                        className={INPUT_CLASS}
-                                    >
-                                        <option value="">Select an active team</option>
-                                        {teams.map((team) => (
-                                            <option key={team.id} value={team.id}>
-                                                {team.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {!optionsQuery.isLoading && teams.length === 0 && (
-                                        <p className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-400">
-                                            No active teams found. Create a team first.
-                                        </p>
-                                    )}
-                                </div>
+                                    <div>
+                                        <label htmlFor="team_ids" className={LABEL_CLASS}>
+                                            Assigned teams <span className="text-rose-500">*</span>
+                                        </label>
+                                        <MultiSelectPicker
+                                            id="team_ids"
+                                            options={teams.map((team) => ({ id: team.id, label: team.name }))}
+                                            selectedIds={form.team_ids}
+                                            onChange={handleTeamToggle}
+                                            placeholder="Select active teams"
+                                            disabled={optionsQuery.isLoading}
+                                        />
+                                        {form.team_ids.length > 0 && (
+                                            <div className="mt-2 flex flex-wrap gap-1.5">
+                                                {teams.filter((team) => form.team_ids.includes(team.id)).map((team) => (
+                                                    <span key={team.id} className="rounded-md bg-violet-50 px-2 py-1 text-[10px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">{team.name}</span>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {!optionsQuery.isLoading && teams.length === 0 && (
+                                            <p className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-400">No active teams found. Create a team first.</p>
+                                        )}
+                                    </div>
 
                                 <div className="sm:col-span-2">
                                     <div className="flex items-center justify-between gap-2">
@@ -598,18 +656,18 @@ export default function CreateProjectPage() {
                                         </span>
                                     </div>
 
-                                    {!form.team_id ? (
+                                    {!form.team_ids.length ? (
                                         <p className="mt-2 rounded-lg border border-dashed border-slate-200 p-4 text-xs text-slate-400 dark:border-slate-700">
-                                            Select a team to view its active members.
+                                            Select teams to view their active members.
                                         </p>
                                     ) : optionsQuery.isFetching ? (
                                         <div className="mt-2 flex items-center gap-2 rounded-lg border border-slate-200 p-4 text-xs text-slate-500 dark:border-slate-700">
                                             <RefreshCw className="size-4 animate-spin" />
-                                            Loading team members...
+                                            Loading selected team members...
                                         </div>
                                     ) : teamMembers.length === 0 ? (
                                         <p className="mt-2 rounded-lg border border-dashed border-slate-200 p-4 text-xs text-slate-400 dark:border-slate-700">
-                                            No active members are currently available for this team.
+                                            No active members are currently available in the selected teams.
                                         </p>
                                     ) : (
                                         <>
