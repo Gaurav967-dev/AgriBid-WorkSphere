@@ -970,6 +970,7 @@ export default function TicketDetailsPage() {
                                             </label>
                                             <input
                                                 type="date"
+                                                min={new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10)}
                                                 value={editForm.start_date}
                                                 max={editForm.due_date || undefined}
                                                 onChange={(event) =>
