@@ -110,14 +110,14 @@ function ProjectCard({ project }: { project: Project }) {
                 <div className="flex items-center justify-between gap-3 text-xs">
                     <span className="text-slate-400">Project manager</span>
                     <span className="truncate font-medium text-slate-700 dark:text-slate-200">
-                        {project.project_manager.full_name}
+                        {(project.project_managers?.length ? project.project_managers : [project.project_manager]).map((manager) => manager.full_name).join(", ")}
                     </span>
                 </div>
 
                 <div className="flex items-center justify-between gap-3 text-xs">
                     <span className="text-slate-400">Assigned team</span>
                     <span className="truncate font-medium text-slate-700 dark:text-slate-200">
-                        {project.team.name}
+                        {(project.teams?.length ? project.teams : [project.team]).map((team) => team.name).join(", ")}
                     </span>
                 </div>
 
