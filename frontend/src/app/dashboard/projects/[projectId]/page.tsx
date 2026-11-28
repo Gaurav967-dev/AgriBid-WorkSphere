@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useTodayDate } from "@/lib/use-today-date";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -108,6 +109,7 @@ function ProjectDetailCard({
 }
 
 export default function ProjectDetailsPage() {
+    const today = useTodayDate();
   const router = useRouter();
   const params = useParams<{ projectId: string }>();
   const projectId = params.projectId;
@@ -517,7 +519,7 @@ export default function ProjectDetailsPage() {
                 Start date
                 <input
                   type="date"
-                  min={new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10)}
+                  min={today || undefined}
                   value={form.start_date}
                   onChange={(event) => setForm({
                     ...form,
