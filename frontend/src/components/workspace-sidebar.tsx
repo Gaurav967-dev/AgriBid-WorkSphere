@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
     Activity,
@@ -80,6 +80,7 @@ function SidebarSection({
     pathname,
     isAdmin,
     collapsed,
+    calendarViewActive,
     onNavigate,
 }: {
     title: string;
@@ -87,6 +88,7 @@ function SidebarSection({
     pathname: string;
     isAdmin: boolean;
     collapsed: boolean;
+    calendarViewActive: boolean;
     onNavigate: () => void;
 }) {
     const visibleItems = items.filter(
@@ -106,12 +108,20 @@ function SidebarSection({
                     const Icon = item.icon;
 
                     const itemPath = item.href?.split("?")[0];
-                    const active = Boolean(
-                        itemPath &&
-                        (pathname === itemPath ||
-                            (itemPath !== "/dashboard" &&
-                                pathname.startsWith(`${itemPath}/`))),
-                    );
+                    const isTicketRoute =
+                        pathname === "/dashboard/tickets" ||
+                        pathname.startsWith("/dashboard/tickets/");
+                    const active =
+                        item.label === "Calendar"
+                            ? calendarViewActive
+                            : item.label === "Tasks"
+                                ? isTicketRoute && !calendarViewActive
+                                : Boolean(
+                                    itemPath &&
+                                    (pathname === itemPath ||
+                                        (itemPath !== "/dashboard" &&
+                                            pathname.startsWith(`${itemPath}/`))),
+                                );
 
                     const className = [
                         "flex min-h-9 items-center rounded-md py-1.5 text-[12px] transition-colors",
@@ -172,6 +182,9 @@ function SidebarPanel({
     onOpenSearch: () => void;
 }) {
     const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const calendarViewActive =
+        pathname === "/dashboard/tickets" && searchParams.get("view") === "calendar";
     const isAdmin = user?.role_code === "ADMIN";
 
     return (
@@ -236,6 +249,8 @@ function SidebarPanel({
                     items={MAIN_NAVIGATION}
                     pathname={pathname}
                     isAdmin={isAdmin}
+                    calendarViewActive={calendarViewActive}
+                    calendarViewActive={calendarViewActive}
                     collapsed={collapsed}
                     onNavigate={onNavigate}
                 />
