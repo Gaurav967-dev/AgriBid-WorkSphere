@@ -595,7 +595,6 @@ export default function CreateProjectPage() {
                                     </div>
                                 )}
 
-                                <div>
                                     <div>
                                         <label htmlFor="project_manager" className={LABEL_CLASS}>
                                             Project managers <span className="text-rose-500">*</span>
