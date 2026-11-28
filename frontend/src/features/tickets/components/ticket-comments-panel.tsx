@@ -452,6 +452,9 @@ export function TicketCommentsPanel({
         queryKey: ["ticket-comments", ticketId],
         queryFn: () => getTicketComments(ticketId),
         enabled: Boolean(ticketId),
+        refetchInterval: 5_000,
+        refetchIntervalInBackground: false,
+        refetchOnWindowFocus: true,
     });
 
     async function refreshAfterChange() {
