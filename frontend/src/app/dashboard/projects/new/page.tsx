@@ -578,7 +578,7 @@ export default function CreateProjectPage() {
 
                                 <div className="sm:col-span-2">
                                     <div className="flex items-center justify-between gap-2">
-                                        <label className={LABEL_CLASS}>
+                                        <label htmlFor="project-members-search" className={LABEL_CLASS}>
                                             Project members
                                         </label>
                                         <span className="text-[10px] text-slate-400">
@@ -602,9 +602,10 @@ export default function CreateProjectPage() {
                                     ) : (
                                         <div className="mt-2">
                                             <MultiSelectDropdown
+                                                key={form.team_id}
                                                 id="project-members"
                                                 label="Project members"
-                                                placeholder="Select multiple project members"
+                                                placeholder="Search project members by name or email"
                                                 selectedValues={form.member_ids}
                                                 onChange={(memberIds) => updateField("member_ids", memberIds)}
                                                 options={teamMembers.map((member) => ({
