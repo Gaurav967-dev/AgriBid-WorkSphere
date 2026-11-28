@@ -3,6 +3,7 @@
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
+import { useTodayDate } from "@/lib/use-today-date";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -114,6 +115,7 @@ function FormSection({
 }
 
 export default function CreateProjectPage() {
+    const today = useTodayDate();
     const router = useRouter();
     const queryClient = useQueryClient();
 
@@ -669,7 +671,7 @@ export default function CreateProjectPage() {
                                     <input
                                         id="start_date"
                                         type="date"
-                                        min={new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10)}
+                                        min={today || undefined}
                                         value={form.start_date}
                                         onChange={(event) =>
                                             updateField("start_date", event.target.value)
