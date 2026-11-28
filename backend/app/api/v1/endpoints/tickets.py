@@ -531,7 +531,9 @@ def _validated_mentioned_users(db: Session, *, ticket: Ticket, user_ids: list[UU
             )
         ).all()
     )
-    allowed_ids = member_ids | {ticket.project.project_manager_id}
+    allowed_ids = member_ids | {ticket.project.project_manager_id} | {
+        manager.id for manager in ticket.project.project_managers
+    }
     for mentioned_user in users:
         if mentioned_user.role.code != "ADMIN" and mentioned_user.id not in allowed_ids:
             raise HTTPException(
@@ -687,7 +689,10 @@ def delete_ticket_comment(
 ) -> TicketCommentResponse:
     ticket = _ticket_for_comment(db, ticket_id, actor)
     comment = _load_ticket_comment(db, ticket_id=ticket.id, comment_id=comment_id)
-    is_project_manager = actor.role.code == "PM" and ticket.project.project_manager_id == actor.id
+    is_project_manager = actor.role.code == "PM" and (
+        ticket.project.project_manager_id == actor.id
+        or any(manager.id == actor.id for manager in ticket.project.project_managers)
+    )
     if comment.author_user_id != actor.id and actor.role.code != "ADMIN" and not is_project_manager:
         raise HTTPException(
             status_code=403,
