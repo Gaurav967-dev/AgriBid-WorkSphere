@@ -4,6 +4,7 @@ import {
     useEffect,
     useMemo,
     useState,
+    useRef,
     type FormEvent,
 } from "react";
 import Link from "next/link";
@@ -173,6 +174,7 @@ export default function TeamsPage() {
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
     const { collapsed, toggleCollapsed } = useWorkspaceSidebarState();
+    const initialMembersDropdownRef = useRef<HTMLDetailsElement>(null);
 
     const [page, setPage] = useState(1);
     const [statusFilter, setStatusFilter] = useState<TeamListStatus>("ACTIVE");
@@ -200,6 +202,22 @@ export default function TeamsPage() {
         useState<TeamDisplayProperties>({
             ...DEFAULT_TEAM_DISPLAY_PROPERTIES,
         });
+
+    useEffect(() => {
+        const handleOutsidePointerDown = (event: PointerEvent) => {
+            const dropdown = initialMembersDropdownRef.current;
+            if (
+                dropdown?.open &&
+                event.target instanceof Node &&
+                !dropdown.contains(event.target)
+            ) {
+                dropdown.open = false;
+            }
+        };
+
+        document.addEventListener("pointerdown", handleOutsidePointerDown);
+        return () => document.removeEventListener("pointerdown", handleOutsidePointerDown);
+    }, []);
 
     useEffect(() => {
         let active = true;
@@ -807,7 +825,7 @@ export default function TeamsPage() {
                                             <label htmlFor="team-members" className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
                                                 Initial members
                                             </label>
-                                            <details className="relative mt-1.5">
+                                            <details ref={initialMembersDropdownRef} className="relative mt-1.5">
                                                 <summary
                                                     id="team-members"
                                                     className="flex h-10 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition hover:border-violet-400 focus-visible:ring-2 focus-visible:ring-violet-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 [&::-webkit-details-marker]:hidden"
@@ -853,9 +871,6 @@ export default function TeamsPage() {
                                                     ))}
                                                 </div>
                                             )}
-                                            <p className="mt-1.5 text-xs text-slate-400">
-                                                Select or deselect multiple employees without using keyboard shortcuts.
-                                            </p>
                                         </div>
 
                                         <div>
@@ -875,9 +890,6 @@ export default function TeamsPage() {
                                                     </option>
                                                 ))}
                                             </select>
-                                            <p className="mt-1 text-xs text-slate-400">
-                                                A selected lead will automatically be added as a team member.
-                                            </p>
                                         </div>
                                     </>
                                 )}
