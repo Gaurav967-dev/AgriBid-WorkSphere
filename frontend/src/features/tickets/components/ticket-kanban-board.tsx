@@ -83,6 +83,8 @@ function TicketStatusGlyph({
             return <RotateCcw className={iconClass} />;
         case "CANCELLED":
             return <CircleSlash className={iconClass} />;
+        default:
+            return <Circle className={iconClass} />;
     }
 }
 
@@ -177,13 +179,6 @@ function getAllowedTicketTransitions(
     return [];
 }
 
-
-const PRIORITY_STYLES = {
-    LOW: { text: "text-slate-500 dark:text-slate-400", border: "border-l-slate-300 dark:border-l-slate-600", label: "Low" },
-    MEDIUM: { text: "text-sky-600 dark:text-sky-400", border: "border-l-sky-500", label: "Medium" },
-    HIGH: { text: "text-orange-600 dark:text-orange-400", border: "border-l-orange-500", label: "High" },
-    CRITICAL: { text: "text-rose-600 dark:text-rose-400", border: "border-l-rose-500", label: "Critical" },
-} as const;
 
 const TYPE_LABELS = {
     EPIC: "Epic",
