@@ -141,6 +141,13 @@ class ProjectUpdateRequest(BaseModel):
             return None
         return value.strip() or None
 
+    @field_validator("project_manager_ids", "team_ids")
+    @classmethod
+    def validate_assignment_ids(cls, value: list[UUID] | None) -> list[UUID] | None:
+        if value is not None and len(value) != len(set(value)):
+            raise ValueError("Duplicate project assignment IDs are not allowed.")
+        return value
+
     @field_validator("visibility")
     @classmethod
     def normalize_visibility(cls, value: str | None) -> str | None:
