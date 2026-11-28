@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime, timedelta
 from sqlalchemy import Text, and_, cast, distinct, func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from app.models import Project, ProjectMember, Team, Ticket, TicketActivity, User
+from app.models import Project, ProjectMember, Team, Ticket, TicketActivity, User, UserInvitation
 
 TERMINAL_STATUSES = {"COMPLETED", "CANCELLED"}
 UPCOMING_WINDOW_DAYS = 30
@@ -312,7 +312,8 @@ def _reopened_ticket_history_count(db: Session, assigned_scope: list) -> int:
 
 def get_dashboard(db: Session, current_user: User) -> dict:
     role_code = current_user.role.code
-    today = datetime.now(UTC).date()
+    now = datetime.now(UTC)
+    today = now.date()
     ticket_scope = _ticket_scope(current_user)
     open_condition = Ticket.status.not_in(tuple(TERMINAL_STATUSES))
     overdue_condition = and_(
@@ -382,6 +383,30 @@ def get_dashboard(db: Session, current_user: User) -> dict:
                 "Overdue tickets",
                 overdue_tickets,
                 "Open tickets past their due date",
+            ),
+            _metric(
+                "total_invitations",
+                "Total invitations",
+                _count(db, UserInvitation),
+                "All invitations recorded",
+            ),
+            _metric(
+                "pending_invitations",
+                "Pending invitations",
+                _count(
+                    db,
+                    UserInvitation,
+                    UserInvitation.accepted_at.is_(None),
+                    UserInvitation.revoked_at.is_(None),
+                    UserInvitation.expires_at > now,
+                ),
+                "Awaiting employee acceptance",
+            ),
+            _metric(
+                "accepted_invitations",
+                "Accepted invitations",
+                _count(db, UserInvitation, UserInvitation.accepted_at.is_not(None)),
+                "Accounts created from invitations",
             ),
         ]
 
