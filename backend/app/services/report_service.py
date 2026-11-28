@@ -157,7 +157,8 @@ def get_reports_options(db: Session, current_user: User) -> dict:
             Team.name,
             func.count(func.distinct(Project.id)).label("project_count"),
         )
-        .join(project_teams, project_teams.c.team_id == Team.id)\n        .join(Project, Project.id == project_teams.c.project_id)
+        .join(project_teams, project_teams.c.team_id == Team.id)
+        .join(Project, Project.id == project_teams.c.project_id)
         .where(Project.id.in_(project_ids))
         .group_by(Team.id, Team.name)
         .order_by(Team.name.asc(), Team.id.asc())
