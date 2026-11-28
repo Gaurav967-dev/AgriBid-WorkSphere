@@ -13,6 +13,7 @@ from app.models import (
     SprintTicket,
     Ticket,
     TicketActivity,
+    Team,
     User,
 )
 from app.schemas.ticket import TicketCreateRequest, TicketUpdateRequest
