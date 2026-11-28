@@ -177,8 +177,8 @@ export default function ProjectDetailsPage() {
   });
 
   const optionsQuery = useQuery({
-    queryKey: ["project-options", project?.team.id],
-    queryFn: () => getProjectOptions(project?.team.id),
+    queryKey: ["project-options", project?.teams?.map((team) => team.id) ?? [project?.team.id]],
+    queryFn: () => getProjectOptions(project?.teams?.map((team) => team.id) ?? (project ? [project.team.id] : [])),
     enabled: Boolean(showMemberPicker && project),
   });
 
@@ -421,7 +421,7 @@ export default function ProjectDetailsPage() {
                   {project.name}
                 </h1>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  {project.team.name} · Created {formatDate(project.created_at)}
+                  {(project.teams?.length ? project.teams : [project.team]).map((team) => team.name).join(", ")} · Created {formatDate(project.created_at)}
                 </p>
               </div>
 
@@ -604,12 +604,12 @@ export default function ProjectDetailsPage() {
                   <div className="mt-3 grid gap-3 border-t border-slate-100 pt-3 sm:grid-cols-2 dark:border-slate-800">
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Project manager</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-800 dark:text-slate-200">{project.project_manager.full_name}</p>
-                      <p className="truncate text-[11px] text-slate-500">{project.project_manager.email}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-800 dark:text-slate-200">{(project.project_managers?.length ? project.project_managers : [project.project_manager]).map((manager) => manager.full_name).join(", ")}</p>
+                      <p className="truncate text-[11px] text-slate-500">{(project.project_managers?.length ? project.project_managers : [project.project_manager]).map((manager) => manager.email).join(", ")}</p>
                     </div>
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Assigned team</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-800 dark:text-slate-200">{project.team.name}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-800 dark:text-slate-200">{(project.teams?.length ? project.teams : [project.team]).map((team) => team.name).join(", ")}</p>
                     </div>
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Visibility</p>
