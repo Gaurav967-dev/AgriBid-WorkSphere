@@ -447,8 +447,8 @@ export function TicketKanbanBoard({
                                     )}
                                 </header>
 
-                                <div data-kanban-column-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 pb-5">
-                                    <div className="flex min-h-full flex-col gap-2">
+                                <div data-kanban-column-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
+                                    <div className="flex min-h-full flex-col gap-2 pb-8">
                                         {columnTickets.length === 0 ? (
                                             <div className={`flex min-h-28 items-center justify-center rounded-lg border border-dashed px-3 text-center text-xs text-slate-400 dark:border-slate-700 ${isTarget ? "border-violet-400 bg-violet-50/70 dark:bg-violet-950/20" : "border-slate-300"}`}>
                                                 {isTarget ? "Drop task here" : "No tasks in this column"}
