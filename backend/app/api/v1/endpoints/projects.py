@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from math import ceil
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -220,7 +221,7 @@ def create_new_project(
 def get_project_form_options(
     request: Request,
     team_id: UUID | None = None,
-    team_ids: list[UUID] = Query(default=[]),
+    team_ids: Annotated[list[UUID] | None, Query()] = None,
     actor: User = Depends(get_admin_or_pm_user),
     db: Session = Depends(get_db),
 ) -> ProjectOptionsResponse:
@@ -229,7 +230,7 @@ def get_project_form_options(
             db,
             current_user=actor,
             team_id=team_id,
-            team_ids=team_ids,
+            team_ids=team_ids or [],
         )
     except ProjectServiceError as error:
         _raise_service_error(error)
