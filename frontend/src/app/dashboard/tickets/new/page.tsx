@@ -269,7 +269,6 @@ export default function CreateTicketPage() {
             });
 
             router.push("/dashboard/tickets");
-            router.refresh();
         },
     });
 
@@ -282,7 +281,6 @@ export default function CreateTicketPage() {
             // The session may already have expired.
         } finally {
             router.replace("/");
-            router.refresh();
         }
     }
 
