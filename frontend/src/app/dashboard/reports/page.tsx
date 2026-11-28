@@ -416,7 +416,6 @@ export default function ReportsPage() {
             // The session may already have expired.
         } finally {
             router.replace("/");
-            router.refresh();
         }
     }
 
