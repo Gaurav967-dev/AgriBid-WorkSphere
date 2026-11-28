@@ -298,7 +298,7 @@ def test_auth_cookie_paths_are_scoped_to_their_endpoints(auth_environment) -> No
     cookie_headers = response.headers.get_list("set-cookie")
     cookies = {item.split("=", 1)[0]: item.lower() for item in cookie_headers}
     assert "path=/api/v1/auth/id-token" in cookies["id_token"]
-    assert "path=/api/v1/auth/refresh-token" in cookies["refresh_token"]
+    assert "path=/api/v1/auth" in cookies["refresh_token"]
     assert "path=/;" in cookies["access_token"] or "path=/," in cookies["access_token"]
 
 
@@ -319,7 +319,8 @@ def test_logout_revokes_session_without_refresh_cookie_on_logout_request(auth_en
     create_test_user(auth_environment[1])
     assert sign_in(client).status_code == 200
 
-    # The refresh cookie's Path excludes /logout; logout must use access_token.
+    # The refresh cookie is scoped to /api/v1/auth and is sent to normal logout.
+    assert client.cookies.get("refresh_token")
     response = client.post("/api/v1/auth/logout")
 
     assert response.status_code == 200
@@ -341,18 +342,33 @@ def test_refresh_reissues_only_access_and_refresh_cookies(auth_environment) -> N
     assert "id_token" not in cookie_names
 
 
-def test_scoped_logout_revokes_session_using_refresh_cookie(auth_environment) -> None:
+def test_normal_logout_revokes_session_using_refresh_cookie(auth_environment) -> None:
     client, session_factory = auth_environment
     create_test_user(session_factory)
     assert sign_in(client).status_code == 200
 
-    # Prove the scoped logout route can revoke without an access-token cookie.
+    # Normal logout must still revoke the session when the access token is gone.
     client.cookies.delete("access_token")
-    response = client.post("/api/v1/auth/refresh-token/logout")
+    response = client.post("/api/v1/auth/logout")
 
     assert response.status_code == 200
     assert response.json()["message"] == "Logged out successfully."
 
+    with session_factory() as session:
+        auth_sessions = session.scalars(select(AuthSession)).all()
+        assert len(auth_sessions) == 1
+        assert auth_sessions[0].revoked_at is not None
+
+
+def test_legacy_scoped_logout_alias_remains_compatible(auth_environment) -> None:
+    client, session_factory = auth_environment
+    create_test_user(session_factory)
+    assert sign_in(client).status_code == 200
+
+    client.cookies.delete("access_token")
+    response = client.post("/api/v1/auth/refresh-token/logout")
+
+    assert response.status_code == 200
     with session_factory() as session:
         auth_sessions = session.scalars(select(AuthSession)).all()
         assert len(auth_sessions) == 1
