@@ -43,7 +43,10 @@ def _project_for_actor(db: Session, project_id: UUID, actor: User) -> Project:
 
     if actor.role.code == "ADMIN":
         return project
-    if actor.role.code == "PM" and project.project_manager_id == actor.id:
+    if actor.role.code == "PM" and (
+        project.project_manager_id == actor.id
+        or any(manager.id == actor.id for manager in project.project_managers)
+    ):
         return project
     if actor.role.code in {"DEVELOPER", "TESTER"}:
         allowed = any(
@@ -270,7 +273,10 @@ def _delete_attachment(
     actor: User,
     project: Project,
 ) -> dict[str, str]:
-    is_project_manager = actor.role.code == "PM" and project.project_manager_id == actor.id
+    is_project_manager = actor.role.code == "PM" and (
+        project.project_manager_id == actor.id
+        or any(manager.id == actor.id for manager in project.project_managers)
+    )
     if (
         item.uploaded_by_user_id != actor.id
         and actor.role.code != "ADMIN"
