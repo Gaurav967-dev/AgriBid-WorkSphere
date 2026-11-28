@@ -10,15 +10,19 @@ from app.models.core import (
     TeamMember,
     User,
     UserInvitation,
-    role_permissions,
-    user_invitation_teams,
     project_project_managers,
     project_teams,
+    role_permissions,
+    user_invitation_teams,
 )
 from app.models.sprint import Sprint, SprintTicket
 from app.models.ticket import (
-    Ticket, TicketActivity, TicketComment,
-    ticket_assignees, ticket_reviewers, ticket_testers,
+    Ticket,
+    TicketActivity,
+    TicketComment,
+    ticket_assignees,
+    ticket_reviewers,
+    ticket_testers,
 )
 
 __all__ = [
