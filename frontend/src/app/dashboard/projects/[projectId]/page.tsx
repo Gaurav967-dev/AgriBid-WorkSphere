@@ -518,6 +518,7 @@ export default function ProjectDetailsPage() {
                 Start date
                 <input
                   type="date"
+                  min={new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10)}
                   value={form.start_date}
                   onChange={(event) => setForm({
                     ...form,
