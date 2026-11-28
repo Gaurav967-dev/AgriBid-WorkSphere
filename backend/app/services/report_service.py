@@ -100,6 +100,20 @@ def _get_visible_project(
     return project
 
 
+def _project_team_pairs():
+    """Include legacy single-team and current multi-team project assignments."""
+    return union(
+        select(
+            Project.id.label("project_id"),
+            Project.team_id.label("team_id"),
+        ),
+        select(
+            project_teams.c.project_id,
+            project_teams.c.team_id,
+        ),
+    ).subquery()
+
+
 def _ticket_base_filters(*, project_ids: list[UUID]) -> list:
     return [
         Ticket.project_id.in_(project_ids),
@@ -151,14 +165,15 @@ def get_reports_options(db: Session, current_user: User) -> dict:
     if not project_ids:
         return {"projects": [], "teams": [], "sprints": []}
 
+    project_team_pairs = _project_team_pairs()
     team_rows = db.execute(
         select(
             Team.id,
             Team.name,
             func.count(func.distinct(Project.id)).label("project_count"),
         )
-        .join(project_teams, project_teams.c.team_id == Team.id)
-        .join(Project, Project.id == project_teams.c.project_id)
+        .join(project_team_pairs, project_team_pairs.c.team_id == Team.id)
+        .join(Project, Project.id == project_team_pairs.c.project_id)
         .where(Project.id.in_(project_ids))
         .group_by(Team.id, Team.name)
         .order_by(Team.name.asc(), Team.id.asc())
@@ -329,9 +344,19 @@ def get_team_report(
     member_ids = [membership.user_id for membership in members]
     grouped_workload = {}
     if member_ids:
+        assignment_pairs = union(
+            select(
+                Ticket.id.label("ticket_id"),
+                Ticket.assignee_id.label("user_id"),
+            ).where(Ticket.assignee_id.is_not(None)),
+            select(
+                ticket_assignees.c.ticket_id,
+                ticket_assignees.c.user_id,
+            ),
+        ).subquery()
         workload_rows = db.execute(
             select(
-                ticket_assignees.c.user_id.label("assignee_id"),
+                assignment_pairs.c.user_id.label("assignee_id"),
                 func.count(Ticket.id).label("assigned"),
                 func.count(Ticket.id)
                 .filter(Ticket.status == "COMPLETED")
@@ -350,9 +375,10 @@ def get_team_report(
                 .filter(Ticket.status == "IN_PROGRESS")
                 .label("in_progress"),
             )
-            .join(Ticket, Ticket.id == ticket_assignees.c.ticket_id)
-            .where(*filters, ticket_assignees.c.user_id.in_(member_ids))
-            .group_by(ticket_assignees.c.user_id)
+            .select_from(assignment_pairs)
+            .join(Ticket, Ticket.id == assignment_pairs.c.ticket_id)
+            .where(*filters, assignment_pairs.c.user_id.in_(member_ids))
+            .group_by(assignment_pairs.c.user_id)
         ).all()
         grouped_workload = {row.assignee_id: row for row in workload_rows}
 
