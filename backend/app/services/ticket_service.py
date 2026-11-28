@@ -37,6 +37,9 @@ def _ticket_options():
         joinedload(Ticket.tester).joinedload(User.role),
         joinedload(Ticket.completed_by).joinedload(User.role),
         selectinload(Ticket.activities).joinedload(TicketActivity.actor).joinedload(User.role),
+        selectinload(Ticket.assignees).joinedload(User.role),
+        selectinload(Ticket.reviewers).joinedload(User.role),
+        selectinload(Ticket.testers).joinedload(User.role),
     )
 
 
@@ -79,7 +82,10 @@ def _ensure_project_access(
     if actor.role.code == "ADMIN":
         return
 
-    if actor.role.code == "PM" and project.project_manager_id == actor.id:
+    if actor.role.code == "PM" and (
+        project.project_manager_id == actor.id
+        or any(manager.id == actor.id for manager in project.project_managers)
+    ):
         return
 
     is_member = db.scalar(
@@ -113,7 +119,10 @@ def _ensure_project_management_access(
     if actor.role.code == "ADMIN":
         return
 
-    if actor.role.code == "PM" and project.project_manager_id == actor.id:
+    if actor.role.code == "PM" and (
+        project.project_manager_id == actor.id
+        or any(manager.id == actor.id for manager in project.project_managers)
+    ):
         return
 
     raise TicketServiceError("Project not found.", 404)
@@ -148,7 +157,9 @@ def _validate_project_user(
             400,
         )
 
-    if user.id == project.project_manager_id:
+    if user.id == project.project_manager_id or any(
+        manager.id == user.id for manager in project.project_managers
+    ):
         return user
 
     membership = db.scalar(
@@ -263,18 +274,23 @@ def create_ticket(
 
     _ensure_project_management_access(project=project, actor=actor)
 
-    for field_name, user_id in (
-        ("assignee", data.assignee_id),
-        ("reviewer", data.reviewer_id),
-        ("tester", data.tester_id),
-    ):
-        if user_id is not None:
+    assignment_ids = {
+        "assignees": data.assignee_ids or ([data.assignee_id] if data.assignee_id else []),
+        "reviewers": data.reviewer_ids or ([data.reviewer_id] if data.reviewer_id else []),
+        "testers": data.tester_ids or ([data.tester_id] if data.tester_id else []),
+    }
+    assignment_users: dict[str, list[User]] = {}
+    for relationship_name, user_ids in assignment_ids.items():
+        field_name = relationship_name.removesuffix("s")
+        assignment_users[relationship_name] = [
             _validate_project_user(
                 db,
                 project=project,
                 user_id=user_id,
                 field_name=field_name,
             )
+            for user_id in user_ids
+        ]
 
     if data.parent_ticket_id is not None:
         _validate_parent_ticket(
@@ -306,9 +322,9 @@ def create_ticket(
         reporter_id=actor.id,
         completed_at=datetime.now(UTC) if data.status == "COMPLETED" else None,
         completed_by_user_id=actor.id if data.status == "COMPLETED" else None,
-        assignee_id=data.assignee_id,
-        reviewer_id=data.reviewer_id,
-        tester_id=data.tester_id,
+        assignee_id=assignment_ids["assignees"][0] if assignment_ids["assignees"] else None,
+        reviewer_id=assignment_ids["reviewers"][0] if assignment_ids["reviewers"] else None,
+        tester_id=assignment_ids["testers"][0] if assignment_ids["testers"] else None,
         start_date=data.start_date,
         due_date=data.due_date,
         estimated_effort=data.estimated_effort,
@@ -318,6 +334,9 @@ def create_ticket(
 
     db.add(ticket)
     db.flush()
+    ticket.assignees = assignment_users["assignees"]
+    ticket.reviewers = assignment_users["reviewers"]
+    ticket.testers = assignment_users["testers"]
 
     _add_activity(
         db,
@@ -332,19 +351,15 @@ def create_ticket(
         description=f"Ticket {ticket_key} created.",
     )
 
-    for field_name, user_id in (
-        ("assignee_id", data.assignee_id),
-        ("reviewer_id", data.reviewer_id),
-        ("tester_id", data.tester_id),
-    ):
-        if user_id is not None:
+    for relationship_name, user_ids in assignment_ids.items():
+        if user_ids:
             _add_activity(
                 db,
                 ticket_id=ticket.id,
                 actor_id=actor.id,
                 action="ASSIGNED",
-                field_name=field_name,
-                new_value=str(user_id),
+                field_name=relationship_name,
+                new_value=[str(user_id) for user_id in user_ids],
             )
 
     db.commit()
@@ -385,7 +400,12 @@ def list_tickets(
         filters.append(Ticket.project_id == project_id)
 
     if current_user.role.code == "PM":
-        filters.append(Project.project_manager_id == current_user.id)
+        filters.append(
+            or_(
+                Project.project_manager_id == current_user.id,
+                Project.project_managers.any(User.id == current_user.id),
+            )
+        )
 
     elif current_user.role.code != "ADMIN":
         filters.append(
@@ -408,15 +428,15 @@ def list_tickets(
         filters.append(Ticket.type == type_filter)
 
     if assignee_unassigned:
-        filters.append(Ticket.assignee_id.is_(None))
+        filters.append(Ticket.assignee_id.is_(None) & ~Ticket.assignees.any())
     elif assignee_id is not None:
-        filters.append(Ticket.assignee_id == assignee_id)
+        filters.append(or_(Ticket.assignee_id == assignee_id, Ticket.assignees.any(User.id == assignee_id)))
 
     if reporter_id is not None:
         filters.append(Ticket.reporter_id == reporter_id)
 
     if team_id is not None:
-        filters.append(Project.team_id == team_id)
+        filters.append(or_(Project.team_id == team_id, Project.teams.any(Team.id == team_id)))
 
     if due_date_from is not None:
         filters.append(Ticket.due_date >= due_date_from)
@@ -523,53 +543,71 @@ def update_ticket(
     _ensure_project_management_access(project=project, actor=actor)
 
     changes = data.model_dump(exclude_unset=True)
-
     start_date = changes.get("start_date", ticket.start_date)
     due_date = changes.get("due_date", ticket.due_date)
-
     if start_date is not None and due_date is not None and due_date < start_date:
         raise TicketServiceError("Ticket due date cannot be before its start date.", 400)
 
-    for field_name in ("assignee_id", "reviewer_id", "tester_id"):
-        if field_name in changes and changes[field_name] is not None:
+    assignment_fields = {
+        "assignee_ids": ("assignees", "assignee_id", "assignee"),
+        "reviewer_ids": ("reviewers", "reviewer_id", "reviewer"),
+        "tester_ids": ("testers", "tester_id", "tester"),
+    }
+    for plural_field, (relationship_name, legacy_field, field_name) in assignment_fields.items():
+        if plural_field in changes:
+            user_ids = changes.pop(plural_field) or []
+            changes.pop(legacy_field, None)
+        elif legacy_field in changes:
+            legacy_id = changes.pop(legacy_field)
+            user_ids = [legacy_id] if legacy_id is not None else []
+        else:
+            continue
+
+        users = [
             _validate_project_user(
                 db,
                 project=project,
-                user_id=changes[field_name],
-                field_name=field_name.removesuffix("_id"),
+                user_id=user_id,
+                field_name=field_name,
             )
-
-    if changes.get("parent_ticket_id") is not None:
-        _validate_parent_ticket(
-            db,
-            project_id=project.id,
-            parent_ticket_id=changes["parent_ticket_id"],
-            ticket_id=ticket.id,
+            for user_id in user_ids
+        ]
+        previous_users = getattr(ticket, relationship_name) or (
+            [getattr(ticket, field_name)] if getattr(ticket, field_name) else []
         )
+        old_ids = [str(user.id) for user in previous_users]
+        new_ids = [str(user.id) for user in users]
 
-    for field_name, new_value in changes.items():
-        old_value = getattr(ticket, field_name)
-
-        if old_value == new_value:
+        if old_ids == new_ids:
             continue
 
-        setattr(ticket, field_name, new_value)
-
-        is_assignment_change = field_name in {
-            "assignee_id",
-            "reviewer_id",
-            "tester_id",
-        }
-
+        setattr(ticket, relationship_name, users)
+        setattr(ticket, legacy_field, users[0].id if users else None)
         _add_activity(
             db,
             ticket_id=ticket.id,
             actor_id=actor.id,
-            action="ASSIGNED" if is_assignment_change else "UPDATED",
+            action="ASSIGNED",
+            field_name=relationship_name,
+            old_value=old_ids,
+            new_value=new_ids,
+            description="Ticket assignment changed.",
+        )
+
+    for field_name, new_value in changes.items():
+        old_value = getattr(ticket, field_name)
+        if old_value == new_value:
+            continue
+
+        setattr(ticket, field_name, new_value)
+        _add_activity(
+            db,
+            ticket_id=ticket.id,
+            actor_id=actor.id,
+            action="UPDATED",
             field_name=field_name,
             old_value=old_value,
             new_value=new_value,
-            description=("Ticket assignment changed." if is_assignment_change else None),
         )
 
     db.commit()
@@ -632,12 +670,17 @@ def update_ticket_status(
 
     # The assigned reviewer may approve IN_REVIEW work for testing.
     elif (
-        current_status == "IN_REVIEW" and new_status == "TESTING" and ticket.reviewer_id == actor.id
+        current_status == "IN_REVIEW"
+        and new_status == "TESTING"
+        and (
+            ticket.reviewer_id == actor.id
+            or any(user.id == actor.id for user in ticket.reviewers)
+        )
     ):
         allowed = True
 
     elif role_code == "DEVELOPER":
-        if ticket.assignee_id != actor.id:
+        if ticket.assignee_id != actor.id and not any(user.id == actor.id for user in ticket.assignees):
             raise TicketServiceError(
                 "Developers can only transition tickets assigned to them.",
                 403,
@@ -651,7 +694,7 @@ def update_ticket_status(
         allowed = new_status in allowed_transitions.get(current_status, set())
 
     elif role_code == "TESTER":
-        if ticket.tester_id != actor.id:
+        if ticket.tester_id != actor.id and not any(user.id == actor.id for user in ticket.testers):
             raise TicketServiceError(
                 "Testers can only transition tickets assigned to them for testing.",
                 403,
