@@ -553,6 +553,14 @@ def test_comment_replies_and_edit_ownership(ticket_environment):
     assert parent.status_code == 201, parent.text
     parent_data = parent.json()
 
+    own_reply = client.post(
+        f"/api/v1/tickets/{ticket['id']}/comments",
+        json={"body": "I cannot reply to my own comment", "parent_comment_id": parent_data["id"]},
+    )
+    assert own_reply.status_code == 403
+    assert own_reply.json()["detail"] == "You cannot reply to your own comment."
+
+    sign_in_as(client, "DEVELOPER")
     reply = client.post(
         f"/api/v1/tickets/{ticket['id']}/comments",
         json={"body": "A reply", "parent_comment_id": parent_data["id"]},
@@ -575,6 +583,32 @@ def test_comment_replies_and_edit_ownership(ticket_environment):
     assert edited.status_code == 200, edited.text
     assert edited.json()["body"] == "Edited by author"
     assert edited.json()["edited_at"] is not None
+
+
+
+def test_comment_body_is_limited_to_250_characters(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+    ticket = create_ticket(client, ids)
+
+    accepted = client.post(
+        f"/api/v1/tickets/{ticket['id']}/comments",
+        json={"body": "a" * 250},
+    )
+    assert accepted.status_code == 201, accepted.text
+    assert len(accepted.json()["body"]) == 250
+
+    rejected = client.post(
+        f"/api/v1/tickets/{ticket['id']}/comments",
+        json={"body": "a" * 251},
+    )
+    assert rejected.status_code == 422
+
+    rejected_edit = client.patch(
+        f"/api/v1/tickets/{ticket['id']}/comments/{accepted.json()['id']}",
+        json={"body": "b" * 251},
+    )
+    assert rejected_edit.status_code == 422
 
 
 def test_comment_delete_is_soft_and_keeps_thread_record(ticket_environment):
