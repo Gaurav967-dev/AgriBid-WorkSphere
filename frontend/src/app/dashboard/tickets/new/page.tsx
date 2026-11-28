@@ -10,6 +10,7 @@ import {
     AlertCircle,
     ArrowLeft,
     CalendarDays,
+    ChevronDown,
     FileText,
     Menu,
     PanelLeft,
@@ -52,9 +53,9 @@ type FormState = {
     type: TicketType;
     priority: TicketPriority;
     status: TicketStatus;
-    assignee_id: string;
-    reviewer_id: string;
-    tester_id: string;
+    assignee_ids: string[];
+    reviewer_ids: string[];
+    tester_ids: string[];
     start_date: string;
     due_date: string;
     estimated_effort: string;
@@ -69,9 +70,9 @@ const INITIAL_FORM: FormState = {
     type: "TASK",
     priority: "MEDIUM",
     status: "BACKLOG",
-    assignee_id: "",
-    reviewer_id: "",
-    tester_id: "",
+    assignee_ids: [],
+    reviewer_ids: [],
+    tester_ids: [],
     start_date: "",
     due_date: "",
     estimated_effort: "",
@@ -126,6 +127,49 @@ function FormSection({
                 {children}
             </div>
         </section>
+    );
+}
+
+type AssignmentOption = { id: string; label: string; detail?: string };
+
+function AssignmentMultiSelect({
+    id,
+    options,
+    selectedIds,
+    onChange,
+    placeholder,
+    disabled = false,
+}: {
+    id: string;
+    options: AssignmentOption[];
+    selectedIds: string[];
+    onChange: (id: string, checked: boolean) => void;
+    placeholder: string;
+    disabled?: boolean;
+}) {
+    return (
+        <details className="relative mt-1.5">
+            <summary
+                id={id}
+                className={`flex h-10 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition hover:border-violet-400 focus-visible:ring-2 focus-visible:ring-violet-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 [&::-webkit-details-marker]:hidden ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+                onClick={(event) => { if (disabled) event.preventDefault(); }}
+            >
+                <span className="min-w-0 truncate">{selectedIds.length ? `${selectedIds.length} selected` : placeholder}</span>
+                <ChevronDown className="size-4 shrink-0 text-slate-400" />
+            </summary>
+            <div className="absolute left-0 right-0 top-11 z-40 max-h-60 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                {options.length ? options.map((option) => {
+                    const checked = selectedIds.includes(option.id);
+                    return (
+                        <label key={option.id} className={`flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-xs transition ${checked ? "bg-violet-50 text-violet-800 dark:bg-violet-950/40 dark:text-violet-200" : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"}`}>
+                            <input type="checkbox" checked={checked} onChange={(event) => onChange(option.id, event.target.checked)} className="size-4 accent-violet-700" />
+                            <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                            {option.detail && <span className="shrink-0 text-[10px] text-slate-400">{option.detail}</span>}
+                        </label>
+                    );
+                }) : <p className="px-2 py-3 text-xs text-slate-400">No eligible users available.</p>}
+            </div>
+        </details>
     );
 }
 
@@ -241,10 +285,11 @@ export default function CreateTicketPage() {
 
         const uniqueUsers = new Map<string, ProjectUser>();
 
-        uniqueUsers.set(
-            projectDetails.project_manager.id,
-            projectDetails.project_manager,
-        );
+        for (const manager of (
+            projectDetails.project_managers ?? [projectDetails.project_manager]
+        )) {
+            uniqueUsers.set(manager.id, manager);
+        }
 
         for (const member of projectDetails.members) {
             uniqueUsers.set(member.user.id, member.user);
@@ -290,9 +335,9 @@ export default function CreateTicketPage() {
         setForm((current) => ({
             ...current,
             project_id: projectId,
-            assignee_id: "",
-            reviewer_id: "",
-            tester_id: "",
+            assignee_ids: [],
+            reviewer_ids: [],
+            tester_ids: [],
             parent_ticket_id: "",
         }));
 
@@ -365,9 +410,12 @@ export default function CreateTicketPage() {
             type: form.type,
             priority: form.priority,
             status: form.status,
-            assignee_id: form.assignee_id || null,
-            reviewer_id: form.reviewer_id || null,
-            tester_id: form.tester_id || null,
+            assignee_id: form.assignee_ids[0] ?? null,
+            reviewer_id: form.reviewer_ids[0] ?? null,
+            tester_id: form.tester_ids[0] ?? null,
+            assignee_ids: form.assignee_ids,
+            reviewer_ids: form.reviewer_ids,
+            tester_ids: form.tester_ids,
             start_date: form.start_date || null,
             due_date: form.due_date || null,
             estimated_effort: effort,
@@ -653,69 +701,42 @@ export default function CreateTicketPage() {
                                 )}
 
                                 <div>
-                                    <label htmlFor="assignee_id" className={LABEL_CLASS}>
-                                        Assignee
-                                    </label>
-                                    <select
-                                        id="assignee_id"
-                                        value={form.assignee_id}
-                                        onChange={(event) =>
-                                            updateField("assignee_id", event.target.value)
-                                        }
+                                    <label htmlFor="assignee_ids" className={LABEL_CLASS}>Assignees</label>
+                                    <AssignmentMultiSelect
+                                        id="assignee_ids"
+                                        options={projectUsers.map((member) => ({id:member.id,label:member.full_name,detail:USER_ROLE_LABELS[member.role_code]}))}
+                                        selectedIds={form.assignee_ids}
+                                        onChange={(id,checked)=>updateField("assignee_ids",checked?Array.from(new Set([...form.assignee_ids,id])):form.assignee_ids.filter((item)=>item!==id))}
+                                        placeholder="Select assignees"
                                         disabled={!projectDetails}
-                                        className={INPUT_CLASS}
-                                    >
-                                        <option value="">Unassigned</option>
-                                        {projectUsers.map((member) => (
-                                            <option key={member.id} value={member.id}>
-                                                {member.full_name} — {USER_ROLE_LABELS[member.role_code]}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    />
+                                    {form.assignee_ids.length>0 && <div className="mt-2 flex flex-wrap gap-1.5">{projectUsers.filter((member)=>form.assignee_ids.includes(member.id)).map((member)=><span key={member.id} className="rounded-md bg-violet-50 px-2 py-1 text-[10px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">{member.full_name}</span>)}</div>}
                                 </div>
 
                                 <div>
-                                    <label htmlFor="reviewer_id" className={LABEL_CLASS}>
-                                        Reviewer
-                                    </label>
-                                    <select
-                                        id="reviewer_id"
-                                        value={form.reviewer_id}
-                                        onChange={(event) =>
-                                            updateField("reviewer_id", event.target.value)
-                                        }
+                                    <label htmlFor="reviewer_ids" className={LABEL_CLASS}>Reviewers</label>
+                                    <AssignmentMultiSelect
+                                        id="reviewer_ids"
+                                        options={projectUsers.map((member) => ({id:member.id,label:member.full_name,detail:USER_ROLE_LABELS[member.role_code]}))}
+                                        selectedIds={form.reviewer_ids}
+                                        onChange={(id,checked)=>updateField("reviewer_ids",checked?Array.from(new Set([...form.reviewer_ids,id])):form.reviewer_ids.filter((item)=>item!==id))}
+                                        placeholder="Select reviewers"
                                         disabled={!projectDetails}
-                                        className={INPUT_CLASS}
-                                    >
-                                        <option value="">Not assigned</option>
-                                        {projectUsers.map((member) => (
-                                            <option key={member.id} value={member.id}>
-                                                {member.full_name} — {USER_ROLE_LABELS[member.role_code]}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    />
+                                    {form.reviewer_ids.length>0 && <div className="mt-2 flex flex-wrap gap-1.5">{projectUsers.filter((member)=>form.reviewer_ids.includes(member.id)).map((member)=><span key={member.id} className="rounded-md bg-violet-50 px-2 py-1 text-[10px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">{member.full_name}</span>)}</div>}
                                 </div>
 
                                 <div className="sm:col-span-2">
-                                    <label htmlFor="tester_id" className={LABEL_CLASS}>
-                                        Tester
-                                    </label>
-                                    <select
-                                        id="tester_id"
-                                        value={form.tester_id}
-                                        onChange={(event) =>
-                                            updateField("tester_id", event.target.value)
-                                        }
+                                    <label htmlFor="tester_ids" className={LABEL_CLASS}>Testers</label>
+                                    <AssignmentMultiSelect
+                                        id="tester_ids"
+                                        options={testerUsers.map((member) => ({id:member.id,label:member.full_name,detail:USER_ROLE_LABELS[member.role_code]}))}
+                                        selectedIds={form.tester_ids}
+                                        onChange={(id,checked)=>updateField("tester_ids",checked?Array.from(new Set([...form.tester_ids,id])):form.tester_ids.filter((item)=>item!==id))}
+                                        placeholder="Select testers"
                                         disabled={!projectDetails}
-                                        className={INPUT_CLASS}
-                                    >
-                                        <option value="">Not assigned</option>
-                                        {testerUsers.map((member) => (
-                                            <option key={member.id} value={member.id}>
-                                                {member.full_name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    />
+                                    {form.tester_ids.length>0 && <div className="mt-2 flex flex-wrap gap-1.5">{testerUsers.filter((member)=>form.tester_ids.includes(member.id)).map((member)=><span key={member.id} className="rounded-md bg-violet-50 px-2 py-1 text-[10px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">{member.full_name}</span>)}</div>}
                                     {projectDetails && testerUsers.length === 0 && (
                                         <p className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-400">
                                             No project member with the Tester role is currently available.
