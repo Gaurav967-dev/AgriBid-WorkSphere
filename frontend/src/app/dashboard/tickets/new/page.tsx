@@ -716,6 +716,7 @@ export default function CreateTicketPage() {
                                     <input
                                         id="start_date"
                                         type="date"
+                                        min={new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10)}
                                         value={form.start_date}
                                         onChange={(event) =>
                                             updateField("start_date", event.target.value)
