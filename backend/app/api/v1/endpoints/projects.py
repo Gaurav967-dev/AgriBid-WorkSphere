@@ -61,6 +61,14 @@ def _project_summary(project: Project) -> ProjectSummaryResponse:
             id=project.team.id,
             name=project.team.name,
         ),
+        project_managers=[
+            _user_summary(manager)
+            for manager in (project.project_managers or [project.project_manager])
+        ],
+        teams=[
+            ProjectTeamSummaryResponse(id=team.id, name=team.name)
+            for team in (project.teams or [project.team])
+        ],
         start_date=project.start_date,
         end_date=project.end_date,
         status=project.status,
@@ -103,7 +111,10 @@ def _ensure_project_access(project: Project, user: User) -> None:
     if user.role.code == "ADMIN":
         return
 
-    if user.role.code == "PM" and project.project_manager_id == user.id:
+    if user.role.code == "PM" and (
+        project.project_manager_id == user.id
+        or any(manager.id == user.id for manager in project.project_managers)
+    ):
         return
 
     if user.role.code in {"DEVELOPER", "TESTER"}:
@@ -126,7 +137,10 @@ def _ensure_project_management_access(project: Project, user: User) -> None:
     if user.role.code == "ADMIN":
         return
 
-    if user.role.code == "PM" and project.project_manager_id == user.id:
+    if user.role.code == "PM" and (
+        project.project_manager_id == user.id
+        or any(manager.id == user.id for manager in project.project_managers)
+    ):
         return
 
     raise HTTPException(
@@ -206,6 +220,7 @@ def create_new_project(
 def get_project_form_options(
     request: Request,
     team_id: UUID | None = None,
+    team_ids: list[UUID] = Query(default=[]),
     actor: User = Depends(get_admin_or_pm_user),
     db: Session = Depends(get_db),
 ) -> ProjectOptionsResponse:
@@ -214,6 +229,7 @@ def get_project_form_options(
             db,
             current_user=actor,
             team_id=team_id,
+            team_ids=team_ids,
         )
     except ProjectServiceError as error:
         _raise_service_error(error)
@@ -273,7 +289,10 @@ def update_existing_project(
         _ensure_project_management_access(existing_project, actor)
 
         # Only Admins can reassign the Project Manager.
-        if actor.role.code == "PM" and "project_manager_id" in data.model_fields_set:
+        if actor.role.code == "PM" and (
+            "project_manager_id" in data.model_fields_set
+            or "project_manager_ids" in data.model_fields_set
+        ):
             raise HTTPException(
                 status_code=403,
                 detail="Only Administrators can reassign a project manager.",
