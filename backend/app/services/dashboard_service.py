@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime, timedelta
 from sqlalchemy import Text, and_, cast, distinct, func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from app.models import Project, ProjectMember, Team, Ticket, TicketActivity, User, UserInvitation
+from app.models import (Project, ProjectMember, Team, Ticket, TicketActivity, User, UserInvitation, project_teams)
 
 TERMINAL_STATUSES = {"COMPLETED", "CANCELLED"}
 UPCOMING_WINDOW_DAYS = 30
@@ -268,7 +268,8 @@ def _team_workload(db: Session, current_user: User, today: date) -> list[dict]:
             func.count(Ticket.id).filter(overdue_condition).label("overdue_tickets"),
         )
         .select_from(Project)
-        .join(Team, Team.id == Project.team_id)
+        .join(project_teams, project_teams.c.project_id == Project.id)
+        .join(Team, Team.id == project_teams.c.team_id)
         .outerjoin(
             Ticket,
             and_(
@@ -277,7 +278,10 @@ def _team_workload(db: Session, current_user: User, today: date) -> list[dict]:
             ),
         )
         .where(
-            Project.project_manager_id == current_user.id,
+            or_(
+                Project.project_manager_id == current_user.id,
+                Project.project_managers.any(User.id == current_user.id),
+            ),
             Project.archived_at.is_(None),
             Project.status != "ARCHIVED",
             Team.archived_at.is_(None),
@@ -425,13 +429,12 @@ def get_dashboard(db: Session, current_user: User) -> dict:
                 Team.name,
                 func.count(Project.id).label("project_count"),
             )
+            .outerjoin(project_teams, project_teams.c.team_id == Team.id)
             .outerjoin(
                 Project,
-                (
-                    (Project.team_id == Team.id)
-                    & Project.archived_at.is_(None)
-                    & (Project.status != "ARCHIVED")
-                ),
+                (Project.id == project_teams.c.project_id)
+                & Project.archived_at.is_(None)
+                & (Project.status != "ARCHIVED"),
             )
             .where(Team.archived_at.is_(None))
             .group_by(Team.id, Team.name)
@@ -501,7 +504,7 @@ def get_dashboard(db: Session, current_user: User) -> dict:
         upcoming_deadlines = _upcoming_deadlines(db, ticket_scope, today=today)
 
     elif role_code == "DEVELOPER":
-        assigned_scope = [*ticket_scope, Ticket.assignee_id == current_user.id]
+        assigned_scope = [*ticket_scope, or_(Ticket.assignee_id == current_user.id, Ticket.assignees.any(User.id == current_user.id))]
         my_assigned = _ticket_count(db, assigned_scope)
         my_pending = _ticket_count(db, assigned_scope, open_condition)
         in_progress = _ticket_count(db, assigned_scope, Ticket.status == "IN_PROGRESS")
@@ -556,7 +559,7 @@ def get_dashboard(db: Session, current_user: User) -> dict:
         ]
 
     elif role_code == "TESTER":
-        assigned_scope = [*ticket_scope, Ticket.tester_id == current_user.id]
+        assigned_scope = [*ticket_scope, or_(Ticket.tester_id == current_user.id, Ticket.testers.any(User.id == current_user.id))]
         assigned_testing = _ticket_count(db, assigned_scope)
         testing_queue = _ticket_count(db, assigned_scope, Ticket.status == "TESTING")
         passed = _ticket_count(db, assigned_scope, Ticket.status == "TESTING_DONE")
@@ -635,6 +638,8 @@ def get_dashboard(db: Session, current_user: User) -> dict:
         .options(
             joinedload(Project.team),
             joinedload(Project.project_manager),
+            selectinload(Project.project_managers),
+            selectinload(Project.teams),
             selectinload(Project.memberships),
         )
         .where(*visible_project_conditions)
@@ -645,9 +650,9 @@ def get_dashboard(db: Session, current_user: User) -> dict:
 
     activity_scope = ticket_scope
     if role_code == "DEVELOPER":
-        activity_scope = [*ticket_scope, Ticket.assignee_id == current_user.id]
+        activity_scope = [*ticket_scope, or_(Ticket.assignee_id == current_user.id, Ticket.assignees.any(User.id == current_user.id))]
     elif role_code == "TESTER":
-        activity_scope = [*ticket_scope, Ticket.tester_id == current_user.id]
+        activity_scope = [*ticket_scope, or_(Ticket.tester_id == current_user.id, Ticket.testers.any(User.id == current_user.id))]
 
     recent_activities = _recent_activities(db, activity_scope)
     return {
