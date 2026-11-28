@@ -4,7 +4,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signIn, signOut, verifyIdToken } from "@/features/auth/api/auth-api";
+import { signIn, signOut, verifyToken } from "@/features/auth/api/auth-api";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -173,7 +173,7 @@ export function SignInForm() {
                 password: values.password,
             });
             try {
-                await verifyIdToken();
+                await verifyToken();
             } catch (verificationError) {
                 await signOut();
                 throw verificationError;
