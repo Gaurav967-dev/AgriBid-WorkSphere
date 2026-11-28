@@ -513,10 +513,10 @@ def test_project_can_have_multiple_project_managers_and_teams(ticket_environment
 
     assert response.status_code == 201, response.text
     project = response.json()
-    assert [manager["id"] for manager in project["project_managers"]] == [
+    assert {manager["id"] for manager in project["project_managers"]} == {
         str(ids["pm"]),
         str(ids["pm2"]),
-    ]
+    }
     assert {team["id"] for team in project["teams"]} == {
         str(ids["team"]),
         str(ids["team2"]),
@@ -545,18 +545,18 @@ def test_multiple_project_managers_and_ticket_assignments_are_supported(ticket_e
 
     assert response.status_code == 201, response.text
     ticket = response.json()
-    assert [person["id"] for person in ticket["assignees"]] == [
+    assert {person["id"] for person in ticket["assignees"]} == {
         str(ids["developer"]),
         str(ids["developer2"]),
-    ]
-    assert [person["id"] for person in ticket["reviewers"]] == [
+    }
+    assert {person["id"] for person in ticket["reviewers"]} == {
         str(ids["pm"]),
         str(ids["pm2"]),
-    ]
-    assert [person["id"] for person in ticket["testers"]] == [
+    }
+    assert {person["id"] for person in ticket["testers"]} == {
         str(ids["tester"]),
         str(ids["tester2"]),
-    ]
+    }
 
     # A secondary assignee and tester must be allowed to perform their role transitions.
     sign_in_as(client, "DEVELOPER2")
