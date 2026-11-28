@@ -271,6 +271,7 @@ export default function CreateProjectPage() {
             team_ids: checked
                 ? Array.from(new Set([...current.team_ids, teamId]))
                 : current.team_ids.filter((id) => id !== teamId),
+            member_ids: checked ? current.member_ids : [],
         }));
         setFormError(null);
     }
