@@ -17,6 +17,9 @@ from app.models import (
     TeamMember,
     Ticket,
     User,
+    project_project_managers,
+    project_teams,
+    ticket_assignees,
 )
 
 TERMINAL_STATUSES = ("COMPLETED", "CANCELLED")
@@ -154,7 +157,7 @@ def get_reports_options(db: Session, current_user: User) -> dict:
             Team.name,
             func.count(func.distinct(Project.id)).label("project_count"),
         )
-        .join(Project, Project.team_id == Team.id)
+        .join(project_teams, project_teams.c.team_id == Team.id)\n        .join(Project, Project.id == project_teams.c.project_id)
         .where(Project.id.in_(project_ids))
         .group_by(Team.id, Team.name)
         .order_by(Team.name.asc(), Team.id.asc())
@@ -281,7 +284,7 @@ def get_team_report(
 
     report_date = today or datetime.now(UTC).date()
     filters = _ticket_base_filters(project_ids=project_ids)
-    assigned_filter = Ticket.assignee_id.is_not(None)
+    assigned_filter = or_(Ticket.assignee_id.is_not(None), Ticket.assignees.any())
     total_assigned = _ticket_count(db, filters, assigned_filter)
     completed = _ticket_count(
         db, filters, assigned_filter, Ticket.status == "COMPLETED"
@@ -300,6 +303,9 @@ def get_team_report(
 
     visible_team_member_ids = union(
         select(Project.project_manager_id).where(Project.id.in_(project_ids)),
+        select(project_project_managers.c.user_id).where(
+            project_project_managers.c.project_id.in_(project_ids)
+        ),
         select(ProjectMember.user_id).where(
             ProjectMember.project_id.in_(project_ids),
             ProjectMember.removed_at.is_(None),
@@ -324,7 +330,7 @@ def get_team_report(
     if member_ids:
         workload_rows = db.execute(
             select(
-                Ticket.assignee_id,
+                ticket_assignees.c.user_id.label("assignee_id"),
                 func.count(Ticket.id).label("assigned"),
                 func.count(Ticket.id)
                 .filter(Ticket.status == "COMPLETED")
@@ -343,11 +349,9 @@ def get_team_report(
                 .filter(Ticket.status == "IN_PROGRESS")
                 .label("in_progress"),
             )
-            .where(
-                *filters,
-                Ticket.assignee_id.in_(member_ids),
-            )
-            .group_by(Ticket.assignee_id)
+            .join(Ticket, Ticket.id == ticket_assignees.c.ticket_id)
+            .where(*filters, ticket_assignees.c.user_id.in_(member_ids))
+            .group_by(ticket_assignees.c.user_id)
         ).all()
         grouped_workload = {row.assignee_id: row for row in workload_rows}
 
