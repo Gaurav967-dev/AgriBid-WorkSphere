@@ -74,7 +74,7 @@ def _ensure_project_management_access(*, project: Project, actor: User) -> None:
     if actor.role.code == "ADMIN":
         return
 
-    if actor.role.code == "PM" and project.project_manager_id == actor.id:
+    if actor.role.code == "PM" and (project.project_manager_id == actor.id or any(manager.id == actor.id for manager in project.project_managers)):
         return
 
     raise SprintServiceError("Project not found.", 404)
