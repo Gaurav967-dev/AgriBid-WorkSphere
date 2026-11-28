@@ -41,7 +41,6 @@ import {
 import { WorkspaceActions } from "@/components/workspace-actions";
 import { WorkspaceSidebar } from "@/components/workspace-sidebar";
 import { useWorkspaceSidebarState } from "@/components/workspace-sidebar-state";
-import { getInvitations } from "@/features/users/api/users-api";
 
 const METRIC_ICONS: Record<string, LucideIcon> = {
     total_users: Users,
@@ -57,6 +56,9 @@ const METRIC_ICONS: Record<string, LucideIcon> = {
     pending_tickets: Clock3,
     completed_tickets: CheckCircle2,
     overdue_tickets: CircleAlert,
+    total_invitations: Send,
+    pending_invitations: Clock3,
+    accepted_invitations: CheckCircle2,
     project_completion: CheckCircle2,
     open_tickets: Clock3,
     in_progress_tickets: Activity,
@@ -151,31 +153,6 @@ function formatDateTime(value: string | null): string {
 }
 
 
-
-function InvitationSummaryCard({
-    title,
-    value,
-    detail,
-    icon: Icon,
-}: {
-    title: string;
-    value: number;
-    detail: string;
-    icon: LucideIcon;
-}) {
-    return (
-        <article className="flex min-h-[88px] flex-col justify-between rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex items-start justify-between gap-3">
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{title}</p>
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
-                    <Icon className="size-5" />
-                </span>
-            </div>
-            <p className="mt-0.5 text-lg font-bold tracking-tight text-slate-900 dark:text-white">{value.toLocaleString("en-IN")}</p>
-            <p className="mt-1 text-[10px] leading-4 text-slate-500 dark:text-slate-400">{detail}</p>
-        </article>
-    );
-}
 
 function relativeUpdate(value?: string | null): string {
     if (!value) return "—";
@@ -618,13 +595,6 @@ export default function DashboardPage() {
         enabled: !isCheckingAuth && Boolean(user),
     });
 
-    const invitationSummaryQuery = useQuery({
-        queryKey: ["users", "dashboard-invitation-summary"],
-        queryFn: () => getInvitations(1, 100),
-        enabled: !isCheckingAuth && user?.role_code === "ADMIN",
-        staleTime: 30_000,
-    });
-
     async function handleSignOut() {
         setIsSigningOut(true);
 
@@ -660,9 +630,6 @@ export default function DashboardPage() {
     const isAdmin = role === "ADMIN";
     const projects = dashboard?.projects ?? [];
     const metrics = dashboard?.metrics ?? [];
-    const invitationItems = invitationSummaryQuery.data?.items ?? [];
-    const pendingInvitations = invitationItems.filter((item) => item.status === "PENDING").length;
-    const acceptedInvitations = invitationItems.filter((item) => item.status === "ACCEPTED").length;
     const latestProjectUpdate = projects
         .map((project) => project.updated_at)
         .filter(Boolean)
@@ -756,28 +723,6 @@ export default function DashboardPage() {
                                     {metrics.map((metric) => (
                                         <MetricCard key={metric.key} metric={metric} />
                                     ))}
-                                    {isAdmin && (
-                                        <>
-                                            <InvitationSummaryCard
-                                                title="Total invitations"
-                                                value={invitationSummaryQuery.data?.total ?? 0}
-                                                detail="All invitations recorded"
-                                                icon={Send}
-                                            />
-                                            <InvitationSummaryCard
-                                                title="Pending invitations"
-                                                value={pendingInvitations}
-                                                detail="Awaiting employee acceptance"
-                                                icon={Clock3}
-                                            />
-                                            <InvitationSummaryCard
-                                                title="Accepted invitations"
-                                                value={acceptedInvitations}
-                                                detail="Accounts created from invitations"
-                                                icon={CheckCircle2}
-                                            />
-                                        </>
-                                    )}
                                 </div>
 
                                 <div
