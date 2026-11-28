@@ -805,13 +805,13 @@ export default function TeamsPage() {
                                 {formMode === "create" && (
                                     <>
                                         <div>
-                                            <label htmlFor="team-members" className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                            <label htmlFor="team-members-search" className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
                                                 Initial members
                                             </label>
                                             <MultiSelectDropdown
                                                 id="team-members"
                                                 label="Initial members"
-                                                placeholder="Choose initial team members"
+                                                placeholder="Search active employees by name or email"
                                                 selectedValues={selectedMemberIds}
                                                 onChange={setSelectedMemberIds}
                                                 options={employees.map((employee) => ({
