@@ -224,6 +224,49 @@ def test_admin_can_create_ticket_and_activity_is_recorded(ticket_environment):
         assert len(activities) >= 4
 
 
+@pytest.mark.parametrize(
+    "initial_status",
+    [
+        "BACKLOG",
+        "TODO",
+        "IN_PROGRESS",
+        "IN_REVIEW",
+        "TESTING",
+        "TESTING_DONE",
+        "BUG_FIXED",
+        "COMPLETED",
+        "BLOCKED",
+        "REOPENED",
+        "CANCELLED",
+    ],
+)
+def test_admin_can_create_ticket_in_selected_kanban_status(
+    ticket_environment, initial_status
+):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+
+    response = client.post(
+        "/api/v1/tickets",
+        json={
+            "project_id": str(ids["project"]),
+            "title": "Created from selected Kanban column",
+            "status": initial_status,
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    ticket = response.json()
+    assert ticket["status"] == initial_status
+
+    if initial_status == "COMPLETED":
+        assert ticket["completed_at"] is not None
+        assert ticket["completed_by"]["id"] == str(ids["admin"])
+    else:
+        assert ticket["completed_at"] is None
+        assert ticket["completed_by"] is None
+
+
 def test_project_ticket_numbers_increment(ticket_environment):
     client, _, ids = ticket_environment
     sign_in_as(client, "ADMIN")
