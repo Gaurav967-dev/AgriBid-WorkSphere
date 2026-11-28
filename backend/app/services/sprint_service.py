@@ -56,7 +56,7 @@ def _ensure_project_access(db: Session, *, project: Project, actor: User) -> Non
     if actor.role.code == "ADMIN":
         return
 
-    if actor.role.code == "PM" and project.project_manager_id == actor.id:
+    if actor.role.code == "PM" and (project.project_manager_id == actor.id or any(manager.id == actor.id for manager in project.project_managers)):
         return
 
     membership = db.scalar(
