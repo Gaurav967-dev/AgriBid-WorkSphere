@@ -218,7 +218,9 @@ function TicketCard({ ticket, isMoving, isDragging, canDrag, onDragStart, onDrag
                 <Link href={`/dashboard/tickets/${ticket.id}`} className="min-w-0 truncate text-[10px] font-bold text-violet-700 hover:underline dark:text-violet-300">{ticket.ticket_key}</Link>
                 <span className={`shrink-0 text-[10px] font-semibold ${priority.text}`}>{priority.label}</span>
             </div>
-            <Link href={`/dashboard/tickets/${ticket.id}`} className="mt-1 inline-block max-w-full text-[12px] font-semibold leading-4 text-slate-800 hover:text-violet-700 dark:text-slate-100 dark:hover:text-violet-300">{ticket.title}</Link>
+            <div className="mt-1 text-[12px] font-semibold leading-4">
+                <Link href={`/dashboard/tickets/${ticket.id}`} className="text-slate-800 hover:text-violet-700 dark:text-slate-100 dark:hover:text-violet-300">{ticket.title}</Link>
+            </div>
             {ticket.description && <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-slate-500 dark:text-slate-400">{ticket.description}</p>}
 
             <div className="mt-1.5 flex flex-wrap items-center gap-1">
