@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
 
-from sqlalchemy import Text, and_, cast, distinct, func, or_, select
+from sqlalchemy import Text, and_, cast, distinct, func, or_, select, union
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models import (
@@ -20,6 +20,20 @@ TERMINAL_STATUSES = {"COMPLETED", "CANCELLED"}
 UPCOMING_WINDOW_DAYS = 30
 RECENT_ACTIVITY_LIMIT = 10
 UPCOMING_DEADLINE_LIMIT = 8
+
+
+def _project_team_pairs():
+    """Include legacy single-team and current multi-team project assignments."""
+    return union(
+        select(
+            Project.id.label("project_id"),
+            Project.team_id.label("team_id"),
+        ),
+        select(
+            project_teams.c.project_id,
+            project_teams.c.team_id,
+        ),
+    ).subquery()
 
 
 def _count(db: Session, model, *conditions) -> int:
@@ -268,6 +282,7 @@ def _team_workload(db: Session, current_user: User, today: date) -> list[dict]:
         Ticket.due_date < today,
         Ticket.status.not_in(tuple(TERMINAL_STATUSES)),
     )
+    project_team_pairs = _project_team_pairs()
     statement = (
         select(
             Team.id.label("team_id"),
@@ -277,8 +292,8 @@ def _team_workload(db: Session, current_user: User, today: date) -> list[dict]:
             func.count(Ticket.id).filter(overdue_condition).label("overdue_tickets"),
         )
         .select_from(Project)
-        .join(project_teams, project_teams.c.project_id == Project.id)
-        .join(Team, Team.id == project_teams.c.team_id)
+        .join(project_team_pairs, project_team_pairs.c.project_id == Project.id)
+        .join(Team, Team.id == project_team_pairs.c.team_id)
         .outerjoin(
             Ticket,
             and_(
@@ -432,16 +447,17 @@ def get_dashboard(db: Session, current_user: User) -> dict:
             ),
         ]
 
+        project_team_pairs = _project_team_pairs()
         distribution_statement = (
             select(
                 Team.id,
                 Team.name,
-                func.count(Project.id).label("project_count"),
+                func.count(distinct(Project.id)).label("project_count"),
             )
-            .outerjoin(project_teams, project_teams.c.team_id == Team.id)
+            .outerjoin(project_team_pairs, project_team_pairs.c.team_id == Team.id)
             .outerjoin(
                 Project,
-                (Project.id == project_teams.c.project_id)
+                (Project.id == project_team_pairs.c.project_id)
                 & Project.archived_at.is_(None)
                 & (Project.status != "ARCHIVED"),
             )
