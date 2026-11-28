@@ -53,22 +53,52 @@ ticket_comment_mentions = Table(
 ticket_assignees = Table(
     "ticket_assignees",
     Base.metadata,
-    Column("ticket_id", Uuid(as_uuid=True), ForeignKey("tickets.id", ondelete="CASCADE"), primary_key=True),
-    Column("user_id", Uuid(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), primary_key=True),
+    Column(
+        "ticket_id",
+        Uuid(as_uuid=True),
+        ForeignKey("tickets.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "user_id",
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        primary_key=True,
+    ),
 )
 
 ticket_reviewers = Table(
     "ticket_reviewers",
     Base.metadata,
-    Column("ticket_id", Uuid(as_uuid=True), ForeignKey("tickets.id", ondelete="CASCADE"), primary_key=True),
-    Column("user_id", Uuid(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), primary_key=True),
+    Column(
+        "ticket_id",
+        Uuid(as_uuid=True),
+        ForeignKey("tickets.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "user_id",
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        primary_key=True,
+    ),
 )
 
 ticket_testers = Table(
     "ticket_testers",
     Base.metadata,
-    Column("ticket_id", Uuid(as_uuid=True), ForeignKey("tickets.id", ondelete="CASCADE"), primary_key=True),
-    Column("user_id", Uuid(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), primary_key=True),
+    Column(
+        "ticket_id",
+        Uuid(as_uuid=True),
+        ForeignKey("tickets.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "user_id",
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        primary_key=True,
+    ),
 )
 
 
