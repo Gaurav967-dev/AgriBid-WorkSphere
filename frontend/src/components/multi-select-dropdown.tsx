@@ -52,13 +52,13 @@ export function MultiSelectDropdown({
 
     return (
         <section
-            id={id}
             aria-label={label}
             className="min-w-0 rounded-lg border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-950"
         >
             <div className="relative">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
                 <input
+                    id={`${id}-search`}
                     type="search"
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
