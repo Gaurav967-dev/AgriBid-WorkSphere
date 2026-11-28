@@ -5,7 +5,16 @@ from datetime import UTC, date, datetime, timedelta
 from sqlalchemy import Text, and_, cast, distinct, func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from app.models import (Project, ProjectMember, Team, Ticket, TicketActivity, User, UserInvitation, project_teams)
+from app.models import (
+    Project,
+    ProjectMember,
+    Team,
+    Ticket,
+    TicketActivity,
+    User,
+    UserInvitation,
+    project_teams,
+)
 
 TERMINAL_STATUSES = {"COMPLETED", "CANCELLED"}
 UPCOMING_WINDOW_DAYS = 30
