@@ -206,7 +206,7 @@ function TicketCard({ ticket, isMoving, isDragging, canDrag, onDragStart, onDrag
 
             <div className="mt-1.5 flex flex-wrap items-center gap-1">
                 <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{TYPE_LABELS[ticket.type]}</span>
-                <span className="rounded-full bg-violet-50 px-1.5 py-0.5 text-[9px] font-medium text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">{ticket.project.key}</span>
+                <Link href={`/dashboard/tickets/${ticket.id}`} className="rounded-full bg-violet-50 px-1.5 py-0.5 text-[9px] font-medium text-violet-700 hover:underline dark:bg-violet-950/50 dark:text-violet-300">{ticket.project.key}</Link>
                 {ticket.labels.slice(0, 2).map((label) => <span key={label} className="max-w-full truncate rounded-full bg-slate-50 px-1.5 py-0.5 text-[9px] text-slate-500 dark:bg-slate-900 dark:text-slate-400">{label}</span>)}
                 {ticket.labels.length > 2 && <span className="text-[9px] text-slate-400">+{ticket.labels.length - 2}</span>}
             </div>
@@ -391,6 +391,31 @@ export function TicketKanbanBoard({
             <div
                 ref={boardViewportRef}
                 onDragOver={handleBoardDragOver}
+                onWheel={(event) => {
+                    const viewport = boardViewportRef.current;
+                    if (!viewport) return;
+
+                    const target = event.target as HTMLElement;
+                    const columnScroller = target.closest<HTMLElement>("[data-kanban-column-scroll]");
+                    const canScrollColumnVertically = Boolean(
+                        columnScroller &&
+                        columnScroller.scrollHeight > columnScroller.clientHeight &&
+                        ((event.deltaY < 0 && columnScroller.scrollTop > 0) ||
+                            (event.deltaY > 0 &&
+                                columnScroller.scrollTop + columnScroller.clientHeight < columnScroller.scrollHeight)),
+                    );
+
+                    if (!event.shiftKey && event.deltaX === 0 && canScrollColumnVertically) {
+                        return;
+                    }
+
+                    const horizontalDelta =
+                        event.deltaX !== 0 ? event.deltaX : event.deltaY;
+                    if (horizontalDelta !== 0) {
+                        event.preventDefault();
+                        viewport.scrollLeft += horizontalDelta;
+                    }
+                }}
                 className="min-h-0 min-w-0 w-full max-w-full flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain"
             >
                 <div className="flex h-full w-max min-w-full min-h-[320px] items-stretch gap-2">
@@ -428,7 +453,7 @@ export function TicketKanbanBoard({
                                     </div>
                                     {canAddTask && (
                                         <Link
-                                            href={`/dashboard/tickets/new${projectFilter !== "ALL" ? `?project_id=${encodeURIComponent(projectFilter)}` : ""}`}
+                                            href={`/dashboard/tickets/new?status=${column.value}${projectFilter !== "ALL" ? `&project_id=${encodeURIComponent(projectFilter)}` : ""}`}
                                             aria-label={`Add a task to ${column.label}`}
                                             title={`Add task to ${column.label}`}
                                             className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-500 transition hover:bg-white hover:text-violet-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-violet-300"
@@ -438,8 +463,8 @@ export function TicketKanbanBoard({
                                     )}
                                 </header>
 
-                                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
-                                    <div className="flex min-h-full flex-col gap-2">
+                                <div data-kanban-column-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
+                                    <div className="flex min-h-full flex-col gap-2 pb-4">
                                         {columnTickets.length === 0 ? (
                                             <div className={`flex min-h-28 items-center justify-center rounded-lg border border-dashed px-3 text-center text-xs text-slate-400 dark:border-slate-700 ${isTarget ? "border-violet-400 bg-violet-50/70 dark:bg-violet-950/20" : "border-slate-300"}`}>
                                                 {isTarget ? "Drop task here" : "No tasks in this column"}
