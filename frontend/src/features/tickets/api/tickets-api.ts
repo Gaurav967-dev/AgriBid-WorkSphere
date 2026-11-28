@@ -118,6 +118,7 @@ export type CreateTicketInput = {
     description?: string | null;
     type: TicketType;
     priority: TicketPriority;
+    status?: TicketStatus;
     assignee_id?: string | null;
     reviewer_id?: string | null;
     tester_id?: string | null;
