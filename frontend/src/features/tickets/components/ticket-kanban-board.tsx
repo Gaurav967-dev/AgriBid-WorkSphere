@@ -43,14 +43,14 @@ function getAllowedTicketTransitions(
 
     if (
         ticket.status === "IN_REVIEW" &&
-        ticket.reviewer?.id === currentUser.id
+        (ticket.reviewer?.id === currentUser.id || ticket.reviewers?.some((reviewer) => reviewer.id === currentUser.id) === true)
     ) {
         return ["TESTING"];
     }
 
     if (
         currentUser.role_code === "DEVELOPER" &&
-        ticket.assignee?.id === currentUser.id
+        (ticket.assignee?.id === currentUser.id || ticket.assignees?.some((assignee) => assignee.id === currentUser.id) === true)
     ) {
         const transitions: Partial<Record<TicketStatus, TicketStatus[]>> = {
             TODO: ["IN_PROGRESS"],
@@ -62,7 +62,7 @@ function getAllowedTicketTransitions(
 
     if (
         currentUser.role_code === "TESTER" &&
-        ticket.tester?.id === currentUser.id
+        (ticket.tester?.id === currentUser.id || ticket.testers?.some((tester) => tester.id === currentUser.id) === true)
     ) {
         const transitions: Partial<Record<TicketStatus, TicketStatus[]>> = {
             TESTING: ["TESTING_DONE", "BUG_FIXED", "REOPENED", "IN_PROGRESS"],
@@ -176,6 +176,14 @@ function TicketCard({ ticket, isMoving, isDragging, canDrag, onDragStart, onDrag
     const overdue = isOverdue(ticket);
     const priority = PRIORITY_STYLES[ticket.priority];
     const countLabel = (value: number | undefined) => countsQuery.isError ? "—" : value ?? "…";
+    const assignees = ticket.assignees?.length
+        ? ticket.assignees
+        : ticket.assignee
+            ? [ticket.assignee]
+            : [];
+    const assigneeLabel = assignees.length
+        ? `${assignees[0].full_name}${assignees.length > 1 ? ` +${assignees.length - 1}` : ""}`
+        : "Unassigned";
 
     return (
         <article
@@ -212,9 +220,20 @@ function TicketCard({ ticket, isMoving, isDragging, canDrag, onDragStart, onDrag
             </div>
 
             <div className="mt-2 flex items-center justify-between gap-2 border-t border-slate-100 pt-1.5 dark:border-slate-800">
-                <div className="flex min-w-0 items-center gap-1.5" title={ticket.assignee?.full_name ?? "Unassigned"}>
-                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[8px] font-bold text-violet-800 dark:bg-violet-950 dark:text-violet-200">{getInitials(ticket.assignee?.full_name)}</span>
-                    <span className="truncate text-[9px] text-slate-500 dark:text-slate-400">{ticket.assignee?.full_name ?? "Unassigned"}</span>
+                <div className="flex min-w-0 items-center gap-1.5" title={assignees.map((person) => person.full_name).join(", ") || "Unassigned"}>
+                    {assignees.length > 0 ? (
+                        <div className="flex shrink-0 -space-x-1">
+                            {assignees.slice(0, 3).map((person) => (
+                                <span key={person.id} className="flex size-5 items-center justify-center rounded-full border border-white bg-violet-100 text-[8px] font-bold text-violet-800 dark:border-slate-950 dark:bg-violet-950 dark:text-violet-200">
+                                    {getInitials(person.full_name)}
+                                </span>
+                            ))}
+                            {assignees.length > 3 && <span className="flex size-5 items-center justify-center rounded-full border border-white bg-slate-100 text-[8px] font-semibold text-slate-500 dark:border-slate-950 dark:bg-slate-800">+{assignees.length - 3}</span>}
+                        </div>
+                    ) : (
+                        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[8px] font-bold text-slate-500 dark:bg-slate-800">—</span>
+                    )}
+                    <span className="truncate text-[9px] text-slate-500 dark:text-slate-400">{assigneeLabel}</span>
                 </div>
                 <span className={`inline-flex shrink-0 items-center gap-1 text-[9px] ${overdue ? "font-semibold text-rose-600 dark:text-rose-400" : "text-slate-400"}`}><CalendarDays className="size-3" />{formatDueDate(ticket.due_date)}{overdue ? " · Overdue" : ""}</span>
             </div>
@@ -319,7 +338,9 @@ export function TicketKanbanBoard({
         const allowedTransitions = getAllowedTicketTransitions(ticket, currentUser);
         if (!allowedTransitions.includes(nextStatus)) {
             setMoveMessage(
-                currentUser.role_code === "TESTER" && ticket.tester?.id !== currentUser.id
+                currentUser.role_code === "TESTER" &&
+                        ticket.tester?.id !== currentUser.id &&
+                        ticket.testers?.some((tester) => tester.id === currentUser.id) !== true
                     ? "This ticket is visible to you, but it is not assigned to you as its Tester. Ask the Project Manager to assign you in the ticket details."
                     : "That status transition is not permitted for your role and the ticket's current status."
             );
