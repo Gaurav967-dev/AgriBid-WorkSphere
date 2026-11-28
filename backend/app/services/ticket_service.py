@@ -11,9 +11,9 @@ from app.models import (
     Project,
     ProjectMember,
     SprintTicket,
+    Team,
     Ticket,
     TicketActivity,
-    Team,
     User,
 )
 from app.schemas.ticket import TicketCreateRequest, TicketUpdateRequest
@@ -431,7 +431,12 @@ def list_tickets(
     if assignee_unassigned:
         filters.append(Ticket.assignee_id.is_(None) & ~Ticket.assignees.any())
     elif assignee_id is not None:
-        filters.append(or_(Ticket.assignee_id == assignee_id, Ticket.assignees.any(User.id == assignee_id)))
+        filters.append(
+            or_(
+                Ticket.assignee_id == assignee_id,
+                Ticket.assignees.any(User.id == assignee_id),
+            )
+        )
 
     if reporter_id is not None:
         filters.append(Ticket.reporter_id == reporter_id)
@@ -681,7 +686,9 @@ def update_ticket_status(
         allowed = True
 
     elif role_code == "DEVELOPER":
-        if ticket.assignee_id != actor.id and not any(user.id == actor.id for user in ticket.assignees):
+        if ticket.assignee_id != actor.id and not any(
+            user.id == actor.id for user in ticket.assignees
+        ):
             raise TicketServiceError(
                 "Developers can only transition tickets assigned to them.",
                 403,
