@@ -175,7 +175,6 @@ export function SignInForm() {
             // The protected dashboard performs the single verify-token check
             // after navigation; avoid a second verification request here.
             router.replace("/dashboard");
-            router.refresh();
         } catch (error) {
             const message =
                 error instanceof Error
