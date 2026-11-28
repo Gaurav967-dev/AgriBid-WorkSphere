@@ -88,6 +88,33 @@ def ticket_environment(monkeypatch):
             users["OUTSIDER"] = outsider
             session.flush()
 
+            manager_two = User(
+                full_name="Second Project Manager",
+                email="pm2@test.agribid.ai",
+                password_hash=hash_password(TEST_PASSWORD),
+                role=roles["PM"],
+                is_active=True,
+            )
+            developer_two = User(
+                full_name="Second Developer",
+                email="developer2@test.agribid.ai",
+                password_hash=hash_password(TEST_PASSWORD),
+                role=roles["DEVELOPER"],
+                is_active=True,
+            )
+            tester_two = User(
+                full_name="Second Tester",
+                email="tester2@test.agribid.ai",
+                password_hash=hash_password(TEST_PASSWORD),
+                role=roles["TESTER"],
+                is_active=True,
+            )
+            session.add_all([manager_two, developer_two, tester_two])
+            users["PM2"] = manager_two
+            users["DEVELOPER2"] = developer_two
+            users["TESTER2"] = tester_two
+            session.flush()
+
             team = Team(
                 name="Ticket Test Team",
                 status="ACTIVE",
@@ -95,7 +122,7 @@ def ticket_environment(monkeypatch):
             session.add(team)
             session.flush()
 
-            for code in ("PM", "DEVELOPER", "TESTER"):
+            for code in ("PM", "DEVELOPER", "TESTER", "PM2", "DEVELOPER2", "TESTER2"):
                 session.add(
                     TeamMember(
                         team_id=team.id,
@@ -115,8 +142,10 @@ def ticket_environment(monkeypatch):
             )
             session.add(project)
             session.flush()
+            project.project_managers = [users["PM"], users["PM2"]]
+            project.teams = [team]
 
-            for code in ("DEVELOPER", "TESTER"):
+            for code in ("DEVELOPER", "TESTER", "DEVELOPER2", "TESTER2"):
                 session.add(
                     ProjectMember(
                         project_id=project.id,
@@ -134,6 +163,9 @@ def ticket_environment(monkeypatch):
                 "pm": users["PM"].id,
                 "developer": users["DEVELOPER"].id,
                 "tester": users["TESTER"].id,
+                "pm2": users["PM2"].id,
+                "developer2": users["DEVELOPER2"].id,
+                "tester2": users["TESTER2"].id,
                 "outsider": users["OUTSIDER"].id,
             }
 
@@ -451,6 +483,56 @@ def test_unassigned_developer_cannot_transition_ticket(ticket_environment):
 
     assert response.status_code == 403
 
+
+
+def test_multiple_project_managers_and_ticket_assignments_are_supported(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "PM2")
+
+    response = client.post(
+        "/api/v1/tickets",
+        json={
+            "project_id": str(ids["project"]),
+            "title": "Verify multi-user assignments",
+            "type": "TASK",
+            "priority": "HIGH",
+            "status": "TODO",
+            "assignee_id": str(ids["developer"]),
+            "assignee_ids": [str(ids["developer"]), str(ids["developer2"])],
+            "reviewer_id": str(ids["pm"]),
+            "reviewer_ids": [str(ids["pm"]), str(ids["pm2"])],
+            "tester_id": str(ids["tester"]),
+            "tester_ids": [str(ids["tester"]), str(ids["tester2"])],
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    ticket = response.json()
+    assert [person["id"] for person in ticket["assignees"]] == [
+        str(ids["developer"]),
+        str(ids["developer2"]),
+    ]
+    assert [person["id"] for person in ticket["reviewers"]] == [
+        str(ids["pm"]),
+        str(ids["pm2"]),
+    ]
+    assert [person["id"] for person in ticket["testers"]] == [
+        str(ids["tester"]),
+        str(ids["tester2"]),
+    ]
+
+    # A secondary assignee and tester must be allowed to perform their role transitions.
+    sign_in_as(client, "DEVELOPER2")
+    in_progress = change_status(client, ticket["id"], "IN_PROGRESS")
+    assert in_progress.status_code == 200, in_progress.text
+
+    sign_in_as(client, "PM")
+    testing = change_status(client, ticket["id"], "TESTING")
+    assert testing.status_code == 200, testing.text
+
+    sign_in_as(client, "TESTER2")
+    tested = change_status(client, ticket["id"], "TESTING_DONE")
+    assert tested.status_code == 200, tested.text
 
 def test_soft_delete_preserves_ticket_and_history(ticket_environment):
     client, session_factory, ids = ticket_environment
