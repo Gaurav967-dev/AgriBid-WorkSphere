@@ -4,7 +4,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signIn, signOut, verifyToken } from "@/features/auth/api/auth-api";
+import { signIn } from "@/features/auth/api/auth-api";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -172,12 +172,8 @@ export function SignInForm() {
                 email: values.email,
                 password: values.password,
             });
-            try {
-                await verifyToken();
-            } catch (verificationError) {
-                await signOut();
-                throw verificationError;
-            }
+            // The protected dashboard performs the single verify-token check
+            // after navigation; avoid a second verification request here.
             router.replace("/dashboard");
             router.refresh();
         } catch (error) {
