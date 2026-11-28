@@ -9,7 +9,11 @@ from sqlalchemy.orm import Session, joinedload
 from app.api.v1.dependencies.auth import get_current_user
 from app.core.database import get_db
 from app.core.rate_limit import limiter
-from app.models import Project, ProjectMember, Team, Ticket, User
+from app.models import (
+    Project, ProjectMember, Team, Ticket, User,
+    project_project_managers, project_teams,
+    ticket_assignees, ticket_reviewers, ticket_testers,
+)
 from app.schemas.search import (
     GlobalSearchResponse,
     SearchProjectResult,
@@ -25,7 +29,12 @@ def _visible_project_ids(db: Session, actor: User) -> list[UUID]:
     filters = [Project.archived_at.is_(None)]
 
     if actor.role.code == "PM":
-        filters.append(Project.project_manager_id == actor.id)
+        filters.append(
+            or_(
+                Project.project_manager_id == actor.id,
+                Project.project_managers.any(User.id == actor.id),
+            )
+        )
     elif actor.role.code != "ADMIN":
         filters.append(
             select(ProjectMember.id)
@@ -43,6 +52,9 @@ def _visible_project_ids(db: Session, actor: User) -> list[UUID]:
 def _visible_user_ids_query(project_ids: list[UUID]):
     return union(
         select(Project.project_manager_id).where(Project.id.in_(project_ids)),
+        select(project_project_managers.c.user_id).where(
+            project_project_managers.c.project_id.in_(project_ids)
+        ),
         select(ProjectMember.user_id).where(
             ProjectMember.project_id.in_(project_ids),
             ProjectMember.removed_at.is_(None),
@@ -66,6 +78,15 @@ def _visible_user_ids_query(project_ids: list[UUID]):
             Ticket.deleted_at.is_(None),
             Ticket.tester_id.is_not(None),
         ),
+        select(ticket_assignees.c.user_id)
+        .join(Ticket, Ticket.id == ticket_assignees.c.ticket_id)
+        .where(Ticket.project_id.in_(project_ids), Ticket.deleted_at.is_(None)),
+        select(ticket_reviewers.c.user_id)
+        .join(Ticket, Ticket.id == ticket_reviewers.c.ticket_id)
+        .where(Ticket.project_id.in_(project_ids), Ticket.deleted_at.is_(None)),
+        select(ticket_testers.c.user_id)
+        .join(Ticket, Ticket.id == ticket_testers.c.ticket_id)
+        .where(Ticket.project_id.in_(project_ids), Ticket.deleted_at.is_(None)),
     )
 
 @router.get("", response_model=GlobalSearchResponse)
@@ -122,7 +143,7 @@ def global_search(
 
     teams_query = select(Team).where(
         Team.id.in_(
-            select(Project.team_id).where(Project.id.in_(project_ids))
+            select(project_teams.c.team_id).where(project_teams.c.project_id.in_(project_ids))
         ),
         Team.archived_at.is_(None),
         Team.name.ilike(term),
