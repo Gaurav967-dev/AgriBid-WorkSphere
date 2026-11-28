@@ -129,7 +129,7 @@ function SidebarSection({
                             ? "justify-center px-2"
                             : "gap-2.5 px-3",
                         active
-                            ? "bg-violet-50 font-semibold text-violet-800 dark:bg-violet-950/50 dark:text-violet-200"
+                            ? "bg-slate-50 font-semibold text-slate-950 dark:bg-slate-900/50 dark:text-slate-200"
                             : item.disabled
                                 ? "cursor-not-allowed text-slate-400 dark:text-slate-600"
                                 : "font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white",
@@ -196,7 +196,7 @@ function SidebarPanel({
                 className={`flex h-12 shrink-0 items-center border-b border-slate-100 dark:border-slate-800 ${collapsed ? "justify-center px-2" : "gap-2.5 px-3"
                     }`}
             >
-                <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-violet-700 text-white">
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-slate-900 text-white">
                     <ShieldCheck className="size-4" />
                 </div>
 
@@ -217,7 +217,7 @@ function SidebarPanel({
                     <button
                         type="button"
                         onClick={onOpenSearch}
-                        className="flex h-9 w-full items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-400 hover:border-violet-300 hover:text-violet-700 dark:border-slate-700 dark:bg-slate-800 dark:hover:text-violet-300"
+                        className="flex h-9 w-full items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-400 hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:hover:text-slate-300"
                         title="Search workspace"
                         aria-label="Search workspace"
                     >
@@ -227,7 +227,7 @@ function SidebarPanel({
                     <button
                         type="button"
                         onClick={onOpenSearch}
-                        className="flex h-8 w-full items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 text-left hover:border-violet-300 dark:border-slate-700 dark:bg-slate-800"
+                        className="flex h-8 w-full items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 text-left hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800"
                     >
                         <Search className="size-3.5 text-slate-400" />
                         <span className="text-[11px] text-slate-500 dark:text-slate-400">
@@ -273,7 +273,7 @@ function SidebarPanel({
             >
                 {collapsed ? (
                     <div
-                        className="flex size-8 items-center justify-center rounded-full bg-violet-100 text-[11px] font-bold text-violet-800 dark:bg-violet-950 dark:text-violet-200"
+                        className="flex size-8 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-950 dark:bg-slate-900 dark:text-slate-200"
                         title={`${user?.full_name || user?.email || "Workspace user"} · ${roleLabel(user?.role_code)}`}
                     >
                         {user?.full_name?.trim().charAt(0).toUpperCase() ||
@@ -282,7 +282,7 @@ function SidebarPanel({
                 ) : (
                     <>
                         <div className="flex items-center gap-2.5 rounded-md px-1 py-1">
-                            <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-bold text-violet-800 dark:bg-violet-950 dark:text-violet-200">
+                            <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-950 dark:bg-slate-900 dark:text-slate-200">
                                 {user?.full_name
                                     ?.trim()
                                     .charAt(0)
@@ -347,7 +347,7 @@ function GlobalSearchDialog({
         onClose();
     }
 
-    const resultClass = "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left hover:bg-violet-50 dark:hover:bg-violet-950/30";
+    const resultClass = "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-900/30";
     const metaClass = "truncate text-[10px] text-slate-400";
 
     return (
