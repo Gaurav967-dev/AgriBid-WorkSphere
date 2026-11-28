@@ -342,7 +342,7 @@ function CommentComposer({
                     ref={textareaRef}
                     autoFocus={autoFocus}
                     value={body}
-                    maxLength={5000}
+                    maxLength={250}
                     rows={3}
                     onChange={(event) => {
                         updateBody(event.target.value);
@@ -356,6 +356,9 @@ function CommentComposer({
                     placeholder="Write a comment... Use @ to mention a teammate."
                     className="min-h-20 w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs leading-5 text-slate-800 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-violet-600 dark:focus:ring-violet-950"
                 />
+                <p className="mt-1 text-right text-[10px] tabular-nums text-slate-400">
+                    {body.length}/250 characters
+                </p>
                 {mentionQuery !== null && suggestions.length > 0 && (
                     <div className="absolute bottom-full left-0 z-20 mb-1 max-h-52 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-900">
                         {suggestions.map((person) => (
@@ -531,6 +534,7 @@ export function TicketCommentsPanel({
             const isAuthor = Boolean(currentUser?.id && currentUser.id === comment.author.id);
             const canDelete = !comment.is_deleted && (isAuthor || canModerate);
             const canEdit = !comment.is_deleted && isAuthor;
+            const canReply = Boolean(currentUser?.id && !isAuthor && !comment.is_deleted);
             const hasChildren = (childrenByParent.get(comment.id) ?? []).length > 0;
 
             return (
@@ -578,16 +582,18 @@ export function TicketCommentsPanel({
 
                                 {!comment.is_deleted && editingComment?.id !== comment.id && (
                                     <div className="mt-1.5 flex flex-wrap items-center gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setEditingComment(null);
-                                                setReplyTo(comment);
-                                            }}
-                                            className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-400 hover:text-violet-600 dark:hover:text-violet-300"
-                                        >
-                                            <Reply className="size-3" /> Reply
-                                        </button>
+                                        {canReply && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setEditingComment(null);
+                                                    setReplyTo(comment);
+                                                }}
+                                                className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-400 hover:text-violet-600 dark:hover:text-violet-300"
+                                            >
+                                                <Reply className="size-3" /> Reply
+                                            </button>
+                                        )}
                                         {canEdit && (
                                             <button
                                                 type="button"
