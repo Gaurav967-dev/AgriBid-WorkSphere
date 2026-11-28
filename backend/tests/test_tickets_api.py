@@ -115,17 +115,24 @@ def ticket_environment(monkeypatch):
             users["TESTER2"] = tester_two
             session.flush()
 
-            team = Team(
-                name="Ticket Test Team",
-                status="ACTIVE",
-            )
-            session.add(team)
+            team = Team(name="Ticket Test Team", status="ACTIVE")
+            team_two = Team(name="Ticket Test Team Two", status="ACTIVE")
+            session.add_all([team, team_two])
             session.flush()
 
             for code in ("PM", "DEVELOPER", "TESTER", "PM2", "DEVELOPER2", "TESTER2"):
                 session.add(
                     TeamMember(
                         team_id=team.id,
+                        user_id=users[code].id,
+                        designation=code.title(),
+                    )
+                )
+
+            for code in ("PM2", "DEVELOPER2", "TESTER2"):
+                session.add(
+                    TeamMember(
+                        team_id=team_two.id,
                         user_id=users[code].id,
                         designation=code.title(),
                     )
@@ -159,6 +166,7 @@ def ticket_environment(monkeypatch):
             ids = {
                 "project": project.id,
                 "team": team.id,
+                "team2": team_two.id,
                 "admin": users["ADMIN"].id,
                 "pm": users["PM"].id,
                 "developer": users["DEVELOPER"].id,
@@ -484,6 +492,35 @@ def test_unassigned_developer_cannot_transition_ticket(ticket_environment):
     assert response.status_code == 403
 
 
+
+
+def test_project_can_have_multiple_project_managers_and_teams(ticket_environment):
+    client, _, ids = ticket_environment
+    sign_in_as(client, "ADMIN")
+
+    response = client.post(
+        "/api/v1/projects",
+        json={
+            "name": "Multi-team Project",
+            "key": "MULTI",
+            "project_manager_id": str(ids["pm"]),
+            "project_manager_ids": [str(ids["pm"]), str(ids["pm2"])],
+            "team_id": str(ids["team"]),
+            "team_ids": [str(ids["team"]), str(ids["team2"])],
+            "member_ids": [str(ids["developer"]), str(ids["developer2"])],
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    project = response.json()
+    assert [manager["id"] for manager in project["project_managers"]] == [
+        str(ids["pm"]),
+        str(ids["pm2"]),
+    ]
+    assert {team["id"] for team in project["teams"]} == {
+        str(ids["team"]),
+        str(ids["team2"]),
+    }
 
 def test_multiple_project_managers_and_ticket_assignments_are_supported(ticket_environment):
     client, _, ids = ticket_environment
