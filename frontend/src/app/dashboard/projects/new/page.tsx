@@ -131,7 +131,6 @@ function MultiSelectPicker({
     placeholder: string;
     disabled?: boolean;
 }) {
-    const selectedLabels = options.filter((option) => selectedIds.includes(option.id));
     return (
         <details className="relative mt-1.5">
             <summary
