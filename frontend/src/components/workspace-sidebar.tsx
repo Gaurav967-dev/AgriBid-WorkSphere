@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -468,12 +468,21 @@ export function WorkspaceSidebar({
     return (
         <>
             <div className="sticky top-0 hidden h-screen shrink-0 self-start md:block">
-                <SidebarPanel
-                    user={user}
-                    collapsed={collapsed}
-                    onNavigate={onMobileClose}
-                    onOpenSearch={() => setSearchOpen(true)}
-                />
+                <Suspense
+                    fallback={
+                        <aside
+                            aria-hidden="true"
+                            className={`h-screen shrink-0 border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 ${collapsed ? "w-16" : "w-[224px]"}`}
+                        />
+                    }
+                >
+                    <SidebarPanel
+                        user={user}
+                        collapsed={collapsed}
+                        onNavigate={onMobileClose}
+                        onOpenSearch={() => setSearchOpen(true)}
+                    />
+                </Suspense>
             </div>
 
             {mobileOpen && (
@@ -486,15 +495,24 @@ export function WorkspaceSidebar({
                     />
 
                     <div className="absolute inset-y-0 left-0 shadow-xl">
-                        <SidebarPanel
-                            user={user}
-                            collapsed={false}
-                            onNavigate={onMobileClose}
-                            onOpenSearch={() => {
-                                setSearchOpen(true);
-                                onMobileClose();
-                            }}
-                        />
+                        <Suspense
+                            fallback={
+                                <aside
+                                    aria-hidden="true"
+                                    className="h-full w-[224px] border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+                                />
+                            }
+                        >
+                            <SidebarPanel
+                                user={user}
+                                collapsed={false}
+                                onNavigate={onMobileClose}
+                                onOpenSearch={() => {
+                                    setSearchOpen(true);
+                                    onMobileClose();
+                                }}
+                            />
+                        </Suspense>
                     </div>
                 </div>
             )}
