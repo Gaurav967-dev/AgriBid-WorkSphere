@@ -21,7 +21,7 @@ const BOARD_STATUSES: { value: TicketStatus; label: string; accent: string; dot:
     { value: "BACKLOG", label: "Backlog", accent: "border-t-slate-400", dot: "bg-slate-400" },
     { value: "TODO", label: "To do", accent: "border-t-sky-500", dot: "bg-sky-500" },
     { value: "IN_PROGRESS", label: "In progress", accent: "border-t-blue-500", dot: "bg-blue-500" },
-    { value: "IN_REVIEW", label: "In review", accent: "border-t-violet-500", dot: "bg-violet-500" },
+    { value: "IN_REVIEW", label: "In review", accent: "border-t-slate-500", dot: "bg-slate-500" },
     { value: "TESTING", label: "Testing", accent: "border-t-amber-500", dot: "bg-amber-500" },
     { value: "TESTING_DONE", label: "Testing done", accent: "border-t-teal-500", dot: "bg-teal-500" },
     { value: "BUG_FIXED", label: "Bug fixed", accent: "border-t-orange-500", dot: "bg-orange-500" },
@@ -215,17 +215,17 @@ function TicketCard({ ticket, isMoving, isDragging, canDrag, onDragStart, onDrag
             className={`rounded-lg border border-l-[3px] border-slate-200 bg-white p-2.5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-700 dark:bg-slate-950 ${priority.border} ${isDragging ? "opacity-50" : ""}`}
         >
             <div className="flex items-start justify-between gap-2">
-                <Link href={`/dashboard/tickets/${ticket.id}`} className="min-w-0 truncate text-[10px] font-bold text-violet-700 hover:underline dark:text-violet-300">{ticket.ticket_key}</Link>
+                <Link href={`/dashboard/tickets/${ticket.id}`} className="min-w-0 truncate text-[10px] font-bold text-slate-900 hover:underline dark:text-slate-300">{ticket.ticket_key}</Link>
                 <span className={`shrink-0 text-[10px] font-semibold ${priority.text}`}>{priority.label}</span>
             </div>
             <div className="mt-1 text-[12px] font-semibold leading-4">
-                <Link href={`/dashboard/tickets/${ticket.id}`} className="text-slate-800 hover:text-violet-700 dark:text-slate-100 dark:hover:text-violet-300">{ticket.title}</Link>
+                <Link href={`/dashboard/tickets/${ticket.id}`} className="text-slate-800 hover:text-slate-900 dark:text-slate-100 dark:hover:text-slate-300">{ticket.title}</Link>
             </div>
             {ticket.description && <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-slate-500 dark:text-slate-400">{ticket.description}</p>}
 
             <div className="mt-1.5 flex flex-wrap items-center gap-1">
                 <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{TYPE_LABELS[ticket.type]}</span>
-                <Link href={`/dashboard/tickets/${ticket.id}`} className="rounded-full bg-violet-50 px-1.5 py-0.5 text-[9px] font-medium text-violet-700 hover:underline dark:bg-violet-950/50 dark:text-violet-300">{ticket.project.key}</Link>
+                <Link href={`/dashboard/tickets/${ticket.id}`} className="rounded-full bg-slate-50 px-1.5 py-0.5 text-[9px] font-medium text-slate-900 hover:underline dark:bg-slate-900/50 dark:text-slate-300">{ticket.project.key}</Link>
                 {ticket.labels.slice(0, 2).map((label) => <span key={label} className="max-w-full truncate rounded-full bg-slate-50 px-1.5 py-0.5 text-[9px] text-slate-500 dark:bg-slate-900 dark:text-slate-400">{label}</span>)}
                 {ticket.labels.length > 2 && <span className="text-[9px] text-slate-400">+{ticket.labels.length - 2}</span>}
             </div>
@@ -235,7 +235,7 @@ function TicketCard({ ticket, isMoving, isDragging, canDrag, onDragStart, onDrag
                     {assignees.length > 0 ? (
                         <div className="flex shrink-0 -space-x-1">
                             {assignees.slice(0, 3).map((person) => (
-                                <span key={person.id} className="flex size-5 items-center justify-center rounded-full border border-white bg-violet-100 text-[8px] font-bold text-violet-800 dark:border-slate-950 dark:bg-violet-950 dark:text-violet-200">
+                                <span key={person.id} className="flex size-5 items-center justify-center rounded-full border border-white bg-slate-100 text-[8px] font-bold text-slate-950 dark:border-slate-950 dark:bg-slate-900 dark:text-slate-200">
                                     {getInitials(person.full_name)}
                                 </span>
                             ))}
@@ -473,7 +473,7 @@ export function TicketKanbanBoard({
                                     }
                                 }}
                                 onDrop={(event) => handleDrop(event, column.value)}
-                                className={`flex h-full w-[320px] max-w-[calc(100vw-300px)] shrink-0 flex-col overflow-hidden rounded-lg border border-t-[3px] bg-slate-100/80 transition-colors dark:border-slate-800 dark:bg-slate-900/70 ${column.accent} ${isTarget ? "ring-2 ring-violet-400 ring-offset-2 dark:ring-offset-slate-950" : ""}`}
+                                className={`flex h-full w-[320px] max-w-[calc(100vw-300px)] shrink-0 flex-col overflow-hidden rounded-lg border border-t-[3px] bg-slate-100/80 transition-colors dark:border-slate-800 dark:bg-slate-900/70 ${column.accent} ${isTarget ? "ring-2 ring-slate-400 ring-offset-2 dark:ring-offset-slate-950" : ""}`}
                             >
                                 <header className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 px-3 dark:border-slate-800">
                                     <div className="flex min-w-0 items-center gap-2">
@@ -490,7 +490,7 @@ export function TicketKanbanBoard({
                                             href={`/dashboard/tickets/new?status=${column.value}${projectFilter !== "ALL" ? `&project_id=${encodeURIComponent(projectFilter)}` : ""}`}
                                             aria-label={`Add a task to ${column.label}`}
                                             title={`Add task to ${column.label}`}
-                                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-500 transition hover:bg-white hover:text-violet-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-violet-300"
+                                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-500 transition hover:bg-white hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-300"
                                         >
                                             <Plus className="size-4" />
                                         </Link>
@@ -500,7 +500,7 @@ export function TicketKanbanBoard({
                                 <div data-kanban-column-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
                                     <div className="flex min-h-full flex-col gap-3 pb-6">
                                         {columnTickets.length === 0 ? (
-                                            <div className={`flex min-h-28 items-center justify-center rounded-lg border border-dashed px-3 text-center text-xs text-slate-400 dark:border-slate-700 ${isTarget ? "border-violet-400 bg-violet-50/70 dark:bg-violet-950/20" : "border-slate-300"}`}>
+                                            <div className={`flex min-h-28 items-center justify-center rounded-lg border border-dashed px-3 text-center text-xs text-slate-400 dark:border-slate-700 ${isTarget ? "border-slate-400 bg-slate-50/70 dark:bg-slate-900/20" : "border-slate-300"}`}>
                                                 {isTarget ? "Drop task here" : "No tasks in this column"}
                                             </div>
                                         ) : (
@@ -531,7 +531,7 @@ export function TicketKanbanBoard({
                                         {canAddTask && (
                                             <Link
                                                 href={`/dashboard/tickets/new${projectFilter !== "ALL" ? `?project_id=${encodeURIComponent(projectFilter)}` : ""}`}
-                                                className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-lg px-2.5 text-xs font-medium text-slate-500 transition hover:bg-white hover:text-violet-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-violet-300"
+                                                className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-lg px-2.5 text-xs font-medium text-slate-500 transition hover:bg-white hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-300"
                                             >
                                                 <Plus className="size-4" /> Add task
                                             </Link>
@@ -546,7 +546,7 @@ export function TicketKanbanBoard({
 
             {hasMore && (
                 <div className="flex h-7 shrink-0 items-center justify-center">
-                    <button type="button" onClick={onLoadMore} disabled={isLoadingMore} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-violet-700 disabled:cursor-wait disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-violet-300">
+                    <button type="button" onClick={onLoadMore} disabled={isLoadingMore} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 disabled:cursor-wait disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-300">
                         {isLoadingMore && <Loader2 className="size-3 animate-spin" />}
                         {isLoadingMore ? "Loading more tasks..." : "Load more tasks"}
                     </button>
