@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import exists, func, select
+from sqlalchemy import exists, func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models import Project, ProjectMember, Role, Team, TeamMember, User
@@ -23,6 +23,8 @@ def _project_options():
     return (
         joinedload(Project.project_manager).joinedload(User.role),
         joinedload(Project.team),
+        selectinload(Project.project_managers).joinedload(User.role),
+        selectinload(Project.teams),
         selectinload(Project.memberships).joinedload(ProjectMember.user).joinedload(User.role),
     )
 
@@ -78,10 +80,10 @@ def _require_project_manager(db: Session, user_id: UUID) -> User:
 def _validate_team_members(
     db: Session,
     *,
-    team_id: UUID,
+    team_ids: list[UUID],
     user_ids: list[UUID],
 ) -> None:
-    """Require each project member to be an active member of the assigned team."""
+    """Require project members to belong to at least one assigned team."""
     if not user_ids:
         return
 
@@ -90,7 +92,7 @@ def _validate_team_members(
             select(TeamMember.user_id)
             .join(User, User.id == TeamMember.user_id)
             .where(
-                TeamMember.team_id == team_id,
+                TeamMember.team_id.in_(team_ids),
                 TeamMember.user_id.in_(user_ids),
                 TeamMember.removed_at.is_(None),
                 User.is_active.is_(True),
@@ -99,10 +101,9 @@ def _validate_team_members(
     )
 
     missing_ids = set(user_ids) - active_member_ids
-
     if missing_ids:
         raise ProjectServiceError(
-            "Every project member must be an active member of the assigned team.",
+            "Every project member must be an active member of at least one assigned team.",
             400,
         )
 
@@ -136,7 +137,12 @@ def list_projects(
         filters.append((Project.name.ilike(term)) | (Project.key.ilike(term)))
 
     if current_user.role.code == "PM":
-        filters.append(Project.project_manager_id == current_user.id)
+        filters.append(
+            or_(
+                Project.project_manager_id == current_user.id,
+                Project.project_managers.any(User.id == current_user.id),
+            )
+        )
 
     elif current_user.role.code != "ADMIN":
         filters.append(
@@ -171,22 +177,28 @@ def create_project(
     actor: User,
     data: ProjectCreateRequest,
 ) -> Project:
-    if actor.role.code == "PM" and data.project_manager_id != actor.id:
+    manager_ids = data.project_manager_ids or [data.project_manager_id]
+    team_ids = data.team_ids or [data.team_id]
+
+    if not manager_ids or not team_ids:
+        raise ProjectServiceError("At least one project manager and one assigned team are required.", 400)
+
+    if actor.role.code == "PM" and any(manager_id != actor.id for manager_id in manager_ids):
         raise ProjectServiceError(
             "Project Managers can only create projects assigned to themselves.",
             403,
         )
-    _require_project_manager(db, data.project_manager_id)
-    _require_active_team(db, data.team_id)
+
+    managers = [_require_project_manager(db, manager_id) for manager_id in manager_ids]
+    teams = [_require_active_team(db, team_id) for team_id in team_ids]
 
     _validate_team_members(
         db,
-        team_id=data.team_id,
+        team_ids=team_ids,
         user_ids=data.member_ids,
     )
 
     duplicate_key = db.scalar(select(Project.id).where(func.lower(Project.key) == data.key.lower()))
-
     if duplicate_key is not None:
         raise ProjectServiceError("Project key already exists.", 409)
 
@@ -195,8 +207,8 @@ def create_project(
         key=data.key,
         description=data.description,
         logo_key=data.logo_key,
-        project_manager_id=data.project_manager_id,
-        team_id=data.team_id,
+        project_manager_id=manager_ids[0],
+        team_id=team_ids[0],
         created_by_user_id=actor.id,
         start_date=data.start_date,
         end_date=data.end_date,
@@ -207,6 +219,8 @@ def create_project(
 
     db.add(project)
     db.flush()
+    project.project_managers = managers
+    project.teams = teams
 
     for user_id in data.member_ids:
         db.add(
@@ -229,6 +243,7 @@ def update_project(
 ) -> Project:
     project = _require_active_project(db, project_id)
     changes = data.model_dump(exclude_unset=True)
+
     for field in ("name", "key", "status", "visibility"):
         if field in changes and changes[field] is None:
             raise ProjectServiceError(
@@ -236,36 +251,46 @@ def update_project(
                 400,
             )
 
-    if "project_manager_id" in changes:
-        if changes["project_manager_id"] is None:
-            raise ProjectServiceError("Project manager cannot be empty.", 400)
+    manager_ids: list[UUID] | None = None
+    if "project_manager_ids" in changes:
+        manager_ids = changes.pop("project_manager_ids")
+    elif "project_manager_id" in changes:
+        manager_ids = [changes.pop("project_manager_id")]
 
-        _require_project_manager(db, changes["project_manager_id"])
+    team_ids: list[UUID] | None = None
+    if "team_ids" in changes:
+        team_ids = changes.pop("team_ids")
+    elif "team_id" in changes:
+        team_ids = [changes.pop("team_id")]
 
-    if "team_id" in changes:
-        if changes["team_id"] is None:
-            raise ProjectServiceError("Assigned team cannot be empty.", 400)
+    if manager_ids is not None:
+        if not manager_ids:
+            raise ProjectServiceError("At least one project manager is required.", 400)
+        managers = [_require_project_manager(db, manager_id) for manager_id in manager_ids]
+        project.project_managers = managers
+        project.project_manager_id = manager_ids[0]
 
-        _require_active_team(db, changes["team_id"])
-
-        new_team_id = changes["team_id"]
+    if team_ids is not None:
+        if not team_ids:
+            raise ProjectServiceError("At least one assigned team is required.", 400)
+        teams = [_require_active_team(db, team_id) for team_id in team_ids]
         active_member_ids = [
             membership.user_id
             for membership in project.memberships
             if membership.removed_at is None
         ]
-
         _validate_team_members(
             db,
-            team_id=new_team_id,
+            team_ids=team_ids,
             user_ids=active_member_ids,
         )
+        project.teams = teams
+        project.team_id = team_ids[0]
 
     start_date = changes.get("start_date", project.start_date)
     end_date = changes.get("end_date", project.end_date)
-
     if start_date is not None and end_date is not None and end_date < start_date:
-        raise ProjectServiceError("Project end date cannot be before start date.", 400)
+        raise ProjectServiceError("Project end date cannot be before its start date.", 400)
 
     if changes.get("status") == "ARCHIVED":
         project.archived_at = datetime.now(UTC)
@@ -288,7 +313,7 @@ def add_project_member(
 
     _validate_team_members(
         db,
-        team_id=project.team_id,
+        team_ids=[team.id for team in (project.teams or [project.team])],
         user_ids=[user_id],
     )
 
@@ -356,16 +381,14 @@ def get_project_options(
     db: Session,
     *,
     current_user: User,
+    team_ids: list[UUID] | None = None,
     team_id: UUID | None = None,
 ) -> tuple[list[Team], list[User], list[User]]:
-    """Return active teams, selectable PMs and members for project forms."""
+    """Return active teams, selectable PMs and members across selected teams."""
     teams = list(
         db.scalars(
             select(Team)
-            .where(
-                Team.status == "ACTIVE",
-                Team.archived_at.is_(None),
-            )
+            .where(Team.status == "ACTIVE", Team.archived_at.is_(None))
             .order_by(Team.name.asc())
         ).all()
     )
@@ -374,38 +397,30 @@ def get_project_options(
         select(User)
         .join(Role, User.role_id == Role.id)
         .options(joinedload(User.role))
-        .where(
-            User.is_active.is_(True),
-            Role.code == "PM",
-        )
+        .where(User.is_active.is_(True), Role.code == "PM")
         .order_by(User.full_name.asc())
     )
-
-    # A PM can only create projects assigned to themselves.
     if current_user.role.code == "PM":
         managers_query = managers_query.where(User.id == current_user.id)
-
     managers = list(db.scalars(managers_query).unique().all())
 
+    selected_team_ids = list(dict.fromkeys([*(team_ids or []), *([team_id] if team_id else [])]))
     members: list[User] = []
-
-    if team_id is not None:
-        _require_active_team(db, team_id)
-
+    if selected_team_ids:
+        for selected_team_id in selected_team_ids:
+            _require_active_team(db, selected_team_id)
         members = list(
             db.scalars(
                 select(User)
                 .join(TeamMember, TeamMember.user_id == User.id)
                 .options(joinedload(User.role))
                 .where(
-                    TeamMember.team_id == team_id,
+                    TeamMember.team_id.in_(selected_team_ids),
                     TeamMember.removed_at.is_(None),
                     User.is_active.is_(True),
                 )
-                .order_by(User.full_name.asc())
-            )
-            .unique()
-            .all()
+                .order_by(User.full_name.asc(), User.id.asc())
+            ).unique().all()
         )
 
     return teams, managers, members
