@@ -65,10 +65,10 @@ const INITIAL_FORM: FormState = {
 };
 
 const INPUT_CLASS =
-    "mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:ring-violet-950 dark:disabled:bg-slate-900";
+    "mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:ring-slate-900 dark:disabled:bg-slate-900";
 
 const TEXTAREA_CLASS =
-    "mt-1.5 min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:ring-violet-950";
+    "mt-1.5 min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:ring-slate-900";
 
 const LABEL_CLASS =
     "text-xs font-semibold text-slate-700 dark:text-slate-300";
@@ -94,7 +94,7 @@ function FormSection({
     return (
         <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-3">
             <div className="mb-3 flex items-start gap-2 border-b border-slate-100 pb-2 dark:border-slate-800">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-900 dark:bg-slate-900/50 dark:text-slate-300">
                     {icon}
                 </div>
                 <div>
@@ -131,12 +131,26 @@ function MultiSelectPicker({
     placeholder: string;
     disabled?: boolean;
 }) {
+    const pickerRef = useRef<HTMLDetailsElement>(null);
+
+    useEffect(() => {
+        const handleOutsidePointerDown = (event: PointerEvent) => {
+            const picker = pickerRef.current;
+            if (picker?.open && event.target instanceof Node && !picker.contains(event.target)) {
+                picker.open = false;
+            }
+        };
+
+        document.addEventListener("pointerdown", handleOutsidePointerDown);
+        return () => document.removeEventListener("pointerdown", handleOutsidePointerDown);
+    }, []);
+
     return (
-        <details className="relative mt-1.5">
+        <details ref={pickerRef} className="relative mt-1.5">
             <summary
                 id={id}
                 aria-label={placeholder}
-                className={`flex h-10 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition hover:border-violet-400 focus-visible:ring-2 focus-visible:ring-violet-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 [&::-webkit-details-marker]:hidden ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+                className={`flex h-10 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition hover:border-slate-400 focus-visible:ring-2 focus-visible:ring-slate-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 [&::-webkit-details-marker]:hidden ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
                 onClick={(event) => { if (disabled) event.preventDefault(); }}
             >
                 <span className="min-w-0 truncate">
@@ -150,13 +164,13 @@ function MultiSelectPicker({
                     return (
                         <label
                             key={option.id}
-                            className={`flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-xs transition ${checked ? "bg-violet-50 text-violet-800 dark:bg-violet-950/40 dark:text-violet-200" : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"}`}
+                            className={`flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-xs transition ${checked ? "bg-slate-50 text-slate-950 dark:bg-slate-900/40 dark:text-slate-200" : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"}`}
                         >
                             <input
                                 type="checkbox"
                                 checked={checked}
                                 onChange={(event) => onChange(option.id, event.target.checked)}
-                                className="size-4 accent-violet-700"
+                                className="size-4 accent-slate-900"
                             />
                             <span className="min-w-0 flex-1 truncate">{option.label}</span>
                             {option.detail && <span className="shrink-0 text-[10px] text-slate-400">{option.detail}</span>}
@@ -206,6 +220,18 @@ export default function CreateProjectPage() {
 
         setFormError(null);
     }
+
+    useEffect(() => {
+        const handleOutsidePointerDown = (event: PointerEvent) => {
+            document.querySelectorAll<HTMLDetailsElement>('details[data-outside-dismiss="project-members"]').forEach((picker) => {
+                if (picker.open && event.target instanceof Node && !picker.contains(event.target)) {
+                    picker.open = false;
+                }
+            });
+        };
+        document.addEventListener("pointerdown", handleOutsidePointerDown);
+        return () => document.removeEventListener("pointerdown", handleOutsidePointerDown);
+    }, []);
 
     useEffect(() => {
         let active = true;
@@ -416,7 +442,7 @@ export default function CreateProjectPage() {
                     </p>
                     <Link
                         href="/dashboard/projects"
-                        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-violet-700 px-4 py-2 text-xs font-semibold text-white hover:bg-violet-800"
+                        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-950"
                     >
                         <ArrowLeft className="size-4" />
                         Back to projects
@@ -473,7 +499,7 @@ export default function CreateProjectPage() {
                     <div className="w-full max-w-none">
                         <Link
                             href="/dashboard/projects"
-                            className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 transition hover:text-violet-700 dark:text-slate-400 dark:hover:text-violet-300"
+                            className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-300"
                         >
                             <ArrowLeft className="size-3.5" />
                             Back to projects
@@ -614,7 +640,7 @@ export default function CreateProjectPage() {
                                     {selectedManagerIds.length > 0 && (
                                         <div className="mt-2 flex flex-wrap gap-1.5">
                                             {managers.filter((manager) => selectedManagerIds.includes(manager.id)).map((manager) => (
-                                                <span key={manager.id} className="rounded-md bg-violet-50 px-2 py-1 text-[10px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">{manager.full_name}</span>
+                                                <span key={manager.id} className="rounded-md bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-900 dark:bg-slate-900/40 dark:text-slate-300">{manager.full_name}</span>
                                             ))}
                                         </div>
                                     )}
@@ -635,7 +661,7 @@ export default function CreateProjectPage() {
                                     {form.team_ids.length > 0 && (
                                         <div className="mt-2 flex flex-wrap gap-1.5">
                                             {teams.filter((team) => form.team_ids.includes(team.id)).map((team) => (
-                                                <span key={team.id} className="rounded-md bg-violet-50 px-2 py-1 text-[10px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">{team.name}</span>
+                                                <span key={team.id} className="rounded-md bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-900 dark:bg-slate-900/40 dark:text-slate-300">{team.name}</span>
                                             ))}
                                         </div>
                                     )}
@@ -669,8 +695,8 @@ export default function CreateProjectPage() {
                                         </p>
                                     ) : (
                                         <>
-                                            <details className="relative mt-2">
-                                                <summary className="flex h-10 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition hover:border-violet-400 focus-visible:ring-2 focus-visible:ring-violet-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 [&::-webkit-details-marker]:hidden">
+                                            <details data-outside-dismiss="project-members" className="relative mt-2">
+                                                <summary className="flex h-10 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition hover:border-slate-400 focus-visible:ring-2 focus-visible:ring-slate-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 [&::-webkit-details-marker]:hidden">
                                                     <span>{form.member_ids.length > 0 ? `${form.member_ids.length} project members selected` : "Select project members"}</span>
                                                     <ChevronDown className="size-4 text-slate-400" />
                                                 </summary>
@@ -680,15 +706,15 @@ export default function CreateProjectPage() {
                                                         return (
                                                             <label
                                                                 key={member.id}
-                                                                className={`flex cursor-pointer items-center gap-3 rounded-md px-2.5 py-2 transition ${checked ? "bg-violet-50 dark:bg-violet-950/40" : "hover:bg-slate-50 dark:hover:bg-slate-800"}`}
+                                                                className={`flex cursor-pointer items-center gap-3 rounded-md px-2.5 py-2 transition ${checked ? "bg-slate-50 dark:bg-slate-900/40" : "hover:bg-slate-50 dark:hover:bg-slate-800"}`}
                                                             >
                                                                 <input
                                                                     type="checkbox"
                                                                     checked={checked}
                                                                     onChange={(event) => handleMemberToggle(member.id, event.target.checked)}
-                                                                    className="size-4 accent-violet-700"
+                                                                    className="size-4 accent-slate-900"
                                                                 />
-                                                                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-bold text-violet-800 dark:bg-violet-950 dark:text-violet-200">
+                                                                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-950 dark:bg-slate-900 dark:text-slate-200">
                                                                     {member.full_name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}
                                                                 </span>
                                                                 <span className="min-w-0 flex-1">
@@ -703,7 +729,7 @@ export default function CreateProjectPage() {
                                             {form.member_ids.length > 0 && (
                                                 <div className="mt-2 flex flex-wrap gap-1.5">
                                                     {teamMembers.filter((member) => form.member_ids.includes(member.id)).map((member) => (
-                                                        <span key={member.id} className="rounded-md bg-violet-50 px-2 py-1 text-[10px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">{member.full_name}</span>
+                                                        <span key={member.id} className="rounded-md bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-900 dark:bg-slate-900/40 dark:text-slate-300">{member.full_name}</span>
                                                     ))}
                                                 </div>
                                             )}
@@ -832,7 +858,7 @@ export default function CreateProjectPage() {
                                         teams.length === 0 ||
                                         managers.length === 0
                                     }
-                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-violet-700 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                     {createMutation.isPending ? (
                                         <>
