@@ -59,15 +59,35 @@ user_invitation_teams = Table(
 project_project_managers = Table(
     "project_project_managers",
     Base.metadata,
-    Column("project_id", Uuid(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True),
-    Column("user_id", Uuid(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), primary_key=True),
+    Column(
+        "project_id",
+        Uuid(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "user_id",
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        primary_key=True,
+    ),
 )
 
 project_teams = Table(
     "project_teams",
     Base.metadata,
-    Column("project_id", Uuid(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True),
-    Column("team_id", Uuid(as_uuid=True), ForeignKey("teams.id", ondelete="RESTRICT"), primary_key=True),
+    Column(
+        "project_id",
+        Uuid(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "team_id",
+        Uuid(as_uuid=True),
+        ForeignKey("teams.id", ondelete="RESTRICT"),
+        primary_key=True,
+    ),
 )
 
 
