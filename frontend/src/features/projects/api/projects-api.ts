@@ -355,7 +355,8 @@ export async function getProjectOptions(
 ): Promise<ProjectOptionsResponse> {
     const query = new URLSearchParams();
     teamIds.forEach((teamId) => query.append("team_ids", teamId));
-    const suffix = query.size ? `?${query.toString()}` : "";
+    const queryString = query.toString();
+    const suffix = queryString ? `?${queryString}` : "";
 
     return apiRequest<ProjectOptionsResponse>(
         `/projects/options${suffix}`,
