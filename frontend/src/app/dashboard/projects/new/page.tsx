@@ -631,7 +631,7 @@ export default function CreateProjectPage() {
                                                                     className="size-4 accent-violet-700"
                                                                 />
                                                                 <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-bold text-violet-800 dark:bg-violet-950 dark:text-violet-200">
-                                                                    {member.full_name.trim().split(/\\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}
+                                                                    {member.full_name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}
                                                                 </span>
                                                                 <span className="min-w-0 flex-1">
                                                                     <span className="block truncate text-xs font-semibold text-slate-800 dark:text-slate-200">{member.full_name}</span>
