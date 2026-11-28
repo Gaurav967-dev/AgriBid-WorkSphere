@@ -6,7 +6,7 @@ from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import select, union
+from sqlalchemy import or_, select, union
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload, selectinload
 
@@ -22,6 +22,11 @@ from app.models import (
     TicketActivity,
     TicketComment,
     User,
+    project_project_managers,
+    project_teams,
+    ticket_assignees,
+    ticket_reviewers,
+    ticket_testers,
 )
 from app.schemas.ticket import (
     TicketActivityResponse,
@@ -77,6 +82,18 @@ def _ticket_response(ticket: Ticket) -> TicketResponse:
         assignee=_user_summary(ticket.assignee) if ticket.assignee else None,
         reviewer=_user_summary(ticket.reviewer) if ticket.reviewer else None,
         tester=_user_summary(ticket.tester) if ticket.tester else None,
+        assignees=[
+            _user_summary(user)
+            for user in (ticket.assignees or ([ticket.assignee] if ticket.assignee else []))
+        ],
+        reviewers=[
+            _user_summary(user)
+            for user in (ticket.reviewers or ([ticket.reviewer] if ticket.reviewer else []))
+        ],
+        testers=[
+            _user_summary(user)
+            for user in (ticket.testers or ([ticket.tester] if ticket.tester else []))
+        ],
         start_date=ticket.start_date,
         due_date=ticket.due_date,
         estimated_effort=ticket.estimated_effort,
@@ -225,7 +242,12 @@ def get_ticket_filter_options(
     """Return filter choices scoped to projects the current user can access."""
     project_filters = [Project.archived_at.is_(None)]
     if current_user.role.code == "PM":
-        project_filters.append(Project.project_manager_id == current_user.id)
+        project_filters.append(
+            or_(
+                Project.project_manager_id == current_user.id,
+                Project.project_managers.any(User.id == current_user.id),
+            )
+        )
     elif current_user.role.code != "ADMIN":
         project_filters.append(
             select(ProjectMember.id)
@@ -250,6 +272,9 @@ def get_ticket_filter_options(
 
     people_ids = union(
         select(Project.project_manager_id).where(Project.id.in_(project_ids)),
+        select(project_project_managers.c.user_id).where(
+            project_project_managers.c.project_id.in_(project_ids)
+        ),
         select(ProjectMember.user_id).where(
             ProjectMember.project_id.in_(project_ids),
             ProjectMember.removed_at.is_(None),
@@ -263,6 +288,15 @@ def get_ticket_filter_options(
             Ticket.deleted_at.is_(None),
             Ticket.assignee_id.is_not(None),
         ),
+        select(ticket_assignees.c.user_id)
+        .join(Ticket, Ticket.id == ticket_assignees.c.ticket_id)
+        .where(Ticket.project_id.in_(project_ids), Ticket.deleted_at.is_(None)),
+        select(ticket_reviewers.c.user_id)
+        .join(Ticket, Ticket.id == ticket_reviewers.c.ticket_id)
+        .where(Ticket.project_id.in_(project_ids), Ticket.deleted_at.is_(None)),
+        select(ticket_testers.c.user_id)
+        .join(Ticket, Ticket.id == ticket_testers.c.ticket_id)
+        .where(Ticket.project_id.in_(project_ids), Ticket.deleted_at.is_(None)),
     )
     people = list(
         db.scalars(
@@ -278,11 +312,9 @@ def get_ticket_filter_options(
     teams = list(
         db.scalars(
             select(Team)
-            .join(Project, Project.team_id == Team.id)
-            .where(
-                Project.id.in_(project_ids),
-                Team.archived_at.is_(None),
-            )
+            .join(project_teams, project_teams.c.team_id == Team.id)
+            .join(Project, Project.id == project_teams.c.project_id)
+            .where(Project.id.in_(project_ids), Team.archived_at.is_(None))
             .distinct()
             .order_by(Team.name.asc(), Team.id.asc())
         ).all()
