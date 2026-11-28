@@ -37,6 +37,7 @@ import {
     type CreateTicketInput,
     type TicketPriority,
     type TicketType,
+    type TicketStatus,
 } from "@/features/tickets/api/tickets-api";
 
 import { WorkspaceActions } from "@/components/workspace-actions";
@@ -49,6 +50,7 @@ type FormState = {
     description: string;
     type: TicketType;
     priority: TicketPriority;
+    status: TicketStatus;
     assignee_id: string;
     reviewer_id: string;
     tester_id: string;
@@ -65,6 +67,7 @@ const INITIAL_FORM: FormState = {
     description: "",
     type: "TASK",
     priority: "MEDIUM",
+    status: "BACKLOG",
     assignee_id: "",
     reviewer_id: "",
     tester_id: "",
@@ -162,6 +165,22 @@ export default function CreateTicketPage() {
             .then(({ user: verifiedUser }) => {
                 if (!active) return;
 
+                const params = new URLSearchParams(window.location.search);
+                const requestedProjectId = params.get("project_id");
+                const requestedStatus = params.get("status") as TicketStatus | null;
+                const allowedStatuses: TicketStatus[] = [
+                    "BACKLOG", "TODO", "IN_PROGRESS", "IN_REVIEW", "TESTING",
+                    "TESTING_DONE", "BUG_FIXED", "COMPLETED", "BLOCKED",
+                    "REOPENED", "CANCELLED",
+                ];
+
+                setForm((current) => ({
+                    ...current,
+                    project_id: requestedProjectId || current.project_id,
+                    status: requestedStatus && allowedStatuses.includes(requestedStatus)
+                        ? requestedStatus
+                        : "BACKLOG",
+                }));
                 setUser(verifiedUser);
                 setIsCheckingAuth(false);
             })
@@ -345,6 +364,7 @@ export default function CreateTicketPage() {
             description: form.description.trim() || null,
             type: form.type,
             priority: form.priority,
+            status: form.status,
             assignee_id: form.assignee_id || null,
             reviewer_id: form.reviewer_id || null,
             tester_id: form.tester_id || null,
