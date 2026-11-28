@@ -41,6 +41,7 @@ class TicketCreateRequest(BaseModel):
 
     type: TicketType = "TASK"
     priority: TicketPriority = "MEDIUM"
+    status: TicketStatus = "BACKLOG"
 
     assignee_id: UUID | None = None
     reviewer_id: UUID | None = None
