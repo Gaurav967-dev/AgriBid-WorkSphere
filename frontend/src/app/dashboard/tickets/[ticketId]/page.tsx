@@ -8,6 +8,7 @@ import {
     type FormEvent,
 } from "react";
 import Link from "next/link";
+import { useTodayDate } from "@/lib/use-today-date";
 import { useParams, useRouter } from "next/navigation";
 import {
     useMutation,
@@ -23,7 +24,6 @@ import {
     CheckCircle2,
     ChevronDown,
     Clipboard,
-    Clock,
     FileText,
     History,
     Link2,
@@ -282,6 +282,7 @@ function PersonRow({
 }
 
 export default function TicketDetailsPage() {
+    const today = useTodayDate();
     const router = useRouter();
     const params = useParams<{ ticketId: string }>();
     const queryClient = useQueryClient();
@@ -968,7 +969,7 @@ export default function TicketDetailsPage() {
                                             </label>
                                             <input
                                                 type="date"
-                                                min={new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10)}
+                                                min={today || undefined}
                                                 value={editForm.start_date}
                                                 max={editForm.due_date || undefined}
                                                 onChange={(event) =>
