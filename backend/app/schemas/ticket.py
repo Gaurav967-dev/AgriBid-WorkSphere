@@ -46,6 +46,9 @@ class TicketCreateRequest(BaseModel):
     assignee_id: UUID | None = None
     reviewer_id: UUID | None = None
     tester_id: UUID | None = None
+    assignee_ids: list[UUID] = Field(default_factory=list)
+    reviewer_ids: list[UUID] = Field(default_factory=list)
+    tester_ids: list[UUID] = Field(default_factory=list)
 
     start_date: date | None = None
     due_date: date | None = None
@@ -68,6 +71,13 @@ class TicketCreateRequest(BaseModel):
         if value is None:
             return None
         return value.strip() or None
+
+    @field_validator("assignee_ids", "reviewer_ids", "tester_ids")
+    @classmethod
+    def unique_assignment_ids(cls, value: list[UUID]) -> list[UUID]:
+        if len(value) != len(set(value)):
+            raise ValueError("Duplicate ticket assignment IDs are not allowed.")
+        return value
 
     @field_validator("labels")
     @classmethod
@@ -113,6 +123,9 @@ class TicketUpdateRequest(BaseModel):
     assignee_id: UUID | None = None
     reviewer_id: UUID | None = None
     tester_id: UUID | None = None
+    assignee_ids: list[UUID] | None = None
+    reviewer_ids: list[UUID] | None = None
+    tester_ids: list[UUID] | None = None
 
     start_date: date | None = None
     due_date: date | None = None
@@ -224,6 +237,9 @@ class TicketResponse(BaseModel):
     assignee: TicketUserSummaryResponse | None
     reviewer: TicketUserSummaryResponse | None
     tester: TicketUserSummaryResponse | None
+    assignees: list[TicketUserSummaryResponse] = Field(default_factory=list)
+    reviewers: list[TicketUserSummaryResponse] = Field(default_factory=list)
+    testers: list[TicketUserSummaryResponse] = Field(default_factory=list)
 
     start_date: date | None
     due_date: date | None
