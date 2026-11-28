@@ -254,12 +254,14 @@ def update_project(
     manager_ids: list[UUID] | None = None
     if "project_manager_ids" in changes:
         manager_ids = changes.pop("project_manager_ids")
+        changes.pop("project_manager_id", None)
     elif "project_manager_id" in changes:
         manager_ids = [changes.pop("project_manager_id")]
 
     team_ids: list[UUID] | None = None
     if "team_ids" in changes:
         team_ids = changes.pop("team_ids")
+        changes.pop("team_id", None)
     elif "team_id" in changes:
         team_ids = [changes.pop("team_id")]
 
