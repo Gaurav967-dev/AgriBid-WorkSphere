@@ -293,7 +293,7 @@ class TicketDeleteResponse(BaseModel):
 
 
 class TicketCommentCreateRequest(BaseModel):
-    body: str = Field(min_length=1, max_length=5000)
+    body: str = Field(min_length=1, max_length=250)
     parent_comment_id: UUID | None = None
     mentioned_user_ids: list[UUID] = Field(default_factory=list, max_length=20)
 
