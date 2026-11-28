@@ -222,7 +222,6 @@ export default function UsersPage() {
             // Return to sign-in even when the server session has expired.
         } finally {
             router.replace("/");
-            router.refresh();
         }
     }
 
