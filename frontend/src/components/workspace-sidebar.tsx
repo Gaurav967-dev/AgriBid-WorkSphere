@@ -241,7 +241,7 @@ function SidebarPanel({
             </div>
 
             <nav
-                className={`min-h-0 flex-1 space-y-5 overflow-y-auto pb-4 ${collapsed ? "px-2" : "px-2.5"
+                className={`min-h-0 flex-1 space-y-4 overflow-hidden pb-2 ${collapsed ? "px-2" : "px-2.5"
                     }`}
             >
                 <SidebarSection
@@ -467,12 +467,12 @@ export function WorkspaceSidebar({
 
     return (
         <>
-            <div className="sticky top-0 hidden h-screen shrink-0 self-start md:block">
+            <div className="sticky top-0 hidden h-dvh max-h-dvh shrink-0 self-start overflow-hidden md:block">
                 <Suspense
                     fallback={
                         <aside
                             aria-hidden="true"
-                            className={`h-screen shrink-0 border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 ${collapsed ? "w-16" : "w-[224px]"}`}
+                            className={`h-dvh max-h-dvh shrink-0 overflow-hidden border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 ${collapsed ? "w-16" : "w-[224px]"}`}
                         />
                     }
                 >
