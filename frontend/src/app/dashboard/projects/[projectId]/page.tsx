@@ -301,7 +301,6 @@ export default function ProjectDetailsPage() {
       // The session may already have expired.
     } finally {
       router.replace("/");
-      router.refresh();
     }
   }
 
