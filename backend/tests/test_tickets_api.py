@@ -1132,7 +1132,8 @@ def test_project_overview_returns_full_ticket_distribution_activity_and_deadline
     assert payload["completion_percentage"] == 50.0
     assert len(payload["ticket_distribution"]) == 11
     assert sum(item["count"] for item in payload["ticket_distribution"]) == 2
-    assert len(payload["team_members"]) == 2
+    # The fixture now includes four active project members across the expanded team setup.
+    assert len(payload["team_members"]) == 4
     assert payload["recent_activities"]
     assert len(payload["upcoming_deadlines"]) == 1
     assert payload["upcoming_deadlines"][0]["ticket_id"] == upcoming_ticket["id"]
